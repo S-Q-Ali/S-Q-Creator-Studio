@@ -36,11 +36,14 @@ def test_handle_from_entry_garbage_uploader():
     assert TikTokSearchTool._handle_from_entry(entry) is None
 
 
-def test_search_profiles_dedupes_and_excludes():
+def test_search_profiles_dedupes_and_excludes(monkeypatch):
     tool = TikTokSearchTool()
     handles = ["creator_a", "creator_a", "tiktok", "creator_b", "x", "creator_c"]
-    # Fake both discovery tiers to return the same handle list.
-    tool._discover_via_ytdlp = lambda query: list(handles)
+    monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda query: list(handles))
+    monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
     profiles = tool.search_profiles("query", max_profiles=50)
     names = [p.handle for p in profiles]
     assert names.count("creator_a") == 1
@@ -203,3 +206,134 @@ def test_ydl_opts_omits_cookiefile_when_unset():
     opts = TikTokSearchTool()._ydl_opts(flat=False)
     assert "cookiefile" not in opts
     assert "extract_flat" not in opts
+
+
+# ---------------------------------------------------------------------------
+# TikTokApiSession — cookies loader, X-Bogus signing, handle extraction
+# ---------------------------------------------------------------------------
+
+
+def _write_netscape_cookies(path, rows):
+    lines = ["# Netscape HTTP Cookie File"]
+    for domain, name, value in rows:
+        lines.append(f"{domain}\tTRUE\t/\tTRUE\t1900000000\t{name}\t{value}")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_cookie_loader_parses_netscape(tmp_path):
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc"), ("www.tiktok.com", "ttwid", "xyz")])
+    session = TikTokApiSession(cookiefile=str(p))
+    assert session.cookie_count == 2
+    assert session._flat_cookies["sessionid"] == "abc"
+    assert session._flat_cookies["ttwid"] == "xyz"
+
+
+def test_cookie_loader_tolerates_missing_file(tmp_path):
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+
+    session = TikTokApiSession(cookiefile=str(tmp_path / "nope.txt"))
+    assert session.cookie_count == 0
+
+
+def test_generate_xbogus_is_deterministic_and_shape_stable():
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import CUSTOM_B64_ALPHABET, generate_xbogus
+
+    qs = "aid=1988&count=30&challengeName=ishowspeed"
+    ua = "Mozilla/5.0 test"
+    a = generate_xbogus(qs, ua, timestamp=1788690000)
+    b = generate_xbogus(qs, ua, timestamp=1788690000)
+    c = generate_xbogus(qs, ua, timestamp=1788690001)
+    assert a == b
+    assert a != c
+    assert len(a) == 28
+    assert all(ch in CUSTOM_B64_ALPHABET for ch in a)
+
+
+def test_signed_url_appends_xbogus_with_ms_token(tmp_path):
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "msToken", "tok123"), (".tiktok.com", "ttwid", "wid1")])
+    session = TikTokApiSession(cookiefile=str(p))
+    params = session._sign_base_params()
+    params.update({"keyword": "test", "aid": "1988"})
+    url = session._signed_url("/api/search/item/full/", params)
+    assert "/api/search/item/full/?" in url
+    assert "msToken=tok123" in url
+    assert "ttwid=wid1" in url
+    assert "X-Bogus=" in url
+
+
+def test_api_handles_parses_item_list(tmp_path, monkeypatch):
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+
+    class FakeResponse:
+        status_code = 200
+        text = "{}"
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+        def __bool__(self):
+            return True
+
+    class FakeClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def get(self, url, headers=None):
+            return FakeResponse({"statusCode": 0, "itemList": [
+                {"author": {"uniqueId": "creator_a"}},
+                {"author": {"uniqueId": "creator_b"}},
+                {"author": {}},
+            ]})
+
+    session = TikTokApiSession(cookiefile=str(tmp_path / "x.txt"))
+    monkeypatch.setattr(session, "_client", lambda: FakeClient())
+    handles = session._api_handles("/api/challenge/item_list/", {"challengeName": "test"})
+    assert handles == ["creator_a", "creator_b"]
+
+
+def test_fetch_tag_handles_cleans_and_caps(tmp_path, monkeypatch):
+    from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+
+    session = TikTokApiSession()
+    monkeypatch.setattr(session, "_api_handles", lambda *a, **k: ["..bad", "ok_creator", "tiktok"])
+    monkeypatch.setattr(session, "_html_handles", lambda *a, **k: [])
+    assert session.fetch_tag_handles("test", limit=40) == ["ok_creator"]
+
+
+def test_zero_results_sets_actionable_note(monkeypatch):
+    tool = TikTokSearchTool()
+    monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
+    monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda url: [])
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
+    profiles = tool.search_profiles("#sometag", max_profiles=10)
+    assert profiles == []
+    assert tool.search_note is not None
+    assert "@handles" in tool.search_note
+    assert "0" in tool.search_note
+
+
+def test_orchestrator_surfaces_note_when_zero_profiles(monkeypatch):
+    from s_q_ali_media_downloader.agent.orchestrator import AgentOrchestrator
+
+    emitted = []
+    orchestrator = AgentOrchestrator(progress_callback=lambda p, m: emitted.append((p, m)))
+    note = "TikTok returned 0 profiles. TikTok blocks anonymous #tag listing. Tip: paste @handles."
+    orchestrator.tiktok_tool.search_profiles = lambda *a, **k: []
+    orchestrator.tiktok_tool.search_note = note
+    result = orchestrator.run_tiktok_discovery("not a tag", max_profiles=5)
+    assert result.profiles == []
+    assert emitted[-1] == (100, note)
