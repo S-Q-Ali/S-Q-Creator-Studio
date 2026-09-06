@@ -48,9 +48,7 @@ class MetadataExtractorTool:
 
         return channel
 
-    def _scrape_channel_about(
-        self, channel_url: str
-    ) -> tuple[str | None, str | None, str | None]:
+    def _scrape_channel_about(self, channel_url: str) -> tuple[str | None, str | None, str | None]:
         """Light HTML scrape of channel landing page to extract external links."""
         try:
             headers = {

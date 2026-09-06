@@ -166,6 +166,7 @@ def test_bidirectional_backlink_confirms_verified(monkeypatch):
     assert presence.status == SocialStatus.VERIFIED
     assert presence.confidence_score == 0.90
 
+
 # ---------------------------------------------------------------------------
 # Seed profiles (@handles / profile URLs typed directly)
 # ---------------------------------------------------------------------------

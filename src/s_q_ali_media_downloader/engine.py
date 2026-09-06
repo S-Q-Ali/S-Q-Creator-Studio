@@ -32,9 +32,9 @@ try:
 except ImportError:
     ImpersonateTarget = None
 
-APP_NAME = 'S-Q-Ali Media Downloader'
+APP_NAME = "S-Q-Ali Media Downloader"
 MAX_FILENAME_LENGTH = 150
-TEMP_PREFIX = '__amd_'
+TEMP_PREFIX = "__amd_"
 
 INLINE_RETRIES = 3
 INLINE_RETRY_WAIT = (2.0, 5.0)
@@ -42,60 +42,76 @@ PASS_COOLDOWN = (20.0, 35.0)
 WORKER_STAGGER = 1.5
 
 PARALLEL_OPTIONS = {
-    '1 · sequential': 1,
-    '2 · parallel': 2,
-    '3 · parallel': 3,
+    "1 · sequential": 1,
+    "2 · parallel": 2,
+    "3 · parallel": 3,
 }
-DEFAULT_PARALLEL = '2 · parallel'
+DEFAULT_PARALLEL = "2 · parallel"
 
 DELAY_PRESETS = {
-    'Fast · 2-5s': (2.0, 5.0),
-    'Normal · 4-9s': (4.0, 9.0),
-    'Safe · 8-15s': (8.0, 15.0),
+    "Fast · 2-5s": (2.0, 5.0),
+    "Normal · 4-9s": (4.0, 9.0),
+    "Safe · 8-15s": (8.0, 15.0),
 }
-DEFAULT_DELAY = 'Normal · 4-9s'
+DEFAULT_DELAY = "Normal · 4-9s"
 
 RETRY_PASSES = {
-    'Off': 0,
-    '1 pass': 1,
-    '2 passes': 2,
-    '3 passes': 3,
-    '4 passes': 4,
-    '5 passes': 5,
-    '6 passes': 6,
+    "Off": 0,
+    "1 pass": 1,
+    "2 passes": 2,
+    "3 passes": 3,
+    "4 passes": 4,
+    "5 passes": 5,
+    "6 passes": 6,
 }
-DEFAULT_PASSES = '1 pass'
+DEFAULT_PASSES = "1 pass"
 
 QUALITY_OPTIONS = {
-    'Best available': 'bestvideo+bestaudio/best',
-    '4K · 2160p': 'bestvideo[height<=2160]+bestaudio/best[height<=2160]/best',
-    '2K · 1440p': 'bestvideo[height<=1440]+bestaudio/best[height<=1440]/best',
-    '1080p': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
-    '720p': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
-    '480p': 'bestvideo[height<=480]+bestaudio/best[height<=480]/best',
-    'Audio only': 'bestaudio/best',
+    "Best available": "bestvideo+bestaudio/best",
+    "4K · 2160p": "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best",
+    "2K · 1440p": "bestvideo[height<=1440]+bestaudio/best[height<=1440]/best",
+    "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+    "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+    "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
+    "Audio only": "bestaudio/best",
 }
 
 MAX_ACCOUNT_VIDEOS = 200
 ACCOUNT_LIMITS = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
 
 NON_MEDIA_HINTS = (
-    '/tiktokstudio', '/upload', '/login', '/signup', '/settings',
-    '/creator-center', '/business-suite', '/analytics', '/explore',
-    '/foryou', '/following',
+    "/tiktokstudio",
+    "/upload",
+    "/login",
+    "/signup",
+    "/settings",
+    "/creator-center",
+    "/business-suite",
+    "/analytics",
+    "/explore",
+    "/foryou",
+    "/following",
 )
 
 _IMPERSONATE_CACHE = None
 
 PERMANENT_SIGNS = (
-    'unavailable', 'not found', 'does not exist', 'deleted', 'private',
-    'removed', 'no longer', 'account', 'region', 'copyright',
+    "unavailable",
+    "not found",
+    "does not exist",
+    "deleted",
+    "private",
+    "removed",
+    "no longer",
+    "account",
+    "region",
+    "copyright",
 )
 
 
 def _target_version(target):
-    raw = str(getattr(target, 'version', '') or '')
-    match = re.match(r'(\d+)', raw)
+    raw = str(getattr(target, "version", "") or "")
+    match = re.match(r"(\d+)", raw)
     if match:
         return int(match.group(1))
     return -1
@@ -106,24 +122,24 @@ def impersonate_target():
     if _IMPERSONATE_CACHE is not None:
         return _IMPERSONATE_CACHE
 
-    result = (None, 'unavailable — curl_cffi missing')
+    result = (None, "unavailable — curl_cffi missing")
     if ImpersonateTarget is None:
         _IMPERSONATE_CACHE = result
         return result
 
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as probe:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as probe:
             raw = probe._get_available_impersonate_targets()
         targets = []
-        for entry in (raw or []):
+        for entry in raw or []:
             targets.append(entry[0] if isinstance(entry, (tuple, list)) else entry)
-        chrome = [t for t in targets if str(getattr(t, 'client', '')).lower() == 'chrome']
+        chrome = [t for t in targets if str(getattr(t, "client", "")).lower() == "chrome"]
         chrome.sort(key=_target_version, reverse=True)
         best = chrome[0] if chrome else (targets[0] if targets else None)
         if best is not None:
             result = (best, str(best))
     except Exception as exc:
-        result = (None, f'unavailable ({exc})')
+        result = (None, f"unavailable ({exc})")
     _IMPERSONATE_CACHE = result
     return result
 
@@ -134,62 +150,66 @@ def impersonation_summary():
 
 
 def default_output_dir():
-    base = os.environ.get('LOCALAPPDATA') or os.path.expanduser('~')
-    return os.path.join(base, APP_NAME, 'storage', 'downloads')
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return os.path.join(base, APP_NAME, "storage", "downloads")
 
 
 def is_tiktok_url(url):
     low = url.strip().lower()
-    if not low.startswith(('http://', 'https://')):
+    if not low.startswith(("http://", "https://")):
         return False
-    if not re.search(r'(^|[./])tiktok\.com', low):
+    if not re.search(r"(^|[./])tiktok\.com", low):
         return False
     if any(hint in low for hint in NON_MEDIA_HINTS):
         return False
-    if re.search(r'(vm|vt)\.tiktok\.com/', low):
+    if re.search(r"(vm|vt)\.tiktok\.com/", low):
         return True
-    return ('/video/' in low) or ('/photo/' in low)
+    return ("/video/" in low) or ("/photo/" in low)
 
 
 def is_profile_url(url):
     low = url.strip().lower()
-    return ('tiktok.com/@' in low) and ('/video/' not in low) and ('/photo/' not in low)
+    return ("tiktok.com/@" in low) and ("/video/" not in low) and ("/photo/" not in low)
 
 
 def is_youtube_url(url):
     low = url.strip().lower()
-    if not low.startswith(('http://', 'https://')):
+    if not low.startswith(("http://", "https://")):
         return False
-    if re.search(r'(^|[./])youtu\.be/', low):
+    if re.search(r"(^|[./])youtu\.be/", low):
         return True
-    if not re.search(r'(^|[./])youtube\.com', low):
+    if not re.search(r"(^|[./])youtube\.com", low):
         return False
-    return re.search(r'/(watch\?|shorts/|live/|v/|embed/)', low) is not None
+    return re.search(r"/(watch\?|shorts/|live/|v/|embed/)", low) is not None
 
 
 def is_youtube_playlist_url(url):
     low = url.strip().lower()
-    if not low.startswith(('http://', 'https://')):
+    if not low.startswith(("http://", "https://")):
         return False
-    return re.search(r'(^|[./])youtube\.com', low) is not None and ('/playlist?' in low or 'list=' in low)
+    return re.search(r"(^|[./])youtube\.com", low) is not None and (
+        "/playlist?" in low or "list=" in low
+    )
 
 
 def is_youtube_channel_url(url):
     low = url.strip().lower()
-    if not low.startswith(('http://', 'https://')):
+    if not low.startswith(("http://", "https://")):
         return False
-    if not re.search(r'(^|[./])youtube\.com', low):
+    if not re.search(r"(^|[./])youtube\.com", low):
         return False
-    if ('/@' in low) or ('/channel/' in low) or ('/c/' in low) or ('/user/' in low):
+    if ("/@" in low) or ("/channel/" in low) or ("/c/" in low) or ("/user/" in low):
         return True
     # Support shorthand youtube.com/UC... channel ID format
-    return re.search(r'youtube\.com/uc[a-z0-9_\-]{22}', low) is not None
+    return re.search(r"youtube\.com/uc[a-z0-9_\-]{22}", low) is not None
 
 
 def normalize_youtube_channel_url(url):
     """Ensures youtube.com/UC... shorthand URLs are normalized to youtube.com/channel/UC..."""
     url = url.strip()
-    match = re.search(r'https?://(?:www\.)?youtube\.com/(UC[A-Za-z0-9_\-]{22})/?$', url, re.IGNORECASE)
+    match = re.search(
+        r"https?://(?:www\.)?youtube\.com/(UC[A-Za-z0-9_\-]{22})/?$", url, re.IGNORECASE
+    )
     if match:
         return f"https://www.youtube.com/channel/{match.group(1)}"
     return url
@@ -197,22 +217,22 @@ def normalize_youtube_channel_url(url):
 
 def platform_of(url):
     low = url.strip().lower()
-    if re.search(r'(^|[./])tiktok\.com', low):
-        return 'TikTok'
-    if re.search(r'(^|[./])youtu(?:\.be|be\.com)', low):
-        return 'YouTube'
+    if re.search(r"(^|[./])tiktok\.com", low):
+        return "TikTok"
+    if re.search(r"(^|[./])youtu(?:\.be|be\.com)", low):
+        return "YouTube"
     return None
 
 
 def normalize_account(text):
-    raw = (text or '').strip()
+    raw = (text or "").strip()
     if not raw:
         return (None, None)
-    match = re.search(r'tiktok\.com/@([A-Za-z0-9._]+)', raw, re.IGNORECASE)
-    username = match.group(1) if match else raw.lstrip('@').strip('/ ')
-    if not re.fullmatch(r'[A-Za-z0-9._]{1,30}', username or ''):
+    match = re.search(r"tiktok\.com/@([A-Za-z0-9._]+)", raw, re.IGNORECASE)
+    username = match.group(1) if match else raw.lstrip("@").strip("/ ")
+    if not re.fullmatch(r"[A-Za-z0-9._]{1,30}", username or ""):
         return (None, None)
-    return (username, f'https://www.tiktok.com/@{username}')
+    return (username, f"https://www.tiktok.com/@{username}")
 
 
 class AccountFetchThread(QThread):
@@ -233,20 +253,20 @@ class AccountFetchThread(QThread):
         if not username:
             self.failed.emit("That doesn't look like a username or profile link.")
             return
-        self.note.emit(f'Looking up @{username}…')
+        self.note.emit(f"Looking up @{username}…")
         opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'noprogress': True,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
             # 'extract_flat' is omitted because yt_dlp does not honor `playlistend` for TikTok profiles.
-            'playlistend': self.limit,
-            'ignoreerrors': True,
+            "playlistend": self.limit,
+            "ignoreerrors": True,
         }
         target, _label = impersonate_target()
         if target is not None:
-            opts['impersonate'] = target
+            opts["impersonate"] = target
         if self.use_cookies:
-            opts['cookiesfrombrowser'] = ('chrome',)
+            opts["cookiesfrombrowser"] = ("chrome",)
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -254,22 +274,28 @@ class AccountFetchThread(QThread):
             self.failed.emit(tidy_error(exc))
             return
         if not info:
-            self.failed.emit('Nothing came back. The account may be private or the name may be wrong.')
+            self.failed.emit(
+                "Nothing came back. The account may be private or the name may be wrong."
+            )
             return
         urls = []
-        for entry in (info.get('entries') or []):
+        for entry in info.get("entries") or []:
             if not entry:
                 continue
-            candidate = entry.get('url') or ''
-            if not str(candidate).startswith('http'):
-                video_id = entry.get('id')
-                candidate = f'https://www.tiktok.com/@{username}/video/{video_id}' if video_id else ''
-            if str(candidate).startswith('http') and candidate not in urls:
+            candidate = entry.get("url") or ""
+            if not str(candidate).startswith("http"):
+                video_id = entry.get("id")
+                candidate = (
+                    f"https://www.tiktok.com/@{username}/video/{video_id}" if video_id else ""
+                )
+            if str(candidate).startswith("http") and candidate not in urls:
                 urls.append(candidate)
             if len(urls) >= self.limit:
                 break
         if not urls:
-            self.failed.emit(f'No videos found for @{username}. Private accounts need the Chrome cookies option.')
+            self.failed.emit(
+                f"No videos found for @{username}. Private accounts need the Chrome cookies option."
+            )
             return
         self.found.emit(urls, username)
 
@@ -287,15 +313,15 @@ class YouTubeFetchThread(QThread):
         self.limit = max(1, min(int(limit), 500))
 
     def run(self):
-        self.note.emit('Expanding YouTube link…')
+        self.note.emit("Expanding YouTube link…")
         opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'noprogress': True,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
             # 'extract_flat' is omitted because yt_dlp does not honor `playlistend`
             # for YouTube channel / playlist URLs when it is set.
-            'playlistend': self.limit,
-            'ignoreerrors': True,
+            "playlistend": self.limit,
+            "ignoreerrors": True,
         }
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -304,51 +330,51 @@ class YouTubeFetchThread(QThread):
             self.failed.emit(tidy_error(exc))
             return
         if not info:
-            self.failed.emit('Nothing came back from that YouTube link.')
+            self.failed.emit("Nothing came back from that YouTube link.")
             return
-        entries = info.get('entries')
-        if not entries and info.get('_type') != 'playlist':
+        entries = info.get("entries")
+        if not entries and info.get("_type") != "playlist":
             entries = [info]
         urls = []
-        for entry in (entries or []):
+        for entry in entries or []:
             if not entry:
                 continue
-            vid = entry.get('id')
+            vid = entry.get("id")
             if not vid:
                 continue
-            candidate = f'https://www.youtube.com/watch?v={vid}'
+            candidate = f"https://www.youtube.com/watch?v={vid}"
             if candidate not in urls:
                 urls.append(candidate)
             if len(urls) >= self.limit:
                 break
-        label = info.get('title') or 'this YouTube source'
+        label = info.get("title") or "this YouTube source"
         if not urls:
-            self.failed.emit('No videos found in that playlist or channel.')
+            self.failed.emit("No videos found in that playlist or channel.")
             return
         self.found.emit(urls, label)
 
 
 _EMOJI_PATTERN = re.compile(
-    r'[😀-🙏🌀-🗿🚀-\U0001f6ff\U0001f1e0-🇿✀-➿🤀-🧿☀-⛿🩰-\U0001faff⬀-⯿]+',
+    r"[😀-🙏🌀-🗿🚀-\U0001f6ff\U0001f1e0-🇿✀-➿🤀-🧿☀-⛿🩰-\U0001faff⬀-⯿]+",
     flags=re.UNICODE,
 )
 
 
 def remove_emojis(text):
-    return _EMOJI_PATTERN.sub('', text)
+    return _EMOJI_PATTERN.sub("", text)
 
 
 def sanitize_filename(text):
     if not text:
-        return 'untitled'
+        return "untitled"
     text = remove_emojis(text)
-    text = unicodedata.normalize('NFKC', text)
-    text = re.sub(r'[\\/:*?"<>|]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    text = ''.join(ch for ch in text if ch.isprintable())
-    text = text.rstrip('. ')
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r'[\\/:*?"<>|]', "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    text = "".join(ch for ch in text if ch.isprintable())
+    text = text.rstrip(". ")
     if not text:
-        return 'untitled'
+        return "untitled"
     return text[:MAX_FILENAME_LENGTH]
 
 
@@ -364,68 +390,74 @@ _NAME_LOCK = threading.Lock()
 
 def unique_basename(folder, base):
     names = _listdir(folder)
-    if not any(f.startswith(base + '.') for f in names):
+    if not any(f.startswith(base + ".") for f in names):
         return base
     n = 2
-    while any(f.startswith(f'{base} ({n}).') for f in names):
+    while any(f.startswith(f"{base} ({n}).") for f in names):
         n += 1
-    return f'{base} ({n})'
+    return f"{base} ({n})"
 
 
 def human_size(num):
     if not num:
-        return '—'
+        return "—"
     num = float(num)
-    for unit in ('B', 'KB', 'MB', 'GB'):
-        if num < 1024 or unit == 'GB':
-            if unit == 'B':
-                return f'{int(num)} B'
-            return f'{num:.1f} {unit}'
+    for unit in ("B", "KB", "MB", "GB"):
+        if num < 1024 or unit == "GB":
+            if unit == "B":
+                return f"{int(num)} B"
+            return f"{num:.1f} {unit}"
         num /= 1024.0
-    return '—'
+    return "—"
 
 
 def find_ffmpeg():
     import shutil
     import sys
+
     roots = [os.path.dirname(os.path.abspath(sys.argv[0]))]
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         roots.append(os.path.dirname(sys.executable))
-        roots.append(getattr(sys, '_MEIPASS', ''))
+        roots.append(getattr(sys, "_MEIPASS", ""))
     for root in roots:
         if not root:
             continue
-        for candidate in (os.path.join(root, 'ffmpeg.exe'), os.path.join(root, 'bin', 'ffmpeg.exe')):
+        for candidate in (
+            os.path.join(root, "ffmpeg.exe"),
+            os.path.join(root, "bin", "ffmpeg.exe"),
+        ):
             if os.path.isfile(candidate):
                 return os.path.dirname(candidate)
-    found = shutil.which('ffmpeg')
+    found = shutil.which("ffmpeg")
     if found:
         return os.path.dirname(found)
     return None
 
 
 def tidy_error(exc):
-    message = str(exc).replace('\n', ' ').strip()
-    message = re.sub(r'\s*;?\s*please report this issue on.*', '', message, flags=re.IGNORECASE)
-    message = re.sub(r'\s*confirm you are on the latest version.*', '', message, flags=re.IGNORECASE)
-    message = re.sub(r'^ERROR:\s*', '', message)
-    message = re.sub(r'^\[TikTok\]\s*\d+:\s*', '', message)
-    message = re.sub(r'\s+', ' ', message).strip()
+    message = str(exc).replace("\n", " ").strip()
+    message = re.sub(r"\s*;?\s*please report this issue on.*", "", message, flags=re.IGNORECASE)
+    message = re.sub(
+        r"\s*confirm you are on the latest version.*", "", message, flags=re.IGNORECASE
+    )
+    message = re.sub(r"^ERROR:\s*", "", message)
+    message = re.sub(r"^\[TikTok\]\s*\d+:\s*", "", message)
+    message = re.sub(r"\s+", " ", message).strip()
     lowered = message.lower()
-    if 'rehydration' in lowered or 'unexpected response' in lowered:
-        return 'TikTok refused the request — rate limited.'
-    if 'unavailable' in lowered or 'not found' in lowered:
-        return 'Video is unavailable, private or deleted.'
-    if 'ffmpeg' in lowered:
-        return 'This format needs ffmpeg to merge. Pick a lower quality.'
+    if "rehydration" in lowered or "unexpected response" in lowered:
+        return "TikTok refused the request — rate limited."
+    if "unavailable" in lowered or "not found" in lowered:
+        return "Video is unavailable, private or deleted."
+    if "ffmpeg" in lowered:
+        return "This format needs ffmpeg to merge. Pick a lower quality."
     if not message:
-        return 'Unknown error'
+        return "Unknown error"
     return message[:200]
 
 
 def is_permanent(message):
     lowered = message.lower()
-    if 'rate limited' in lowered or 'refused the request' in lowered:
+    if "rate limited" in lowered or "refused the request" in lowered:
         return False
     return any(sign in lowered for sign in PERMANENT_SIGNS)
 
@@ -446,8 +478,17 @@ class DownloadThread(QThread):
     countdown = Signal(float)
     finished_all = Signal()
 
-    def __init__(self, jobs, output_dir, quality, use_cookies=False, delay_key=DEFAULT_DELAY,
-                 extra_passes=0, parallel=2, parent=None):
+    def __init__(
+        self,
+        jobs,
+        output_dir,
+        quality,
+        use_cookies=False,
+        delay_key=DEFAULT_DELAY,
+        extra_passes=0,
+        parallel=2,
+        parent=None,
+    ):
         super().__init__(parent)
         self.jobs = jobs
         self.output_dir = output_dir
@@ -490,64 +531,71 @@ class DownloadThread(QThread):
             self._gate()
             time.sleep(0.1)
 
-    def _base_opts(self, platform='TikTok'):
+    def _base_opts(self, platform="TikTok"):
         opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'noprogress': True,
-            'noplaylist': True,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "noplaylist": True,
         }
-        if platform == 'TikTok':
+        if platform == "TikTok":
             target, _label = impersonate_target()
             if self._impersonate and target is not None:
-                opts['impersonate'] = target
+                opts["impersonate"] = target
         if self.use_cookies:
-            opts['cookiesfrombrowser'] = ('chrome',)
+            opts["cookiesfrombrowser"] = ("chrome",)
         if self._ffmpeg_dir:
-            opts['ffmpeg_location'] = self._ffmpeg_dir
+            opts["ffmpeg_location"] = self._ffmpeg_dir
         return opts
 
-    def _hook_factory(self, uid, seen, platform='TikTok'):
+    def _hook_factory(self, uid, seen, platform="TikTok"):
         def hook(d):
             self._gate()
             if not seen:
-                meta = d.get('info_dict') or {}
-                caption = meta.get('description') or meta.get('title')
+                meta = d.get("info_dict") or {}
+                caption = meta.get("description") or meta.get("title")
                 if caption:
                     seen.add(True)
                     self.job_meta.emit(uid, sanitize_filename(caption), platform)
-            if d.get('status') == 'downloading':
-                total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-                got = d.get('downloaded_bytes') or 0
+            if d.get("status") == "downloading":
+                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                got = d.get("downloaded_bytes") or 0
                 pct = (got / total) * 100.0 if total else 0.0
-                speed = d.get('speed')
-                self.job_progress.emit(uid, min(pct, 99.0), human_size(total),
-                                       (human_size(speed) + '/s') if speed else '—')
-            if d.get('status') == 'finished':
-                self.job_progress.emit(uid, 99.0, '—', 'finishing')
+                speed = d.get("speed")
+                self.job_progress.emit(
+                    uid,
+                    min(pct, 99.0),
+                    human_size(total),
+                    (human_size(speed) + "/s") if speed else "—",
+                )
+            if d.get("status") == "finished":
+                self.job_progress.emit(uid, 99.0, "—", "finishing")
+
         return hook
 
     def _download_one(self, uid, url):
         os.makedirs(self.output_dir, exist_ok=True)
-        platform = platform_of(url) or 'TikTok'
+        platform = platform_of(url) or "TikTok"
         opts = self._base_opts(platform)
-        opts.update({
-            'format': QUALITY_OPTIONS[self.quality],
-            'outtmpl': os.path.join(self.output_dir, TEMP_PREFIX + '%(id)s.%(ext)s'),
-            'merge_output_format': 'mp4',
-            'ignoreerrors': False,
-            'retries': 0,
-            'fragment_retries': 0,
-            'progress_hooks': [self._hook_factory(uid, set(), platform)],
-            'overwrites': True,
-        })
-        if self.quality == 'Audio only':
-            opts['merge_output_format'] = None
-            opts['postprocessors'] = [
+        opts.update(
+            {
+                "format": QUALITY_OPTIONS[self.quality],
+                "outtmpl": os.path.join(self.output_dir, TEMP_PREFIX + "%(id)s.%(ext)s"),
+                "merge_output_format": "mp4",
+                "ignoreerrors": False,
+                "retries": 0,
+                "fragment_retries": 0,
+                "progress_hooks": [self._hook_factory(uid, set(), platform)],
+                "overwrites": True,
+            }
+        )
+        if self.quality == "Audio only":
+            opts["merge_output_format"] = None
+            opts["postprocessors"] = [
                 {
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
                 }
             ]
         try:
@@ -557,15 +605,15 @@ class DownloadThread(QThread):
             downloaded = None
         else:
             if info is None:
-                raise RuntimeError('No video found at this link')
-            if info.get('_type') == 'playlist':
-                entries = [e for e in (info.get('entries') or []) if e]
+                raise RuntimeError("No video found at this link")
+            if info.get("_type") == "playlist":
+                entries = [e for e in (info.get("entries") or []) if e]
                 if not entries:
-                    raise RuntimeError('This link is a page, not a single video')
+                    raise RuntimeError("This link is a page, not a single video")
                 info = entries[0]
             downloaded = None
-            for item in (info.get('requested_downloads') or []):
-                downloaded = item.get('filepath') or item.get('_filename')
+            for item in info.get("requested_downloads") or []:
+                downloaded = item.get("filepath") or item.get("_filename")
                 if downloaded:
                     break
             if not downloaded:
@@ -574,17 +622,17 @@ class DownloadThread(QThread):
                 except Exception:
                     downloaded = None
         if downloaded and not os.path.isfile(downloaded):
-            vid = str(info.get('id') or '')
+            vid = str(info.get("id") or "")
             for name in _listdir(self.output_dir):
                 if vid and name.startswith(TEMP_PREFIX + vid):
                     downloaded = os.path.join(self.output_dir, name)
                     break
         if not downloaded or not os.path.isfile(downloaded):
-            raise RuntimeError('Download finished but the file is missing')
-        caption = info.get('description') or info.get('title') or ''
+            raise RuntimeError("Download finished but the file is missing")
+        caption = info.get("description") or info.get("title") or ""
         safe = sanitize_filename(caption)
-        base = safe if safe != 'untitled' else f'video_{info.get("id") or "unknown"}'
-        ext = os.path.splitext(downloaded)[1] or '.mp4'
+        base = safe if safe != "untitled" else f"video_{info.get('id') or 'unknown'}"
+        ext = os.path.splitext(downloaded)[1] or ".mp4"
         with _NAME_LOCK:
             target = os.path.join(self.output_dir, unique_basename(self.output_dir, base) + ext)
             try:
@@ -595,45 +643,45 @@ class DownloadThread(QThread):
         try:
             return human_size(os.path.getsize(target))
         except OSError:
-            return '—'
+            return "—"
 
     def _attempt(self, uid, url):
         try:
-            return (True, self._download_one(uid, url), '')
+            return (True, self._download_one(uid, url), "")
         except _Stopped:
             raise
         except Exception as exc:
             raw = str(exc).lower()
-            if self._impersonate and 'impersonat' in raw:
+            if self._impersonate and "impersonat" in raw:
                 self._impersonate = False
-                self.log.emit('Browser impersonation unavailable — continuing without it.')
+                self.log.emit("Browser impersonation unavailable — continuing without it.")
                 try:
-                    return (True, self._download_one(uid, url), '')
+                    return (True, self._download_one(uid, url), "")
                 except _Stopped:
                     raise
                 except Exception as exc2:
-                    return (False, '—', tidy_error(exc2))
-            return (False, '—', tidy_error(exc))
+                    return (False, "—", tidy_error(exc2))
+            return (False, "—", tidy_error(exc))
 
     def _try_with_inline(self, uid, url, position):
         tries = 1 + INLINE_RETRIES
-        error = 'Unknown error'
+        error = "Unknown error"
         for n in range(1, tries + 1):
             ok, size, error = self._attempt(uid, url)
             if ok:
-                return (True, size, '', False)
+                return (True, size, "", False)
             if is_permanent(error):
-                return (False, '—', error, True)
+                return (False, "—", error, True)
             if n < tries:
                 self.job_retrying.emit(uid, n, INLINE_RETRIES)
-                self.log.emit(f'{position} failed — retry {n} of {INLINE_RETRIES}…')
+                self.log.emit(f"{position} failed — retry {n} of {INLINE_RETRIES}…")
                 self._sleep(random.uniform(*INLINE_RETRY_WAIT))
-        return (False, '—', error, False)
+        return (False, "—", error, False)
 
     def _run_pool(self, items, inline, label, final):
         total = len(items)
         workers = 1 if total <= 1 else max(1, min(self.parallel, total))
-        cursor = {'i': 0}
+        cursor = {"i": 0}
         cursor_lock = threading.Lock()
         leftovers = []
         leftovers_lock = threading.Lock()
@@ -644,26 +692,26 @@ class DownloadThread(QThread):
                     self._sleep(slot * WORKER_STAGGER)
                 while True:
                     with cursor_lock:
-                        index = cursor['i']
+                        index = cursor["i"]
                         if index >= total:
                             return
-                        cursor['i'] += 1
+                        cursor["i"] += 1
                     uid, url = items[index]
                     self._gate()
                     self.job_started.emit(uid, url)
-                    position = f'{label} · [{index + 1}/{total}]'
-                    self.log.emit(f'{position} {url}')
+                    position = f"{label} · [{index + 1}/{total}]"
+                    self.log.emit(f"{position} {url}")
                     if inline:
                         ok, size, error, permanent = self._try_with_inline(uid, url, position)
                     else:
                         ok, size, error = self._attempt(uid, url)
                         permanent = (not ok) and is_permanent(error)
                     if ok:
-                        self.job_result.emit(uid, 'Completed', size, '')
+                        self.job_result.emit(uid, "Completed", size, "")
                     elif permanent or final:
-                        self.job_result.emit(uid, 'Failed', '—', error)
+                        self.job_result.emit(uid, "Failed", "—", error)
                     else:
-                        self.job_result.emit(uid, 'Waiting', '—', error)
+                        self.job_result.emit(uid, "Waiting", "—", error)
                         with leftovers_lock:
                             leftovers.append((index, (uid, url)))
                     gap = random.uniform(*self.delay_range)
@@ -688,32 +736,35 @@ class DownloadThread(QThread):
     def run(self):
         try:
             ok, label = impersonation_summary()
-            self.log.emit(('Browser identity: ' + label) if ok else ('No browser impersonation — ' + label))
+            self.log.emit(
+                ("Browser identity: " + label) if ok else ("No browser impersonation — " + label)
+            )
 
             items = list(self.jobs)
             workers = 1 if len(items) <= 1 else max(1, min(self.parallel, len(items)))
             self.log.emit(
-                f'Starting {len(items)} link{"s" if len(items) != 1 else ""} across '
-                f'{workers} worker{"s" if workers != 1 else ""}.'
+                f"Starting {len(items)} link{'s' if len(items) != 1 else ''} across "
+                f"{workers} worker{'s' if workers != 1 else ''}."
             )
 
-            waiting = self._run_pool(items, True, 'Pass 1', final=(self.extra_passes == 0))
+            waiting = self._run_pool(items, True, "Pass 1", final=(self.extra_passes == 0))
 
             for pass_no in range(1, self.extra_passes + 1):
                 if not waiting:
                     break
                 wait = random.uniform(*PASS_COOLDOWN)
                 self.log.emit(
-                    f'{len(waiting)} waiting — cooling down {wait:.0f}s before pass '
-                    f'{pass_no} of {self.extra_passes}…'
+                    f"{len(waiting)} waiting — cooling down {wait:.0f}s before pass "
+                    f"{pass_no} of {self.extra_passes}…"
                 )
                 self._sleep(wait)
-                waiting = self._run_pool(waiting, False, f'Pass {pass_no}',
-                                         final=(pass_no >= self.extra_passes))
+                waiting = self._run_pool(
+                    waiting, False, f"Pass {pass_no}", final=(pass_no >= self.extra_passes)
+                )
 
             if waiting:
-                self.log.emit(f'{len(waiting)} could not be downloaded.')
+                self.log.emit(f"{len(waiting)} could not be downloaded.")
         except _Stopped:
-            self.log.emit('Run stopped.')
+            self.log.emit("Run stopped.")
         finally:
             self.finished_all.emit()

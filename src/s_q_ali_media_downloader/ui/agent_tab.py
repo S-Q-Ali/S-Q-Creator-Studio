@@ -123,7 +123,9 @@ class AgentTabWidget(QWidget):
 
         # Header Title
         lbl_title = QLabel("🤖 AI CHANNEL FINDER & SOCIAL PRESENCE INSPECTOR")
-        lbl_title.setStyleSheet("font-size: 14px; font-weight: 800; color: #22D3EE; letter-spacing: 2px;")
+        lbl_title.setStyleSheet(
+            "font-size: 14px; font-weight: 800; color: #22D3EE; letter-spacing: 2px;"
+        )
         controls_layout.addWidget(lbl_title)
 
         # Row 0: Discovery Mode
@@ -210,7 +212,9 @@ class AgentTabWidget(QWidget):
         lbl_key = QLabel("YouTube API Key (Optional):")
         lbl_key.setStyleSheet("color: #6E667E; font-size: 11px;")
         self.api_key_edit = QLineEdit()
-        self.api_key_edit.setPlaceholderText("Leave blank for 100% free zero-key scraper mode (yt-dlp)")
+        self.api_key_edit.setPlaceholderText(
+            "Leave blank for 100% free zero-key scraper mode (yt-dlp)"
+        )
         self.api_key_edit.setEchoMode(QLineEdit.PasswordEchoOnEdit)
 
         row3.addWidget(lbl_key)

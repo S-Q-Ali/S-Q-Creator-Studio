@@ -80,7 +80,7 @@ class AgentOrchestrator:
         enriched_channels: list[ChannelMetadata] = []
         for idx, ch in enumerate(raw_channels):
             percent = 25 + int((idx / max(total_found, 1)) * 30)
-            self._emit(percent, f"Parsing metadata for {ch.title} ({idx+1}/{total_found})...")
+            self._emit(percent, f"Parsing metadata for {ch.title} ({idx + 1}/{total_found})...")
             enriched = self.extractor_tool.enrich_channel_metadata(ch)
             enriched_channels.append(enriched)
 
@@ -115,9 +115,7 @@ class AgentOrchestrator:
             # A platform counts as "missing" only when it was probed and
             # definitively found to be absent. INCONCLUSIVE / unchecked
             # platforms never mark a channel as a target.
-            truly_missing = [
-                p for p in checked if statuses[p] == SocialStatus.NOT_FOUND
-            ]
+            truly_missing = [p for p in checked if statuses[p] == SocialStatus.NOT_FOUND]
             ch.has_no_socials = bool(checked) and len(truly_missing) == len(checked)
 
             if ch.has_no_socials:
@@ -163,7 +161,7 @@ class AgentOrchestrator:
             percent = 60 + int((idx / max(total, 1)) * 35)
             self._emit(
                 percent,
-                f"Probing FB/IG/TikTok for @{ch.handle or ch.title} ({idx+1}/{total})...",
+                f"Probing FB/IG/TikTok for @{ch.handle or ch.title} ({idx + 1}/{total})...",
             )
 
             candidate_fb = ch.facebook.verified_url if check_facebook else None
@@ -210,7 +208,10 @@ class AgentOrchestrator:
 
         for idx, profile in enumerate(raw_profiles):
             percent = 35 + int((idx / max(total_found, 1)) * 60)
-            self._emit(percent, f"Checking YouTube presence of @{profile.handle} ({idx+1}/{total_found})...")
+            self._emit(
+                percent,
+                f"Checking YouTube presence of @{profile.handle} ({idx + 1}/{total_found})...",
+            )
 
             presence = self.youtube_existence_tool.check_youtube_presence(profile)
             profile.youtube = presence

@@ -12,56 +12,59 @@ from s_q_ali_media_downloader.engine import (
 
 
 def test_tiktok_video_urls():
-    assert is_tiktok_url('https://www.tiktok.com/@user/video/1234567890123456789')
-    assert is_tiktok_url('https://www.tiktok.com/@user/photo/1234567890123456789')
-    assert is_tiktok_url('https://vm.tiktok.com/AbCdEfGh')
-    assert is_tiktok_url('https://vt.tiktok.com/AbCdEfGh/')
+    assert is_tiktok_url("https://www.tiktok.com/@user/video/1234567890123456789")
+    assert is_tiktok_url("https://www.tiktok.com/@user/photo/1234567890123456789")
+    assert is_tiktok_url("https://vm.tiktok.com/AbCdEfGh")
+    assert is_tiktok_url("https://vt.tiktok.com/AbCdEfGh/")
 
 
 def test_tiktok_non_media_rejected():
-    assert not is_tiktok_url('https://www.tiktok.com/@user')
-    assert not is_tiktok_url('https://www.tiktok.com/explore')
-    assert not is_tiktok_url('https://www.tiktok.com/login')
-    assert not is_tiktok_url('https://www.tiktok.com/analytics')
-    assert not is_tiktok_url('https://example.com/video/123')
+    assert not is_tiktok_url("https://www.tiktok.com/@user")
+    assert not is_tiktok_url("https://www.tiktok.com/explore")
+    assert not is_tiktok_url("https://www.tiktok.com/login")
+    assert not is_tiktok_url("https://www.tiktok.com/analytics")
+    assert not is_tiktok_url("https://example.com/video/123")
 
 
 def test_profile_urls():
-    assert is_profile_url('https://www.tiktok.com/@user')
-    assert is_profile_url('https://www.tiktok.com/@user?lang=en')
-    assert not is_profile_url('https://www.tiktok.com/@user/video/123')
+    assert is_profile_url("https://www.tiktok.com/@user")
+    assert is_profile_url("https://www.tiktok.com/@user?lang=en")
+    assert not is_profile_url("https://www.tiktok.com/@user/video/123")
 
 
 def test_youtube_video_urls():
-    assert is_youtube_url('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-    assert is_youtube_url('https://youtu.be/dQw4w9WgXcQ')
-    assert is_youtube_url('https://www.youtube.com/shorts/dQw4w9WgXcQ')
-    assert is_youtube_url('https://www.youtube.com/live/abc')
-    assert is_youtube_url('https://www.youtube.com/v/abc')
-    assert is_youtube_url('https://www.youtube.com/embed/abc')
-    assert not is_youtube_url('https://www.youtube.com/feed/trending')
-    assert not is_youtube_url('https://example.com/watch?v=x')
+    assert is_youtube_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    assert is_youtube_url("https://youtu.be/dQw4w9WgXcQ")
+    assert is_youtube_url("https://www.youtube.com/shorts/dQw4w9WgXcQ")
+    assert is_youtube_url("https://www.youtube.com/live/abc")
+    assert is_youtube_url("https://www.youtube.com/v/abc")
+    assert is_youtube_url("https://www.youtube.com/embed/abc")
+    assert not is_youtube_url("https://www.youtube.com/feed/trending")
+    assert not is_youtube_url("https://example.com/watch?v=x")
 
 
 def test_youtube_playlist_and_channel():
-    assert is_youtube_playlist_url('https://www.youtube.com/playlist?list=PLabc')
-    assert not is_youtube_playlist_url('https://www.youtube.com/watch?v=x')
-    assert is_youtube_channel_url('https://www.youtube.com/@channel')
-    assert is_youtube_channel_url('https://www.youtube.com/channel/UCabc')
-    assert is_youtube_channel_url('https://www.youtube.com/c/ChannelName')
-    assert is_youtube_channel_url('https://www.youtube.com/user/legacy')
-    assert not is_youtube_channel_url('https://www.youtube.com/watch?v=x')
+    assert is_youtube_playlist_url("https://www.youtube.com/playlist?list=PLabc")
+    assert not is_youtube_playlist_url("https://www.youtube.com/watch?v=x")
+    assert is_youtube_channel_url("https://www.youtube.com/@channel")
+    assert is_youtube_channel_url("https://www.youtube.com/channel/UCabc")
+    assert is_youtube_channel_url("https://www.youtube.com/c/ChannelName")
+    assert is_youtube_channel_url("https://www.youtube.com/user/legacy")
+    assert not is_youtube_channel_url("https://www.youtube.com/watch?v=x")
 
 
 def test_platform_of():
-    assert platform_of('https://www.tiktok.com/@u/video/1') == 'TikTok'
-    assert platform_of('https://youtu.be/x') == 'YouTube'
-    assert platform_of('https://www.youtube.com/watch?v=x') == 'YouTube'
-    assert platform_of('https://example.com') is None
+    assert platform_of("https://www.tiktok.com/@u/video/1") == "TikTok"
+    assert platform_of("https://youtu.be/x") == "YouTube"
+    assert platform_of("https://www.youtube.com/watch?v=x") == "YouTube"
+    assert platform_of("https://example.com") is None
 
 
 def test_normalize_account():
-    assert normalize_account('@user') == ('user', 'https://www.tiktok.com/@user')
-    assert normalize_account('https://www.tiktok.com/@user') == ('user', 'https://www.tiktok.com/@user')
-    assert normalize_account('') == (None, None)
-    assert normalize_account('not a valid @@@name') == (None, None)
+    assert normalize_account("@user") == ("user", "https://www.tiktok.com/@user")
+    assert normalize_account("https://www.tiktok.com/@user") == (
+        "user",
+        "https://www.tiktok.com/@user",
+    )
+    assert normalize_account("") == (None, None)
+    assert normalize_account("not a valid @@@name") == (None, None)

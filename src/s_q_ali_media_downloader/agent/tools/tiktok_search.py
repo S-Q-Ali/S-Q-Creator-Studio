@@ -27,11 +27,11 @@ PROFILE_URL = "https://www.tiktok.com/@{handle}"
 
 # Handles harvested from embedded JSON (works even without yt-dlp).
 UNIQUE_ID_PATTERN = re.compile(r'"uniqueId"\s*:\s*"([A-Za-z0-9\._]{2,30})"')
-AT_HANDLE_PATTERN = re.compile(r'tiktok\.com/@([A-Za-z0-9\._]{2,30})/')
+AT_HANDLE_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})/")
 
 # Seed profiles: @handle tokens or full profile URLs typed by the user.
-SEED_URL_PATTERN = re.compile(r'tiktok\.com/@([A-Za-z0-9\._]{2,30})')
-SEED_AT_PATTERN = re.compile(r'(?<![\w@])@([A-Za-z0-9\._]{2,30})')
+SEED_URL_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})")
+SEED_AT_PATTERN = re.compile(r"(?<![\w@])@([A-Za-z0-9\._]{2,30})")
 
 # Non-profile handles that appear in embedded payloads.
 EXCLUDED_HANDLES = {
@@ -65,9 +65,7 @@ class TikTokSearchTool:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def search_profiles(
-        self, query: str, max_profiles: int = 50
-    ) -> list[TikTokProfileMetadata]:
+    def search_profiles(self, query: str, max_profiles: int = 50) -> list[TikTokProfileMetadata]:
         """Entry point: seed profiles > tag pages > keyword search."""
         seeds = self._parse_seed_handles(query)
         if seeds:
@@ -164,9 +162,7 @@ class TikTokSearchTool:
             out.append(handle)
         return out
 
-    def _build_profiles(
-        self, handles: list[str], max_profiles: int
-    ) -> list[TikTokProfileMetadata]:
+    def _build_profiles(self, handles: list[str], max_profiles: int) -> list[TikTokProfileMetadata]:
         """Dedupes handles into profiles and enriches them (best effort)."""
         seen: set[str] = set()
         profiles: list[TikTokProfileMetadata] = []

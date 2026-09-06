@@ -140,9 +140,7 @@ class SocialVerifierTool:
                             )
                     if status == SocialStatus.VERIFIED:
                         presence.status = (
-                            SocialStatus.VERIFIED
-                            if is_bio_link
-                            else SocialStatus.UNVERIFIED_HANDLE
+                            SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
                         )
                         presence.confidence_score = 0.95 if is_bio_link else 0.60
                     elif status == SocialStatus.NOT_FOUND and is_bio_link:
@@ -197,9 +195,7 @@ class SocialVerifierTool:
                     status = self._classify(response, IG_NOT_FOUND_SIGNATURES, [])
                     if status == SocialStatus.VERIFIED:
                         presence.status = (
-                            SocialStatus.VERIFIED
-                            if is_bio_link
-                            else SocialStatus.UNVERIFIED_HANDLE
+                            SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
                         )
                         presence.confidence_score = 0.95 if is_bio_link else 0.60
                     elif status == SocialStatus.NOT_FOUND and is_bio_link:
@@ -253,9 +249,7 @@ class SocialVerifierTool:
                     status = self._classify(response, TIKTOK_NOT_FOUND_SIGNATURES, [])
                     if status == SocialStatus.VERIFIED:
                         presence.status = (
-                            SocialStatus.VERIFIED
-                            if is_bio_link
-                            else SocialStatus.UNVERIFIED_HANDLE
+                            SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
                         )
                         presence.confidence_score = 0.95 if is_bio_link else 0.60
                     elif status == SocialStatus.NOT_FOUND and is_bio_link:

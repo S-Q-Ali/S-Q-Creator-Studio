@@ -94,7 +94,9 @@ class YouTubeSearchTool:
 
                 ch_id = item["id"]
                 custom_url = snippet.get("customUrl")
-                handle = custom_url if custom_url else f"@{snippet.get('title', '').replace(' ', '')}"
+                handle = (
+                    custom_url if custom_url else f"@{snippet.get('title', '').replace(' ', '')}"
+                )
 
                 # Extract banner links if present
                 banner_links = []
@@ -108,9 +110,7 @@ class YouTubeSearchTool:
                         subscribers=subs,
                         subscribers_formatted=self.format_subs(subs),
                         youtube_url=f"https://www.youtube.com/channel/{ch_id}",
-                        avatar_url=snippet.get("thumbnails", {})
-                        .get("default", {})
-                        .get("url"),
+                        avatar_url=snippet.get("thumbnails", {}).get("default", {}).get("url"),
                         description=description,
                         banner_links=banner_links,
                     )
