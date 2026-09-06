@@ -238,10 +238,13 @@ class AgentOrchestrator:
             time.sleep(0.5)
 
         elapsed = round(time.time() - start_time, 2)
-        self._emit(
-            100,
-            f"TikTok Agent completed in {elapsed}s. {len(final_profiles)} profiles displayed ({no_youtube_count} without YouTube).",
-        )
+        if not final_profiles and self.tiktok_tool.search_note:
+            self._emit(100, self.tiktok_tool.search_note)
+        else:
+            self._emit(
+                100,
+                f"TikTok Agent completed in {elapsed}s. {len(final_profiles)} profiles displayed ({no_youtube_count} without YouTube).",
+            )
 
         return TikTokSearchResult(
             query=query,

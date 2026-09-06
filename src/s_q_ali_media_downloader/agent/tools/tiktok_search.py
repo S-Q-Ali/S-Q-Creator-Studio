@@ -18,6 +18,7 @@ import re
 import yt_dlp
 
 from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
+from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,16 @@ class TikTokSearchTool:
     def __init__(self, timeout: float = 20.0, cookiefile: str | None = None):
         self.timeout = timeout
         self.cookiefile = cookiefile
+        self.api_session = TikTokApiSession(cookiefile=cookiefile, timeout=timeout)
+        self.search_note: str | None = None
+        self.cookie_count = self.api_session.cookie_count
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
     def search_profiles(self, query: str, max_profiles: int = 50) -> list[TikTokProfileMetadata]:
         """Entry point: seed profiles > tag pages > keyword search."""
+        self.search_note = None
         seeds = self._parse_seed_handles(query)
         if seeds:
             logger.info(f"Query contains {len(seeds)} seed profile(s); skipping discovery.")
@@ -76,27 +81,30 @@ class TikTokSearchTool:
         tags = [t.lstrip("#").strip(".").lower() for t in query.split() if t.startswith("#")]
         keywords = " ".join(w for w in query.split() if not w.startswith("#")).strip()
 
-        # 2. Tag pages (yt-dlp supports /tag/<tag>, not /search?q=...)
+        # 2. Tag pages (signed web API, then cookies-aware HTML, then yt-dlp)
         for tag in tags:
+            handles += self.api_session.fetch_tag_handles(tag, limit=max_profiles)
+            if len(handles) >= max_profiles:
+                break
+            handles += self._discover_via_html(TAG_URL.format(tag=tag))
+            if len(handles) >= max_profiles:
+                break
             handles += self._discover_via_ytdlp(TAG_URL.format(tag=tag))
-            if not handles:
-                handles += self._discover_via_html(TAG_URL.format(tag=tag))
             if len(handles) >= max_profiles:
                 break
 
         # 3. Keyword search (subject to TikTok's anonymous-access restrictions)
         if not handles:
             base = keywords or query
-            handles = self._discover_via_ytdlp(SEARCH_URL.format(query=base))
+            handles += self.api_session.fetch_search_handles(base, limit=max_profiles)
+            if len(handles) < max_profiles:
+                handles += self._discover_via_html(SEARCH_URL.format(query=base))
             if not handles:
-                logger.info("yt-dlp TikTok search empty; trying HTML harvest fallback...")
-                handles = self._discover_via_html(SEARCH_URL.format(query=base))
-            if not handles and tags:
-                logger.warning(
-                    "No results. TikTok blocks anonymous listing access; "
-                    "provide a cookies.txt file (exported from a logged-in browser) "
-                    "or paste profile URLs / @handles instead."
-                )
+                handles += self._discover_via_ytdlp(SEARCH_URL.format(query=base))
+
+        if not handles:
+            self.search_note = self._build_no_results_note(tags, bool(keywords))
+            logger.warning(self.search_note)
 
         # Dedupe, filter, cap
         seen: set[str] = set()
@@ -188,6 +196,21 @@ class TikTokSearchTool:
                 logger.warning(f"TikTok profile enrichment failed for @{profile.handle}: {e}")
         return profiles
 
+    def _build_no_results_note(self, tags: list[str], had_keywords: bool) -> str:
+        note = (
+            "TikTok returned 0 profiles. TikTok blocks anonymous #tag/search "
+            "listing; the signed listing API was also empty."
+        )
+        if self.cookie_count:
+            note += f" Cookies file had {self.cookie_count} cookies but the listing stayed blocked."
+        else:
+            note += " No cookies.txt was used."
+        if tags:
+            note += " Tip: paste @handles or profile URLs of known creators for this hashtag instead."
+        else:
+            note += " Tip: paste @handles / profile URLs (guaranteed to work), or export fresh cookies."
+        return note
+
     def _discover_via_ytdlp(self, url: str) -> list[str]:
         """Flat-extracts a TikTok listing URL, collecting uploader handles."""
         handles: list[str] = []
@@ -227,31 +250,8 @@ class TikTokSearchTool:
     # Tier 2: HTML harvest
     # ------------------------------------------------------------------
     def _discover_via_html(self, url: str) -> list[str]:
-        """Scrapes uniqueId / @handle tokens from a TikTok listing page HTML."""
-        import httpx
-
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-        try:
-            with httpx.Client(
-                timeout=self.timeout, follow_redirects=True, headers=headers
-            ) as client:
-                resp = client.get(url)
-                if resp.status_code != 200:
-                    return []
-                html = resp.text
-        except Exception as e:
-            logger.warning(f"TikTok HTML harvest failed: {e}")
-            return []
-
-        handles = UNIQUE_ID_PATTERN.findall(html)
-        handles += AT_HANDLE_PATTERN.findall(html)
-        return handles
+        """Cookies-aware harvest of uniqueId / @handle tokens from TikTok HTML."""
+        return self.api_session._html_handles(url)
 
     # ------------------------------------------------------------------
     # Profile enrichment
