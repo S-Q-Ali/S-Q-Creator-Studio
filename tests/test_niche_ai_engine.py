@@ -1,0 +1,294 @@
+"""Tests for the AI analysis + thumbnail engine."""
+
+from __future__ import annotations
+
+import pytest
+
+from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
+from s_q_ali_media_downloader.niche_research.storage import db
+from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
+    ChannelInfo,
+    VideoInfo,
+)
+
+SAMPLE_JSON = """{"strategy":{"contentType":["educational","tech reviews"],"postingSchedule":"2-3 videos per week","thumbnailStyle":"Bold text, camera angle","titleFormula":"How to X","tagStrategy":["tech","tutorial"],"uniqueSellingPoints":["Shorts clips","Deep dives"]},"contentIdeas":[{"title":"Best AI tools","description":"Roundup of tools","contentType":"video","estimatedViews":"high","difficulty":"medium"},{"title":"Quick tip","description":"Short tip","contentType":"short","estimatedViews":"low","difficulty":"easy"}],"scripts":[{"title":"Best AI tools","hook":"Stop wasting money","intro":"In this video...","bodySections":["Section one","Section two"],"outro":"Thanks for watching","estimatedDuration":900}],"growthBlueprint":{"30day":{"goals":["10 videos"],"actions":["Post weekly"],"metrics":["views"]},"60day":{"goals":[],"actions":[],"metrics":[]},"90day":{"goals":[],"actions":[],"metrics":[]}}}"""
+
+
+@pytest.fixture(autouse=True)
+def _db(isolated_appdata):
+    db.configure(None)
+    yield
+    db.close_db()
+
+
+def test_providers_priority_from_settings(isolated_appdata):
+    assert ai.get_providers() == []
+    db.set_setting("groq_api_key", "k-groq")
+    db.set_setting("aihubmix_api_key", "k-ai")
+    providers = ai.get_providers()
+    assert [p["name"] for p in providers] == ["aihubmix", "groq"]
+    for provider in providers:
+        assert provider["api_key"].startswith("k-")
+
+
+@pytest.mark.parametrize(
+    "name, model",
+    [
+        ("groq", "openai/gpt-oss-20b"),
+        ("aihubmix", "gpt-5.5-free"),
+        ("openrouter", "openrouter/free"),
+        ("google", "gemini-2.0-flash"),
+    ],
+)
+def test_provider_defs_carry_api_key(name, model, isolated_appdata):
+    provider = ai._provider_def(name, "sk-test-123")
+    assert provider["api_key"] == "sk-test-123"
+    assert provider["model"] == model
+
+
+def test_provider_def_unknown_raises(isolated_appdata):
+    with pytest.raises(ValueError, match="Unknown provider"):
+        ai._provider_def("nonexistent", "k")
+
+
+class _StatusResponse:
+    status_code = 200
+    text = ""
+
+    def json(self):
+        return {"choices": [{"message": {"content": "OK"}}]}
+
+
+class _SeqClient:
+    def __init__(self, statuses):
+        self._queue = list(statuses)
+        self.posts: list = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return None
+
+    def post(self, url, headers=None, json=None):
+        self.posts.append(url)
+        res = _StatusResponse()
+        res.status_code = self._queue.pop(0)
+        return res
+
+
+def test_call_provider_no_retry_on_client_error(isolated_appdata, monkeypatch):
+    client = _SeqClient([401, 401, 401])
+    monkeypatch.setattr(ai.httpx, "Client", lambda *a, **k: client)
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    with pytest.raises(RuntimeError, match="401"):
+        ai.call_provider(ai._provider_def("openrouter", "k"), "hi")
+    assert len(client.posts) == 1
+
+
+def test_call_provider_retries_rate_limit(isolated_appdata, monkeypatch):
+    client = _SeqClient([429, 429, 429])
+    monkeypatch.setattr(ai.httpx, "Client", lambda *a, **k: client)
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    with pytest.raises(RuntimeError, match="rate limited"):
+        ai.call_provider(ai._provider_def("openrouter", "k"), "hi")
+    assert len(client.posts) == 3
+
+
+def test_call_provider_retries_server_error(isolated_appdata, monkeypatch):
+    client = _SeqClient([500, 500, 500])
+    monkeypatch.setattr(ai.httpx, "Client", lambda *a, **k: client)
+    monkeypatch.setattr("time.sleep", lambda *a: None)
+    with pytest.raises(RuntimeError, match="500"):
+        ai.call_provider(ai._provider_def("openrouter", "k"), "hi")
+    assert len(client.posts) == 3
+
+
+def test_build_prompt_contains_channel_and_top_videos(isolated_appdata):
+    channel = ChannelInfo(
+        channel_id="UC1",
+        title="Test Channel",
+        subscriber_count=1000,
+        view_count=50_000,
+        video_count=10,
+        description="Long desc a" * 50,
+    )
+    videos = [
+        VideoInfo(video_id=f"v{i}", title=f"Video {i}", view_count=100 * i, like_count=10 * i)
+        for i in range(1, 8)
+    ]
+    prompt = ai.build_analysis_prompt(channel, videos)
+    assert "Test Channel" in prompt
+    assert "Subscribers: 1,000" in prompt
+    assert "Video 1" in prompt
+    assert "Video 5" in prompt
+    assert "Video 6" not in prompt  # only top 5
+    assert "(channel.description" not in prompt
+
+
+def test_parse_analysis_response_full(isolated_appdata):
+    analysis = ai.parse_analysis_response(SAMPLE_JSON)
+    assert analysis.strategy.contentType == ["educational", "tech reviews"]
+    assert analysis.strategy.postingSchedule == "2-3 videos per week"
+    assert len(analysis.contentIdeas) == 2
+    assert analysis.contentIdeas[0].estimatedViews == "high"
+    assert analysis.contentIdeas[1].contentType == "short"
+    assert analysis.scripts[0].bodySections == ["Section one", "Section two"]
+    assert analysis.scripts[0].estimatedDuration == 900
+    assert analysis.growthBlueprint["30day"].goals == ["10 videos"]
+    assert analysis.growthBlueprint["90day"].goals == []
+
+
+def test_parse_analysis_response_defaults_with_garbage(isolated_appdata):
+    analysis = ai.parse_analysis_response('{"contentIdeas":[{"title":"x"}]}')
+    assert analysis.strategy.contentType  # falls back to defaults
+    assert analysis.contentIdeas[0].title == "x"
+    assert analysis.contentIdeas[0].difficulty == "medium"
+    assert analysis.growthBlueprint["30day"].goals == []
+
+
+def test_parse_analysis_response_rejects_non_json(isolated_appdata):
+    with pytest.raises(RuntimeError):
+        ai.parse_analysis_response("no json here")
+
+
+def test_save_and_get_analysis_roundtrip(isolated_appdata):
+    analysis = ai.parse_analysis_response(SAMPLE_JSON)
+    ai.save_analysis("UCabc", analysis)
+
+    assert ai.is_analyzed("UCabc") is True
+    assert ai.is_analyzed("UCother") is False
+
+    got = ai.get_analysis("UCabc")
+    assert got["strategy"]["contentType"] == ["educational", "tech reviews"]
+    assert len(got["contentIdeas"]) == 2
+    assert got["scripts"][0]["bodySections"] == ["Section one", "Section two"]
+    assert got["growthBlueprint"]["30day"]["goals"] == ["10 videos"]
+    assert got["growthBlueprint"]["60day"]["goals"] == []
+
+
+def test_save_analysis_overwrites_previous(isolated_appdata):
+    ai.save_analysis("UCabc", ai.parse_analysis_response(SAMPLE_JSON))
+    empty = ai.parse_analysis_response('{"contentIdeas":[]}')
+    empty.contentIdeas = []
+    empty.scripts = []
+    ai.save_analysis("UCabc", empty)
+    got = ai.get_analysis("UCabc")
+    assert got["contentIdeas"] == []
+    assert got["scripts"] == []
+
+
+def test_analyze_channel_runs_and_persists(isolated_appdata, monkeypatch):
+    monkeypatch.setattr(
+        ai,
+        "get_providers",
+        lambda: [{"name": "fake", "base_url": "", "model": "m", "max_tokens": 1, "api_key": "k"}],
+    )
+    monkeypatch.setattr(ai, "call_provider", lambda provider, prompt: SAMPLE_JSON)
+    monkeypatch.setattr(
+        ai,
+        "fetch_channel",
+        lambda channel_id, cookiefile=None: ChannelInfo(
+            channel_id=channel_id,
+            title="Analyzable",
+            subscriber_count=5,
+            uploads=[
+                {"video_id": "v1"},
+                {"video_id": "v2"},
+                {"video_id": "v3"},
+            ],
+        ),
+    )
+    captured_ids: list = []
+
+    def fake_fetch_videos(ids, cookiefile=None, progress=None):
+        captured_ids.extend(ids)
+        return [VideoInfo(video_id=i, title=f"Video {i}", view_count=100) for i in ids]
+
+    monkeypatch.setattr(ai, "fetch_videos", fake_fetch_videos)
+
+    analysis = ai.analyze_channel("UCxyz")
+    assert analysis.strategy.contentType
+    assert ai.is_analyzed("UCxyz") is True
+    # upload ids (real key video_id) must reach fetch_videos, not an empty list
+    assert sorted(captured_ids) == ["v1", "v2", "v3"]
+
+
+def test_load_channel_analysis_data_recent_videos(isolated_appdata, monkeypatch):
+    monkeypatch.setattr(
+        ai,
+        "fetch_channel",
+        lambda channel_id, cookiefile=None: ChannelInfo(
+            channel_id=channel_id,
+            title="Recent-y",
+            uploads=[
+                {
+                    "video_id": f"u{i}",
+                    "title": f"Upload {i}",
+                    "view_count": 1000 * i,
+                    "upload_date": "2026080" + str(i),
+                    "thumbnail_url": f"https://x/u{i}.jpg",
+                }
+                for i in range(3)
+            ],
+        ),
+    )
+    data = ai.load_channel_analysis_data("UCabc")
+    recent = data["recentVideos"]
+    assert len(recent) == 3
+    assert recent[0]["videoId"] == "u0"
+    assert recent[0]["title"] == "Upload 0"
+    assert recent[0]["viewCount"] == 0
+    assert recent[1]["viewCount"] == 1000
+    assert recent[0]["thumbnailUrl"] == "https://x/u0.jpg"
+    assert recent[1]["publishedAt"] == "2026-08-01"
+
+
+def test_analyze_channel_no_providers_raises(isolated_appdata, monkeypatch):
+    monkeypatch.setattr(ai, "get_providers", list)
+    with pytest.raises(RuntimeError, match="No AI providers"):
+        ai.analyze_channel("UCxyz")
+
+
+def test_generate_thumbnail_missing_key(isolated_appdata):
+    result = ai.generate_thumbnail("My video")
+    assert result["success"] is False
+    assert "aihubmix_api_key" in result["error"]
+
+
+def test_generate_thumbnail_styles_build_prompt_shape(isolated_appdata, monkeypatch):
+    db.set_setting("aihubmix_api_key", "key")
+    captured: dict = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"data": [{"b64_json": "abc123"}]}
+
+        @property
+        def text(self):
+            return ""
+
+    class FakeCtx:
+        def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["payload"] = json
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return FakeCtx()
+
+        def __exit__(self, *args):
+            return None
+
+    monkeypatch.setattr(ai.httpx, "Client", FakeClient)
+    result = ai.generate_thumbnail("Big title", style="vibrant", niche="Tech")
+    assert result["success"] is True
+    assert result["imageData"].startswith("data:image/png;base64,")
+    assert "vibrant" in captured["payload"]["prompt"]
+    assert "Niche: Tech" in captured["payload"]["prompt"]

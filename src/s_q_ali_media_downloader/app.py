@@ -18,7 +18,7 @@ def main():
     app.setOrganizationName(ORG)
     app.setStyleSheet(STYLESHEET)
 
-    icon_path = resource('icon.ico')
+    icon_path = resource("icon.ico")
     if os.path.isfile(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
