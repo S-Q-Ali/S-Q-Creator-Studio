@@ -8,7 +8,7 @@ rem ============================================================
 
 set "ROOT=%~dp0"
 set "VENV=%ROOT%source\venv"
-set "PYINSTALLER=%VENV%\Scripts\pyinstaller.exe"
+set "PYINSTALLER=%VENV%\Scripts\python.exe"
 set "PYTHON=%VENV%\Scripts\python.exe"
 set "ENTRY=src\s_q_ali_media_downloader\__main__.py"
 set "ICON=src\s_q_ali_media_downloader\resources\icon.ico"
@@ -23,7 +23,7 @@ echo  Step 1 of 3 — Building with PyInstaller (one-directory)
 echo ============================================================
 echo.
 
-"%PYINSTALLER%" ^
+"%PYINSTALLER%" -m PyInstaller ^
     --noconfirm ^
     --clean ^
     --onedir ^

@@ -208,6 +208,43 @@ def test_ydl_opts_omits_cookiefile_when_unset():
     assert "extract_flat" not in opts
 
 
+def test_cookiefile_property_refreshes_api_session(tmp_path):
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc"), (".tiktok.com", "ttwid", "xyz")])
+    tool = TikTokSearchTool()
+    assert tool.cookie_count == 0
+    tool.cookiefile = str(p)
+    assert tool.cookiefile == str(p)
+    assert tool.cookie_count == 2
+    assert tool.api_session.cookie_count == 2
+    assert tool.api_session._flat_cookies["sessionid"] == "abc"
+    assert tool.api_session._flat_cookies["ttwid"] == "xyz"
+
+
+def test_cookiefile_property_resets_session_when_cleared(tmp_path):
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc")])
+    tool = TikTokSearchTool(cookiefile=str(p))
+    assert tool.cookie_count == 1
+    tool.cookiefile = None
+    assert tool.cookie_count == 0
+    assert tool.api_session.cookie_count == 0
+
+
+def test_orchestrator_propagates_cookiefile_to_api_session(tmp_path, monkeypatch):
+    from s_q_ali_media_downloader.agent.orchestrator import AgentOrchestrator
+
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc")])
+    orchestrator = AgentOrchestrator()
+    assert orchestrator.tiktok_tool.cookie_count == 0
+    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", lambda *a, **k: [])
+    orchestrator.tiktok_tool.search_note = "note"
+    orchestrator.run_tiktok_discovery("#tag", max_profiles=5, cookiefile=str(p))
+    assert orchestrator.tiktok_tool.cookie_count == 1
+    assert orchestrator.tiktok_tool.api_session._flat_cookies["sessionid"] == "abc"
+
+
 # ---------------------------------------------------------------------------
 # TikTokApiSession — cookies loader, X-Bogus signing, handle extraction
 # ---------------------------------------------------------------------------
@@ -337,3 +374,29 @@ def test_orchestrator_surfaces_note_when_zero_profiles(monkeypatch):
     result = orchestrator.run_tiktok_discovery("not a tag", max_profiles=5)
     assert result.profiles == []
     assert emitted[-1] == (100, note)
+
+
+def test_note_when_no_cookiefile_provided():
+    tool = TikTokSearchTool()
+    note = tool._build_no_results_note(tags=["sometag"], had_keywords=False)
+    assert "No cookies.txt was provided" in note
+    assert "@handles" in note
+
+
+def test_note_when_cookiefile_failed_to_load(tmp_path):
+    tool = TikTokSearchTool(cookiefile=str(tmp_path / "missing.txt"))
+    assert tool.cookie_count == 0
+    assert tool.cookiefile is not None
+    note = tool._build_no_results_note(tags=[], had_keywords=True)
+    assert "failed to load" in note
+    assert "No cookies.txt was provided" not in note
+
+
+def test_note_when_cookiefile_loaded_but_blocked(tmp_path):
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc")])
+    tool = TikTokSearchTool(cookiefile=str(p))
+    assert tool.cookie_count == 1
+    note = tool._build_no_results_note(tags=["tech"], had_keywords=False)
+    assert "1 cookies" in note
+    assert "listing stayed blocked" in note

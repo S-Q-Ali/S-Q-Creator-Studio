@@ -198,7 +198,7 @@ def test_not_found_mapping(monkeypatch):
 def test_search_via_api_path_used_when_key_set(monkeypatch):
     called = {}
 
-    def fake_api(query, max_results, days_recent):
+    def fake_api(query, max_results, days_recent, **kwargs):
         called["hit"] = True
         return [yc.VideoInfo(video_id="api1", view_count=99)]
 
@@ -210,7 +210,7 @@ def test_search_via_api_path_used_when_key_set(monkeypatch):
 
 
 def test_fetch_videos_preserves_order(monkeypatch):
-    def fake_fetch_video(video_id, cookiefile=None):
+    def fake_fetch_video(video_id, cookiefile=None, api_key=None):
         return yc.VideoInfo(video_id=video_id, view_count=len(video_id))
 
     monkeypatch.setattr(yc, "fetch_video", fake_fetch_video)
@@ -224,3 +224,77 @@ def test_chunks():
         ["3", "4"],
         ["5"],
     ]
+
+
+# ---------------------------------------------------------------------------
+# search_channels — grouping, ranking, enrichment, min_subscribers
+# ---------------------------------------------------------------------------
+
+
+def _fake_channel(cid, subs=1000, title=""):
+    return yc.ChannelInfo(channel_id=cid, subscriber_count=subs, title=title or f"Ch {cid}")
+
+
+def test_search_channels_groups_by_channel_and_enriches(monkeypatch):
+    def fake_search_videos(query, max_results, **kwargs):
+        return [
+            yc.VideoInfo(video_id="v1", channel_id="UCa", channel_title="Alpha", view_count=50),
+            yc.VideoInfo(video_id="v2", channel_id="UCb", channel_title="Beta", view_count=900),
+            yc.VideoInfo(video_id="v3", channel_id="UCa", channel_title="Alpha", view_count=800),
+        ]
+
+    def fake_fetch_channels(ids, **kwargs):
+        by_id = {"UCa": _fake_channel("UCa", 10_000, "Alpha"), "UCb": _fake_channel("UCb", 5_000, "Beta")}
+        return [by_id[cid] for cid in ids if cid in by_id]
+
+    monkeypatch.setattr(yc, "search_videos", fake_search_videos)
+    monkeypatch.setattr(yc, "fetch_channels", fake_fetch_channels)
+
+    results = yc.search_channels("alpha beta", max_results=10)
+    assert [c.channel_id for c in results] == ["UCb", "UCa"]  # ranked by best video views
+    assert results[0].subscriber_count == 5_000
+    assert results[1].subscriber_count == 10_000
+
+
+def test_search_channels_dedupes_same_channel(monkeypatch):
+    def fake_search_videos(query, max_results, **kwargs):
+        return [
+            yc.VideoInfo(video_id="v1", channel_id="UCa", channel_title="Alpha", view_count=1),
+            yc.VideoInfo(video_id="v2", channel_id="UCa", channel_title="Alpha", view_count=9),
+        ]
+
+    def fake_fetch_channels(ids, **kwargs):
+        return [_fake_channel("UCa", 7_777) for cid in ids if cid == "UCa"]
+
+    monkeypatch.setattr(yc, "search_videos", fake_search_videos)
+    monkeypatch.setattr(yc, "fetch_channels", fake_fetch_channels)
+    results = yc.search_channels("alpha", max_results=10)
+    assert len(results) == 1
+    assert results[0].channel_id == "UCa"
+
+
+def test_search_channels_min_subscribers_filters(monkeypatch):
+    def fake_search_videos(query, max_results, **kwargs):
+        return [
+            yc.VideoInfo(video_id="v1", channel_id="UCa", channel_title="Alpha", view_count=9),
+            yc.VideoInfo(video_id="v2", channel_id="UCb", channel_title="Beta", view_count=5),
+        ]
+
+    def fake_fetch_channels(ids, **kwargs):
+        by_id = {"UCa": _fake_channel("UCa", 10_000), "UCb": _fake_channel("UCb", 1_000)}
+        return [by_id[cid] for cid in ids if cid in by_id]
+
+    monkeypatch.setattr(yc, "search_videos", fake_search_videos)
+    monkeypatch.setattr(yc, "fetch_channels", fake_fetch_channels)
+
+    results = yc.search_channels("q", max_results=10, min_subscribers=5_000)
+    assert [c.channel_id for c in results] == ["UCa"]
+
+
+def test_search_channels_empty_pool(monkeypatch):
+    monkeypatch.setattr(yc, "search_videos", lambda *a, **k: [])
+    assert yc.search_channels("nope", max_results=10) == []
+
+
+def test_search_channels_zero_max_results(monkeypatch):
+    assert yc.search_channels("q", max_results=0) == []

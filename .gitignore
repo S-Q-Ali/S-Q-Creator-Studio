@@ -9,6 +9,7 @@ source/venv/
 # PyInstaller build artifacts
 source/build/
 source/dist/
+build/
 *.spec
 _internal/
 *.exe_extracted/
@@ -29,6 +30,10 @@ legacy/
 
 # Session continuity docs (local working notes)
 SESSION_NOTES.md
+
+# graphify knowledge graph (local-only artifacts)
+graphify-out/cost.json
+graphify-out/cache/
 
 # OS
 Thumbs.db

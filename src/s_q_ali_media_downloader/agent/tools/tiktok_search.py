@@ -61,9 +61,23 @@ class TikTokSearchTool:
 
     def __init__(self, timeout: float = 20.0, cookiefile: str | None = None):
         self.timeout = timeout
-        self.cookiefile = cookiefile
-        self.api_session = TikTokApiSession(cookiefile=cookiefile, timeout=timeout)
+        self.api_session = TikTokApiSession(timeout=timeout)
+        self._cookiefile: str | None = None
         self.search_note: str | None = None
+        self.cookie_count = 0
+        if cookiefile:
+            self.cookiefile = cookiefile
+
+    @property
+    def cookiefile(self) -> str | None:
+        """Path to the Netscape cookies.txt in use (or None)."""
+        return self._cookiefile
+
+    @cookiefile.setter
+    def cookiefile(self, value: str | None) -> None:
+        """(Re)builds the API session so signed listings carry the cookies."""
+        self._cookiefile = value
+        self.api_session = TikTokApiSession(cookiefile=value, timeout=self.timeout)
         self.cookie_count = self.api_session.cookie_count
 
     # ------------------------------------------------------------------
@@ -201,10 +215,15 @@ class TikTokSearchTool:
             "TikTok returned 0 profiles. TikTok blocks anonymous #tag/search "
             "listing; the signed listing API was also empty."
         )
-        if self.cookie_count:
-            note += f" Cookies file had {self.cookie_count} cookies but the listing stayed blocked."
+        if not self.cookiefile:
+            note += " No cookies.txt was provided."
+        elif self.cookie_count:
+            note += (
+                f" A cookies.txt with {self.cookie_count} cookies was used but the "
+                "listing stayed blocked."
+            )
         else:
-            note += " No cookies.txt was used."
+            note += " A cookies.txt path was set but it failed to load (0 cookies)."
         if tags:
             note += " Tip: paste @handles or profile URLs of known creators for this hashtag instead."
         else:

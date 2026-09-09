@@ -252,11 +252,18 @@ def search_videos(
     days_recent: int | None = None,
     cookiefile: str | None = None,
     progress: Callable[[str], None] | None = None,
+    api_key: str | None = None,
 ) -> list[VideoInfo]:
-    """Search YouTube videos. Uses the API when a key is configured, else yt-dlp."""
-    if get_api_key():
+    """Search YouTube videos. Uses the API when a key is configured, else yt-dlp.
+
+    ``api_key`` overrides the stored Settings key for this single call.
+    """
+    key = api_key or get_api_key()
+    if key:
         try:
-            return _search_via_api(query, max_results=max_results, days_recent=days_recent)
+            return _search_via_api(
+                query, max_results=max_results, days_recent=days_recent, api_key=key
+            )
         except YoutubeApiError as exc:
             logger.warning("API search failed (%s); falling back to yt-dlp", exc)
     return _search_via_ytdlp(
@@ -301,8 +308,9 @@ def _search_via_api(
     query: str,
     max_results: int,
     days_recent: int | None,
+    api_key: str | None = None,
 ) -> list[VideoInfo]:
-    key = get_api_key()
+    key = api_key or get_api_key()
     if not key:
         raise YoutubeApiError("No YouTube API key configured")
     published_after = (
@@ -430,12 +438,80 @@ def parse_iso8601_duration(value: str | None) -> int:
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
-def fetch_video(video_id: str, *, cookiefile: str | None = None) -> VideoInfo:
+def search_channels(
+    query: str,
+    max_results: int = 30,
+    *,
+    min_subscribers: int = 0,
+    cookiefile: str | None = None,
+    progress: Callable[[str], None] | None = None,
+    api_key: str | None = None,
+) -> list[ChannelInfo]:
+    """Discover channels by query, enriched with full yt-dlp metadata.
+
+    Runs a video search (pool), groups the hits by ``channel_id``, picks the
+    most-viewed top ``max_results`` channels, then fetches full channel metadata
+    (subscriber count, avatar, custom URL/handle) for each. ``min_subscribers``
+    is applied after enrichment. Falls back to yt-dlp when no API key applies.
+    """
+    if max_results <= 0:
+        return []
+
+    if progress:
+        progress(f"Searching YouTube channels for: {query}")
+
+    pool = search_videos(
+        query,
+        max_results=min(max(2 * max_results, 20), 50),
+        cookiefile=cookiefile,
+        progress=progress,
+        api_key=api_key,
+    )
+
+    by_channel: dict[str, tuple[str, int]] = {}
+    for video in pool:
+        cid = video.channel_id
+        if not cid:
+            continue
+        title = video.channel_title or ""
+        if cid not in by_channel or video.view_count > by_channel[cid][1]:
+            by_channel[cid] = (title, video.view_count)
+
+    ranked = sorted(by_channel.items(), key=lambda kv: kv[1][1], reverse=True)[:max_results]
+    if not ranked:
+        return []
+
+    if progress:
+        progress(f"Fetching metadata for {len(ranked)} candidate channels...")
+
+    channels = fetch_channels(
+        [cid for cid, _ in ranked],
+        cookiefile=cookiefile,
+        progress=progress,
+        uploads_limit=1,
+        api_key=api_key,
+    )
+    by_id = {c.channel_id: c for c in channels}
+    out: list[ChannelInfo] = []
+    for cid, (title, _views) in ranked:
+        channel = by_id.get(cid)
+        if channel is None:
+            continue
+        if not channel.title:
+            channel.title = title
+        if min_subscribers and channel.subscriber_count < min_subscribers:
+            continue
+        out.append(channel)
+    return out
+
+
+def fetch_video(video_id: str, *, cookiefile: str | None = None, api_key: str | None = None) -> VideoInfo:
     """Fetch full metadata for a single video."""
-    if get_api_key():
+    key = api_key or get_api_key()
+    if key:
         with httpx.Client(timeout=20.0) as client:
             try:
-                videos = _fetch_videos_via_api(client, [video_id], get_api_key())
+                videos = _fetch_videos_via_api(client, [video_id], key)
                 if videos:
                     return videos[0]
             except YoutubeApiError as exc:
@@ -451,14 +527,16 @@ def fetch_videos(
     *,
     cookiefile: str | None = None,
     progress: Callable[[str], None] | None = None,
+    api_key: str | None = None,
 ) -> list[VideoInfo]:
     """Fetch many videos. Preservation of input order; per-item error tolerance."""
     ids = [v for v in dict.fromkeys(video_ids) if v]
     by_id: dict[str, VideoInfo] = {}
-    if get_api_key():
+    key = api_key or get_api_key()
+    if key:
         with httpx.Client(timeout=20.0) as client:
             try:
-                for v in _fetch_videos_via_api(client, ids, get_api_key()):
+                for v in _fetch_videos_via_api(client, ids, key):
                     by_id[v.video_id] = v
             except YoutubeApiError as exc:
                 logger.warning("API video batch failed (%s); falling back", exc)
@@ -467,24 +545,25 @@ def fetch_videos(
         if progress:
             progress(f"Fetching video {i}/{len(missing)}: {video_id}")
         try:
-            by_id[video_id] = fetch_video(video_id, cookiefile=cookiefile)
+            by_id[video_id] = fetch_video(video_id, cookiefile=cookiefile, api_key=key)
         except YoutubeApiError:
             logger.debug("Skipping un-fetchable video %s", video_id)
     return [by_id[vid] for vid in ids if vid in by_id]
 
 
 def fetch_channel(
-    channel_id: str, *, cookiefile: str | None = None, uploads_limit: int = 30
+    channel_id: str, *, cookiefile: str | None = None, uploads_limit: int = 30, api_key: str | None = None
 ) -> ChannelInfo:
     """Fetch channel metadata plus its most recent uploads (flat).
 
     Accepts either a bare channel id (``UC...``) or any full channel URL such as
     ``https://www.youtube.com/@handle`` or ``.../channel/UC...``.
     """
-    if get_api_key():
+    key = api_key or get_api_key()
+    if key:
         with httpx.Client(timeout=20.0) as client:
             try:
-                channels = _fetch_channels_via_api(client, [channel_id], get_api_key())
+                channels = _fetch_channels_via_api(client, [channel_id], key)
                 if channels:
                     return channels[0]
             except YoutubeApiError as exc:
@@ -506,14 +585,16 @@ def fetch_channels(
     cookiefile: str | None = None,
     uploads_limit: int = 30,
     progress: Callable[[str], None] | None = None,
+    api_key: str | None = None,
 ) -> list[ChannelInfo]:
     """Fetch many channels, deduped, preserving input order."""
     ids = [c for c in dict.fromkeys(channel_ids) if c]
     by_id: dict[str, ChannelInfo] = {}
-    if get_api_key():
+    key = api_key or get_api_key()
+    if key:
         with httpx.Client(timeout=20.0) as client:
             try:
-                for c in _fetch_channels_via_api(client, ids, get_api_key()):
+                for c in _fetch_channels_via_api(client, ids, key):
                     by_id[c.channel_id] = c
             except YoutubeApiError as exc:
                 logger.warning("API channel batch failed (%s); falling back", exc)
@@ -523,7 +604,7 @@ def fetch_channels(
             progress(f"Fetching channel {i}/{len(missing)}: {channel_id}")
         try:
             by_id[channel_id] = fetch_channel(
-                channel_id, cookiefile=cookiefile, uploads_limit=uploads_limit
+                channel_id, cookiefile=cookiefile, uploads_limit=uploads_limit, api_key=key
             )
         except (YoutubeApiError, RateLimitError, NotFoundError):
             logger.debug("Skipping un-fetchable channel %s", channel_id)

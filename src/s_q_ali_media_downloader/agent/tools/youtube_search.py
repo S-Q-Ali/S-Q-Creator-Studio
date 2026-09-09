@@ -3,9 +3,12 @@
 import logging
 
 import httpx
-import yt_dlp
 
 from s_q_ali_media_downloader.agent.schema import ChannelMetadata
+from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
+    ChannelInfo,
+    search_channels,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,8 @@ class YouTubeSearchTool:
     """Discovers YouTube channels by prompt, tag/hashtag, or channel name."""
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key.strip() if api_key else None
+        stripped = api_key.strip() if api_key else ""
+        self.api_key = stripped or None
 
     def search_channels(
         self, query: str, max_results: int = 50, min_subscribers: int = 0
@@ -27,7 +31,7 @@ class YouTubeSearchTool:
             except Exception as e:
                 logger.warning(f"YouTube API error: {e}. Falling back to yt-dlp scraper.")
 
-        logger.info("Using yt-dlp Zero-Key search scraper...")
+        logger.info("Using yt-dlp shared search client...")
         return self._search_via_ytdlp(query, max_results, min_subscribers)
 
     def _search_via_api(
@@ -121,58 +125,46 @@ class YouTubeSearchTool:
     def _search_via_ytdlp(
         self, query: str, max_results: int, min_subscribers: int
     ) -> list[ChannelMetadata]:
-        """Zero-Key search using yt-dlp ytsearch engine."""
-        results: list[ChannelMetadata] = []
-        search_term = f"ytsearch{min(max_results, 30)}:{query}"
+        """Zero-Key channel discovery via the shared yt-dlp client (impersonation + enrich)."""
+        channels = search_channels(
+            query,
+            max_results=max_results,
+            min_subscribers=min_subscribers,
+            api_key=self.api_key,
+        )
+        return [self._metadatum_from_channel_info(ch) for ch in channels]
 
-        ydl_opts = {
-            "extract_flat": True,
-            "skip_download": True,
-            "quiet": True,
-            "ignoreerrors": True,
-        }
+    @staticmethod
+    def _handle_from_custom_url(custom_url: str) -> str | None:
+        if not custom_url:
+            return None
+        handle = custom_url.rstrip("/").split("/")[-1].lstrip("@")
+        return handle or None
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            try:
-                info = ydl.extract_info(search_term, download=False)
-                if not info or "entries" not in info:
-                    return []
-
-                seen_channels = set()
-                for entry in info.get("entries", []):
-                    if not entry or not isinstance(entry, dict):
-                        continue
-
-                    channel_id = entry.get("channel_id") or entry.get("uploader_id")
-                    channel_name = entry.get("channel") or entry.get("uploader")
-                    channel_url = entry.get("channel_url") or entry.get("uploader_url")
-
-                    if not channel_id or channel_id in seen_channels:
-                        continue
-
-                    seen_channels.add(channel_id)
-                    # NOTE: do NOT fabricate a handle from the channel display
-                    # name — a name with spaces stripped is rarely the real
-                    # YouTube handle, and probing FB/IG with it produces false
-                    # matches. Leave handle=None; enrichment fills it in when a
-                    # real canonical handle can be confirmed.
-                    results.append(
-                        ChannelMetadata(
-                            channel_id=channel_id,
-                            title=channel_name or "YouTube Creator",
-                            handle=None,
-                            subscribers=0,
-                            subscribers_formatted="N/A",
-                            youtube_url=channel_url
-                            or f"https://www.youtube.com/channel/{channel_id}",
-                            description=entry.get("description") or "",
-                            latest_video_url=entry.get("url") or entry.get("webpage_url"),
-                        )
-                    )
-            except Exception as e:
-                logger.error(f"yt-dlp search failed: {e}")
-
-        return results
+    @staticmethod
+    def _metadatum_from_channel_info(info: ChannelInfo) -> ChannelMetadata:
+        """Maps a shared ChannelInfo into the Agent's ChannelMetadata schema."""
+        channel_url = (
+            info.custom_url
+            if info.custom_url.startswith(("http://", "https://"))
+            else f"https://www.youtube.com/channel/{info.channel_id}"
+        )
+        latest_url = ""
+        if info.uploads:
+            latest_url = info.uploads[0].get("video_id", "") or ""
+            if latest_url:
+                latest_url = f"https://www.youtube.com/watch?v={latest_url}"
+        return ChannelMetadata(
+            channel_id=info.channel_id,
+            title=info.title or "YouTube Creator",
+            handle=YouTubeSearchTool._handle_from_custom_url(info.custom_url),
+            subscribers=info.subscriber_count,
+            subscribers_formatted=YouTubeSearchTool.format_subs(info.subscriber_count),
+            youtube_url=channel_url,
+            avatar_url=info.thumbnail_url or None,
+            description=info.description or "",
+            latest_video_url=latest_url or None,
+        )
 
     @staticmethod
     def format_subs(subs: int) -> str:
