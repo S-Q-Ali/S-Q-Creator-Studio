@@ -31,6 +31,10 @@ legacy/
 # Session continuity docs (local working notes)
 SESSION_NOTES.md
 
+# Local session capture artifacts (may contain cookie/token data) + personal config
+new-session---*.json
+opencode.json
+
 # graphify knowledge graph (local-only artifacts)
 graphify-out/cost.json
 graphify-out/cache/

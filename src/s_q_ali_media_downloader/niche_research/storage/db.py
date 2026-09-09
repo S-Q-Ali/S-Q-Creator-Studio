@@ -1,6 +1,6 @@
 """SQLite persistence for the Niche Research suite.
 
-Schema is mirrored from Niche-Scope's lib/db.ts (node:sqlite) using the stdlib
+Schema is mirrored from the S-Q-Ali research web tool's lib/db.ts (node:sqlite) using the stdlib
 sqlite3 module. Thread-safe: a single shared connection guarded by a lock.
 
 Override the database location with the ``NICHE_DB_PATH`` environment variable
@@ -10,12 +10,75 @@ folder under ``LOCALAPPDATA\\S-Q-Ali Media Downloader\\storage``.
 
 from __future__ import annotations
 
+import base64
+import ctypes
+import logging
 import os
 import sqlite3
+import sys
 import threading
 import time
 from collections.abc import Iterable, Sequence
+from ctypes import wintypes
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Secrets (``*_api_key`` settings) are sealed at rest with Windows DPAPI and
+# stored as ``dpapi1:<base64>`` blobs. On non-Windows platforms they fall back
+# to plaintext so the suite stays portable. Everything is transparent through
+# set_setting()/get_setting(); legacy plaintext rows are re-sealed on first read.
+SEAL_PREFIX = "dpapi1:"
+_SEAL_ENTROPY = b"S-Q-Ali Media Downloader\x00app\x00v1"
+
+
+class _DATA_BLOB(ctypes.Structure):
+    _fields_ = [
+        ("cbData", wintypes.DWORD),
+        ("pbData", ctypes.POINTER(ctypes.c_char)),
+    ]
+
+
+def _dpapi_protect(data: bytes, protect: bool) -> bytes:
+    raw = ctypes.create_string_buffer(data, len(data))
+    blob = _DATA_BLOB(len(data), ctypes.cast(raw, ctypes.POINTER(ctypes.c_char)))
+    ent = ctypes.create_string_buffer(_SEAL_ENTROPY, len(_SEAL_ENTROPY))
+    entropy = _DATA_BLOB(
+        len(_SEAL_ENTROPY), ctypes.cast(ent, ctypes.POINTER(ctypes.c_char))
+    )
+    out = _DATA_BLOB()
+    crypt32 = ctypes.windll.crypt32
+    fn = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
+    # CRYPTPROTECT_UI_FORBIDDEN (0x1): never prompt the user
+    ok = fn(ctypes.byref(blob), None, ctypes.byref(entropy), None, None, 0x1, ctypes.byref(out))
+    if not ok:
+        raise ctypes.WinError(ctypes.get_last_error())
+    result = ctypes.string_at(out.pbData, out.cbData)
+    ctypes.windll.kernel32.LocalFree(out.pbData)
+    return result
+
+
+def _seal(value: str) -> str:
+    if sys.platform == "win32":
+        try:
+            sealed = _dpapi_protect(value.encode("utf-8"), protect=True)
+            return SEAL_PREFIX + base64.b64encode(sealed).decode("ascii")
+        except (OSError, ctypes.WinError):
+            return value
+    return value
+
+
+def _unseal(value: str) -> str:
+    if value.startswith(SEAL_PREFIX):
+        if sys.platform != "win32":
+            raise RuntimeError("Cannot decrypt DPAPI-sealed setting on this platform")
+        raw = base64.b64decode(value[len(SEAL_PREFIX) :])
+        return _dpapi_protect(raw, protect=False).decode("utf-8")
+    return value
+
+
+def _is_secret_key(key: str) -> bool:
+    return key.endswith("_api_key")
 
 SCHEMA: str = """
 CREATE TABLE IF NOT EXISTS settings (
@@ -285,17 +348,31 @@ def set_setting(key: str, value: str) -> None:
     run(
         "INSERT INTO settings (key, value) VALUES (?, ?) "
         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        (key, value),
+        (key, _seal(value) if _is_secret_key(key) else value),
     )
 
 
 def get_setting(key: str) -> str | None:
     row = get("SELECT value FROM settings WHERE key = ?", (key,))
-    return row["value"] if row else None
+    if row is None:
+        return None
+    value: str = row["value"]
+    if _is_secret_key(key):
+        if not value.startswith(SEAL_PREFIX):
+            # Legacy plaintext row — seal it now and keep returning plaintext.
+            try:
+                sealed = _seal(value)
+                if sealed != value:
+                    run("UPDATE settings SET value = ? WHERE key = ?", (sealed, key))
+            except Exception:
+                logger.warning("Failed to seal legacy setting %s", key, exc_info=True)
+            return value
+        return _unseal(value)
+    return value
 
 
 def now() -> int:
-    """Current unix time in milliseconds (mirrors Niche-Scope's now())."""
+    """Current unix time in milliseconds (mirrors the research web tool's now())."""
     return int(time.time() * 1000)
 
 

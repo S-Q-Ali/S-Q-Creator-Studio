@@ -1,6 +1,6 @@
 """AI channel analysis: strategy, content ideas, scripts, growth blueprint.
 
-Ported from Niche-Scope's lib/aiAnalysis.ts + lib/thumbnailGenerator.ts.
+Ported from the companion research web tool's lib/aiAnalysis.ts + lib/thumbnailGenerator.ts.
 Providers are configured through the app's settings table (Settings page)
 instead of environment variables. Results persist into the shared schema
 (channel_content_ideas / channel_scripts / channel_growth_blueprints /
@@ -184,10 +184,7 @@ Generate 5 content ideas, 2 scripts, and detailed growth blueprints."""
 def call_provider(provider: dict[str, Any], prompt: str) -> str:
     name = provider["name"]
     if name == "google":
-        url = (
-            f"{provider['base_url']}/models/{provider['model']}:generateContent"
-            f"?key={provider['api_key']}"
-        )
+        url = f"{provider['base_url']}/models/{provider['model']}:generateContent"
         payload: dict[str, Any] = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"maxOutputTokens": provider["max_tokens"], "temperature": 0.7},
@@ -200,7 +197,13 @@ def call_provider(provider: dict[str, Any], prompt: str) -> str:
             "max_tokens": provider["max_tokens"],
             "temperature": 0.7,
         }
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {provider['api_key']}"}
+    # Gemini takes the key in the x-goog-api-key header (never the query string,
+    # which would leak into logs/proxies); every other provider uses Bearer.
+    headers = {"Content-Type": "application/json"}
+    if name == "google":
+        headers["x-goog-api-key"] = provider["api_key"]
+    else:
+        headers["Authorization"] = f"Bearer {provider['api_key']}"
 
     last_error: Exception | None = None
     for attempt in range(3):
