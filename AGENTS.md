@@ -20,9 +20,16 @@ Map the user's intent to the matching skill automatically:
 - Code review: `code-review-and-quality`
 - Refactoring / simplification: `code-simplification`
 - API or interface design: `api-and-interface-design`
-- UI work: `frontend-ui-engineering`
+- UI work / design language: `frontend-design` (craft/anti-slop, Anthropic) + `frontend-ui-engineering` (component engineering, Addy pack)
+- Design system / theme / tokens / brand: `theme-factory` (palette+type) + `brand-guidelines` (token-system pattern only — never Anthropic brand data)
+- Visual craftsmanship audit: `canvas-design`
 - Security concerns: `security-and-hardening`
 - Performance issues: `performance-optimization`
+- Claude API / LLM client code: `claude-api`
+- MCP server / tool integration: `mcp-builder`
+- Writing a new skill: `skill-creator`
+- Web artifact / React-TS prototypes: `web-artifacts-builder` (web-only)
+- Web app browser testing / Playwright: `webapp-testing` (web-only; for Qt GUIs use offscreen GUI smoke tests instead)
 - Git / versioning: `git-workflow-and-versioning`
 - CI/CD / automation: `ci-cd-and-automation`
 - Deprecation / migration: `deprecation-and-migration`
