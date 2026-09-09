@@ -1,4 +1,4 @@
-"""Reusable Niche-Scope style widgets: flow layout, badges, stats, avatar, helpers."""
+"""Reusable app-style widgets: flow layout, badges, stats, avatar, helpers."""
 
 from __future__ import annotations
 
@@ -300,14 +300,14 @@ class Sparkline(QWidget):
         painter.drawPath(path)
 
         last_x, last_y = pts[-1]
-        dot_color = QColor("#22c55e")
+        dot_color = QColor("#2DD4BF")
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(dot_color)
         painter.drawEllipse(QPointF(last_x, last_y), 2.5, 2.5)
 
 
 class AvatarInitials(QWidget):
-    """Round gradient avatar with channel initials (red→rose gradient like Niche-Scope)."""
+    """Round gradient avatar with channel initials (cyan→teal gradient)."""
 
     def __init__(self, text: str, size: int = 48, parent: QWidget | None = None):
         super().__init__(parent)
@@ -322,8 +322,8 @@ class AvatarInitials(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         grad = QLinearGradient(0, 0, self._size, self._size)
-        grad.setColorAt(0, QColor("#ef4444"))
-        grad.setColorAt(1, QColor("#be123c"))
+        grad.setColorAt(0, QColor("#22D3EE"))
+        grad.setColorAt(1, QColor("#2DD4BF"))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(grad))
         painter.drawEllipse(0, 0, self._size, self._size)
@@ -428,7 +428,7 @@ class VideoThumb(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#27272a"))
+        painter.setBrush(QColor("#1A1722"))
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 6, 6)
         if self._pixmap and not self._pixmap.isNull():
             painter.drawPixmap(self.rect(), self._pixmap)
@@ -437,7 +437,7 @@ class VideoThumb(QWidget):
         color = QColor("#ffffff")
         painter.setBrush(color)
         painter.drawEllipse(self.width() - 22, int((self.height() - 16) / 2) + 8, 16, 16)
-        painter.setPen(QColor("#18181b"))
+        painter.setPen(QColor("#241F30"))
         painter.drawPolygon(
             [
                 QPoint(self.width() - 18, int((self.height() - 10) / 2) + 4),

@@ -1,95 +1,75 @@
-"""Niche-Scope themed stylesheet for the research UI (Tailwind zinc + red-600).
+"""Unified dark ink-plum stylesheet for the research UI.
 
-The research suite renders its own look (white/zinc cards, red accent, auto
-dark mode) independently of the app's dark-cyan downloader theme: each research
-page applies ``research_style()`` to its own widget tree, so colors never leak
-the other way.
+The research suite used to ship its own separate look (white/zinc cards, red
+accent, OS-driven light/dark switching). As of 2.1 it renders the app's single
+dark ink-plum palette with a cyan accent, so the Niche Research surface reads as
+one family with the downloader: ``research_style()`` always returns the dark
+theme now, and the ``dark`` argument is kept only for API compatibility.
 """
 
 from __future__ import annotations
 
-import os
+# App-wide palette (dark ink-plum + cyan accent) — mirrors theme.py.C
+BG = "#100E14"
+CARD = "#1A1722"
+PANEL = "#241F30"
+BORDER = "#2A2534"
+BORDER_HOVER = "#3A3347"
+TEXT = "#EAE8F1"
+MUTED = "#8B83A0"
 
-from PySide6.QtGui import QGuiApplication, QStyleHints
+ACCENT = "#22D3EE"
+ACCENT_HOVER = "#67E8F9"
+ACCENT_TEXT = "#062A2A"
+TEAL = "#2DD4BF"
 
-# Tailwind palette used by Niche-Scope
-RED_600 = "#dc2626"
-RED_700 = "#b91c1c"
-ZINC_50 = "#fafafa"
-ZINC_100 = "#f4f4f5"
-ZINC_200 = "#e4e4e7"
-ZINC_300 = "#d4d4d8"
-ZINC_400 = "#a1a1aa"
-ZINC_500 = "#71717a"
-ZINC_600 = "#52525b"
-ZINC_700 = "#3f3f46"
-ZINC_800 = "#27272a"
-ZINC_850 = "#1f1f23"
-ZINC_900 = "#18181b"
-GREEN_50 = "#f0fdf4"
-GREEN_100 = "#dcfce7"
-GREEN_600 = "#16a34a"
-GREEN_700 = "#15803d"
-GREEN_800 = "#166534"
-YELLOW_100 = "#fef9c3"
-YELLOW_600 = "#ca8a04"
-YELLOW_700 = "#a16207"
-BLUE_100 = "#dbeafe"
-BLUE_700 = "#1d4ed8"
-PURPLE_100 = "#f3e8ff"
-PURPLE_700 = "#7e22ce"
+GREEN = "#34D399"
+YELLOW = "#FBBF24"
+RED = "#F87171"
+BLUE = "#93C5FD"
+PURPLE = "#C084FC"
+DANGER = "#DC2626"
 
-LIGHT: dict[str, str] = {
-    "bg": ZINC_50,
-    "card_bg": "#ffffff",
-    "card_border": ZINC_200,
-    "card_border_hover": ZINC_300,
-    "panel_bg": ZINC_100,
-    "text_primary": ZINC_900,
-    "text_secondary": ZINC_500,
-    "input_bg": "#ffffff",
-    "input_border": ZINC_200,
-    "hover_bg": ZINC_50,
-    "hover_border": ZINC_300,
-    "toggle_bg": ZINC_100,
-    "shadow": "rgba(0, 0, 0, 0.08)",
-}
+# Score-badge fills — Tailwind 700-line solids, WCAG-AA with white text
+GREEN_FILL = "#15803d"
+LIME_FILL = "#4d7c0f"
+YELLOW_FILL = "#a16207"
+ORANGE_FILL = "#c2410c"
+RED_FILL = "#b91c1c"
 
-DARK: dict[str, str] = {
-    "bg": ZINC_900,
-    "card_bg": ZINC_800,
-    "card_border": ZINC_700,
-    "card_border_hover": ZINC_600,
-    "panel_bg": ZINC_850,
-    "text_primary": "#ffffff",
-    "text_secondary": ZINC_400,
-    "input_bg": ZINC_800,
-    "input_border": ZINC_700,
-    "hover_bg": ZINC_700,
-    "hover_border": ZINC_600,
-    "toggle_bg": ZINC_700,
+# Soft chip fills for tier/new/rapid/AI badges against the dark background
+CHIP_GREEN_BG = "#052E16"
+CHIP_AMBER_BG = "#451A03"
+CHIP_BLUE_BG = "#172554"
+CHIP_PURPLE_BG = "#3B0764"
+
+_C = {
+    "bg": BG,
+    "card_bg": CARD,
+    "card_border": BORDER,
+    "card_border_hover": BORDER_HOVER,
+    "panel_bg": PANEL,
+    "text_primary": TEXT,
+    "text_secondary": MUTED,
+    "input_bg": PANEL,
+    "input_border": BORDER,
+    "hover_bg": BORDER,
+    "hover_border": BORDER_HOVER,
+    "toggle_bg": PANEL,
     "shadow": "rgba(0, 0, 0, 0.5)",
 }
 
 
-def system_dark_preferred() -> bool:
-    try:
-        scheme = QGuiApplication.styleHints().colorScheme()
-        return scheme in (QStyleHints.ColorScheme.Dark, QStyleHints.ColorScheme.Unknown)
-    except Exception:
-        return bool(os.environ.get("QT_QPA_PLATFORM") != "offscreen")
-
-
 def research_style(dark: bool | None = None) -> str:
-    """Build the full Niche-Scope stylesheet for the research UI subtree."""
-    if dark is None:
-        dark = system_dark_preferred()
-    c = DARK if dark else LIGHT
-    return _build_qss(c, dark)
+    """Build the full research stylesheet (single dark theme).
+
+    ``dark`` is accepted for compatibility with older call sites but ignored –
+    the suite always renders the unified dark ink-plum theme.
+    """
+    return _build_qss(_C)
 
 
-def _build_qss(c: dict[str, str], dark: bool) -> str:
-    solution = DARK if dark else LIGHT
+def _build_qss(c: dict[str, str]) -> str:
     return f"""
 QWidget#researchPage {{
     background-color: {c["bg"]};
@@ -135,7 +115,7 @@ QFrame#panel {{
     border-radius: 8px;
 }}
 QFrame#rpmBar {{
-    background-color: {GREEN_100};
+    background-color: rgba(45, 212, 191, 0.10);
     border-radius: 8px;
 }}
 QFrame#emptyState {{
@@ -167,23 +147,23 @@ QPushButton#badge, QLabel#badge {{
     background-color: transparent;
 }}
 QLabel#badgeScoreHigh {{
-    color: {GREEN_700};
-    background-color: {GREEN_100};
+    color: {GREEN};
+    background-color: {CHIP_GREEN_BG};
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#badgeScoreMid {{
-    color: {YELLOW_700};
-    background-color: {YELLOW_100};
+    color: {YELLOW};
+    background-color: {CHIP_AMBER_BG};
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#badgeScoreLow {{
-    color: {c["text_primary"]};
+    color: {c["text_secondary"]};
     background-color: {c["panel_bg"]};
     border-radius: 999px;
     padding: 3px 10px;
@@ -191,24 +171,24 @@ QLabel#badgeScoreLow {{
     font-weight: 600;
 }}
 QLabel#badgeNew {{
-    color: {BLUE_700};
-    background-color: {BLUE_100};
+    color: {BLUE};
+    background-color: {CHIP_BLUE_BG};
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#badgeRapid {{
-    color: {GREEN_700};
-    background-color: {GREEN_100};
+    color: {GREEN};
+    background-color: {CHIP_GREEN_BG};
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#badgeAi {{
-    color: {PURPLE_700};
-    background-color: {PURPLE_100};
+    color: {PURPLE};
+    background-color: {CHIP_PURPLE_BG};
     border-radius: 999px;
     padding: 3px 10px;
     font-size: 11px;
@@ -224,11 +204,11 @@ QLabel#scoreBadgeOrange, QLabel#scoreBadgeRed {{
     padding: 3px 8px;
     border-radius: 6px;
 }}
-QLabel#scoreBadgeGreen {{ background-color: #22c55e; }}
-QLabel#scoreBadgeLime {{ background-color: #84cc16; }}
-QLabel#scoreBadgeYellow {{ background-color: #eab308; }}
-QLabel#scoreBadgeOrange {{ background-color: #f97316; }}
-QLabel#scoreBadgeRed {{ background-color: #dc2626; }}
+QLabel#scoreBadgeGreen {{ background-color: {GREEN_FILL}; }}
+QLabel#scoreBadgeLime {{ background-color: {LIME_FILL}; }}
+QLabel#scoreBadgeYellow {{ background-color: {YELLOW_FILL}; }}
+QLabel#scoreBadgeOrange {{ background-color: {ORANGE_FILL}; }}
+QLabel#scoreBadgeRed {{ background-color: {RED_FILL}; }}
 
 QLabel#scoreBadgeSmGreen, QLabel#scoreBadgeSmLime, QLabel#scoreBadgeSmYellow,
 QLabel#scoreBadgeSmOrange, QLabel#scoreBadgeSmRed {{
@@ -238,11 +218,11 @@ QLabel#scoreBadgeSmOrange, QLabel#scoreBadgeSmRed {{
     padding: 2px 6px;
     border-radius: 5px;
 }}
-QLabel#scoreBadgeSmGreen {{ background-color: #22c55e; }}
-QLabel#scoreBadgeSmLime {{ background-color: #84cc16; }}
-QLabel#scoreBadgeSmYellow {{ background-color: #eab308; }}
-QLabel#scoreBadgeSmOrange {{ background-color: #f97316; }}
-QLabel#scoreBadgeSmRed {{ background-color: #dc2626; }}
+QLabel#scoreBadgeSmGreen {{ background-color: {GREEN_FILL}; }}
+QLabel#scoreBadgeSmLime {{ background-color: {LIME_FILL}; }}
+QLabel#scoreBadgeSmYellow {{ background-color: {YELLOW_FILL}; }}
+QLabel#scoreBadgeSmOrange {{ background-color: {ORANGE_FILL}; }}
+QLabel#scoreBadgeSmRed {{ background-color: {RED_FILL}; }}
 
 QLabel#scoreBadgeLgGreen, QLabel#scoreBadgeLgLime, QLabel#scoreBadgeLgYellow,
 QLabel#scoreBadgeLgOrange, QLabel#scoreBadgeLgRed {{
@@ -252,23 +232,23 @@ QLabel#scoreBadgeLgOrange, QLabel#scoreBadgeLgRed {{
     padding: 6px 14px;
     border-radius: 8px;
 }}
-QLabel#scoreBadgeLgGreen {{ background-color: #22c55e; }}
-QLabel#scoreBadgeLgLime {{ background-color: #84cc16; }}
-QLabel#scoreBadgeLgYellow {{ background-color: #eab308; }}
-QLabel#scoreBadgeLgOrange {{ background-color: #f97316; }}
-QLabel#scoreBadgeLgRed {{ background-color: #dc2626; }}
+QLabel#scoreBadgeLgGreen {{ background-color: {GREEN_FILL}; }}
+QLabel#scoreBadgeLgLime {{ background-color: {LIME_FILL}; }}
+QLabel#scoreBadgeLgYellow {{ background-color: {YELLOW_FILL}; }}
+QLabel#scoreBadgeLgOrange {{ background-color: {ORANGE_FILL}; }}
+QLabel#scoreBadgeLgRed {{ background-color: {RED_FILL}; }}
 
 QLabel#competitionBadgeDc2626 {{
     color: #ffffff;
-    background-color: #dc2626;
+    background-color: #b91c1c;
     border-radius: 999px;
     padding: 2px 10px;
     font-size: 11px;
     font-weight: 600;
 }}
 QLabel#competitionBadgeEab308 {{
-    color: #000000;
-    background-color: #eab308;
+    color: #ffffff;
+    background-color: #a16207;
     border-radius: 999px;
     padding: 2px 10px;
     font-size: 11px;
@@ -276,7 +256,7 @@ QLabel#competitionBadgeEab308 {{
 }}
 QLabel#competitionBadge16a34a {{
     color: #ffffff;
-    background-color: #16a34a;
+    background-color: #15803d;
     border-radius: 999px;
     padding: 2px 10px;
     font-size: 11px;
@@ -290,7 +270,7 @@ QLabel#kwMetricValue {{ font-size: 20px; font-weight: 700; }}
 QLabel#kwMetricLabel {{ font-size: 10px; text-transform: uppercase; color: {c["text_secondary"]}; }}
 
 /* ---- Keyword table / chips ---- */
-QLabel#linkLabel {{ color: {RED_600}; font-size: 12px; font-weight: 600; }}
+QLabel#linkLabel {{ color: {ACCENT_HOVER}; font-size: 12px; font-weight: 600; }}
 QLabel#chip {{
     background-color: {c["panel_bg"]};
     border: 1px solid {c["card_border"]};
@@ -298,11 +278,11 @@ QLabel#chip {{
     padding: 4px 12px;
     font-size: 12px;
 }}
-QLabel#chip:hover {{ border: 1px solid {RED_600}; color: {RED_600}; }}
+QLabel#chip:hover {{ border: 1px solid {ACCENT}; color: {ACCENT_HOVER}; }}
 
 /* ---- Scorecard ---- */
 QLabel#seoCheckPass {{
-    background-color: #22c55e;
+    background-color: #15803d;
     border-radius: 8px;
     color: #ffffff;
     font-weight: 700;
@@ -313,9 +293,9 @@ QLabel#seoCheckPass {{
     max-height: 15px;
 }}
 QLabel#seoCheckPart {{
-    background-color: #eab308;
+    background-color: #a16207;
     border-radius: 8px;
-    color: #000000;
+    color: #ffffff;
     font-weight: 700;
     font-size: 9px;
     min-width: 15px;
@@ -324,7 +304,7 @@ QLabel#seoCheckPart {{
     max-height: 15px;
 }}
 QLabel#seoCheckFail {{
-    background-color: #dc2626;
+    background-color: #b91c1c;
     border-radius: 8px;
     color: #ffffff;
     font-weight: 700;
@@ -347,8 +327,8 @@ QPushButton#modeToggle {{
     font-size: 13px;
 }}
 QPushButton#modeToggle[active="true"] {{
-    background-color: {RED_600};
-    color: #ffffff;
+    background-color: {ACCENT};
+    color: {ACCENT_TEXT};
 }}
 
 QTableWidget {{
@@ -374,8 +354,8 @@ QHeaderView::section {{
 
 /* ---- Buttons ---- */
 QPushButton {{
-    background-color: {RED_600};
-    color: #ffffff;
+    background-color: {ACCENT};
+    color: {ACCENT_TEXT};
     border: none;
     border-radius: 8px;
     padding: 8px 16px;
@@ -383,7 +363,7 @@ QPushButton {{
     font-weight: 500;
 }}
 QPushButton:hover {{
-    background-color: {RED_700};
+    background-color: {ACCENT_HOVER};
 }}
 QPushButton:disabled {{
     background-color: {c["hover_bg"]};
@@ -409,7 +389,7 @@ QPushButton[variant="ghost"]:hover {{
     background-color: {c["hover_bg"]};
 }}
 QPushButton[variant="danger"] {{
-    background-color: {RED_600};
+    background-color: {DANGER};
     color: #ffffff;
 }}
 
@@ -453,11 +433,11 @@ QLineEdit, QPlainTextEdit, QTextEdit {{
     border-radius: 8px;
     padding: 8px 12px;
     font-size: 13px;
-    selection-background-color: {RED_600};
-    selection-color: #ffffff;
+    selection-background-color: {ACCENT};
+    selection-color: {ACCENT_TEXT};
 }}
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus {{
-    border: 1px solid {RED_600};
+    border: 1px solid {ACCENT};
 }}
 
 /* ---- Scroll areas ---- */
@@ -465,7 +445,7 @@ QScrollArea {{ background: transparent; border: none; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0; }}
 QScrollBar::handle:vertical {{
-    background: {c["input_border"]};
+    background: #3A3347;
     border-radius: 5px;
     min-height: 30px;
 }}
@@ -485,19 +465,19 @@ QLabel#statusText {{
 QLabel#statusError {{
     font-size: 12px;
     font-weight: 500;
-    color: #dc2626;
+    color: {RED};
 }}
 QLabel#statusOk {{
     font-size: 12px;
     font-weight: 500;
-    color: {GREEN_600};
+    color: {GREEN};
 }}
 
 /* ---- Growth / misc text ---- */
-QLabel#growthPositive {{ color: {GREEN_600}; font-weight: 500; font-size: 13px; }}
-QLabel#growthNegative {{ color: #dc2626; font-weight: 500; font-size: 13px; }}
-QLabel#rpmLabel {{ color: {GREEN_700}; font-size: 12px; font-weight: 600; }}
-QLabel#rpmSubLabel {{ color: {GREEN_700}; font-size: 10px; }}
+QLabel#growthPositive {{ color: {GREEN}; font-weight: 500; font-size: 13px; }}
+QLabel#growthNegative {{ color: {RED}; font-weight: 500; font-size: 13px; }}
+QLabel#rpmLabel {{ color: {TEAL}; font-size: 12px; font-weight: 600; }}
+QLabel#rpmSubLabel {{ color: {TEAL}; font-size: 10px; }}
 
 /* ---- Modal (Analysis dialog) ---- */
 QDialog#analysisModal {{ background-color: {c["panel_bg"]}; }}
@@ -519,8 +499,8 @@ QPushButton#tabBtn {{
 }}
 QPushButton#tabBtn:hover {{ background-color: {c["hover_bg"]}; color: {c["text_primary"]}; }}
 QPushButton#tabBtn[active="true"] {{
-    background-color: {RED_600};
-    color: #ffffff;
+    background-color: {ACCENT};
+    color: {ACCENT_TEXT};
 }}
 QLabel#statTileValue {{ font-size: 16px; font-weight: 700; color: {c["text_primary"]}; }}
 QLabel#statTileLabel {{ font-size: 11px; color: {c["text_secondary"]}; }}
@@ -541,8 +521,9 @@ QLabel#formHint {{ font-size: 11px; color: {c["text_secondary"]}; }}
 
 /* ---- Tooltips ---- */
 QToolTip {{
-    background-color: {solution["text_primary"]};
-    color: {solution["card_bg"]};
+    background-color: {PANEL};
+    color: {TEXT};
+    border: 1px solid {BORDER_HOVER};
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 12px;
@@ -554,9 +535,11 @@ QFrame#researchSidebar {{
     border-right: 1px solid {c["card_border"]};
 }}
 QLabel#researchBrand {{
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
     color: {c["text_primary"]};
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
 }}
 QLabel#researchSub {{ font-size: 11px; color: {c["text_secondary"]}; }}
 QPushButton[sidebar="true"] {{
@@ -570,6 +553,5 @@ QPushButton[sidebar="true"] {{
     text-align: left;
 }}
 QPushButton[sidebar="true"]:hover {{ background-color: {c["hover_bg"]}; color: {c["text_primary"]}; }}
-QPushButton[sidebar="true"][active="true"] {{ background-color: {RED_600}; color: #ffffff; }}
-W
+QPushButton[sidebar="true"][active="true"] {{ background-color: {ACCENT}; color: {ACCENT_TEXT}; }}
 """

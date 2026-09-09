@@ -212,12 +212,15 @@ def test_trending_page_niche_combo_width(isolated_appdata, qapp):
     db.close_db()
 
 
-def test_research_style_renders_light_and_dark():
-    light = research_style(dark=False)
-    dark = research_style(dark=True)
-    assert "#dc2626" in light
-    assert "#18181b" in dark
-    assert light != dark
+def test_research_style_renders_unified_dark_theme():
+    # The research suite shares the app's single dark ink-plum/cyan theme now;
+    # research_style always returns it regardless of the legacy dark argument.
+    default = research_style()
+    light_arg = research_style(dark=False)
+    assert "#dc2626" not in default  # red accent retired in 2.1
+    assert "#100E14" in default  # ink-plum page background
+    assert "#22D3EE" in default  # cyan accent
+    assert default == light_arg
 
 
 def _sample(channel_id, title, viral_score):
