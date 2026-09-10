@@ -31,6 +31,15 @@ def test_providers_priority_from_settings(isolated_appdata):
         assert provider["api_key"].startswith("k-")
 
 
+def test_get_providers_includes_google_ai_key(isolated_appdata):
+    """Regression: Settings stores google_ai_api_key but get_providers read
+    google_api_key, hiding a configured Google AI key from channel analysis."""
+    db.set_setting("google_ai_api_key", "k-google")
+    providers = ai.get_providers()
+    assert [p["name"] for p in providers] == ["google"]
+    assert providers[0]["api_key"] == "k-google"
+
+
 @pytest.mark.parametrize(
     "name, model",
     [

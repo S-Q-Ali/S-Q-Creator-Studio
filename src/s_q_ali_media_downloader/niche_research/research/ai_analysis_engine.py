@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 
 AI_PROVIDERS = ("aihubmix", "groq", "openrouter", "google")
 THUMB_STYLES = ("modern", "bold", "minimal", "cinematic", "vibrant")
+_PROVIDER_SETTING_KEY = {
+    "aihubmix": "aihubmix_api_key",
+    "groq": "groq_api_key",
+    "openrouter": "openrouter_api_key",
+    "google": "google_ai_api_key",
+}
 _THINK_END = "</think>"
 _JSON_RE = re.compile(r"\{[\s\S]*\}")
 
@@ -142,7 +148,7 @@ def get_providers() -> list[dict[str, Any]]:
         ordered.insert(0, primary)
     configured: list[dict[str, Any]] = []
     for name in ordered:
-        key = db.get_setting(f"{name}_api_key")
+        key = db.get_setting(_PROVIDER_SETTING_KEY[name])
         if key and key.strip():
             configured.append(_provider_def(name, key.strip()))
     return configured
@@ -560,11 +566,6 @@ def _upload_date(value: str) -> str:
 # Thumbnail generation (lib/thumbnailGenerator.ts)
 # --------------------------------------------------------------------------- #
 THUMB_IMAGE_PROVIDERS = ("aihubmix", "google", "openrouter")
-_IMAGE_SETTING_KEY = {
-    "aihubmix": "aihubmix_api_key",
-    "google": "google_ai_api_key",
-    "openrouter": "openrouter_api_key",
-}
 _IMAGE_MODELS = {
     "aihubmix": "gpt-image-1",
     "google": "gemini-2.5-flash-image",
@@ -609,7 +610,7 @@ def _image_provider_defs() -> list[dict[str, Any]]:
         ordered.insert(0, primary)
     configured: list[dict[str, Any]] = []
     for name in ordered:
-        key = db.get_setting(_IMAGE_SETTING_KEY[name])
+        key = db.get_setting(_PROVIDER_SETTING_KEY[name])
         if key and key.strip():
             configured.append(_image_def(name, key.strip()))
     return configured
