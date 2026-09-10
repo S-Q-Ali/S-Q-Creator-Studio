@@ -65,6 +65,7 @@ class TrendingChannelCard(QFrame):
         super().__init__(parent)
         self.setObjectName("card")
         self.setProperty("hoverable", True)
+        self.setFixedWidth(300)
         self._data = data
 
         outer = QVBoxLayout(self)
@@ -81,7 +82,7 @@ class TrendingChannelCard(QFrame):
         )
         title_box = QVBoxLayout()
         title = _selectable(QLabel(data.title or "Untitled Channel"))
-        title.setWordWrap(False)
+        title.setWordWrap(True)
         title.setToolTip(data.title)
         title.setStyleSheet(
             "font-size: 14px; font-weight: 600; color: palette(text); "

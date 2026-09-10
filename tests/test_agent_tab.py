@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QTableWidgetItem
+from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QTableWidgetItem
 
 from s_q_ali_media_downloader.agent.schema import (
     ChannelMetadata,
@@ -103,6 +103,18 @@ def test_send_selected_to_queue_uses_inline_status(qapp, isolated_appdata, monke
     tab._send_selected_to_queue()
     assert popups == []
     assert tab.lbl_status.text().startswith("Sent")
+    tab.deleteLater()
+
+
+def test_agent_table_is_read_only_and_clean(qapp, isolated_appdata):
+    tab = AgentTabWidget()
+    assert tab.table.editTriggers() == QAbstractItemView.EditTrigger.NoEditTriggers
+    assert tab.table.selectionMode() == QAbstractItemView.SelectionMode.ExtendedSelection
+    assert tab.table.selectionBehavior() == QTableWidget.SelectRows
+    assert tab.table.showGrid() is False
+    assert tab.table.verticalHeader().isVisible() is False
+    assert tab.table.alternatingRowColors() is True
+    assert tab.table.verticalHeader().defaultSectionSize() == 34
     tab.deleteLater()
 
 

@@ -5,6 +5,7 @@ import csv
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -265,7 +266,11 @@ class AgentTabWidget(QWidget):
             "QHeaderView::section { background: #241F30; color: #22D3EE; font-weight: 700; padding: 8px 6px; border: none; }"
         )
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
+        self.table.verticalHeader().setVisible(False)
         self._setup_table_columns(MODE_YOUTUBE)
         self.table.cellClicked.connect(self._open_cell_url)
         self.table.cellDoubleClicked.connect(self._open_cell_url)

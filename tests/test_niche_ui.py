@@ -118,6 +118,30 @@ def test_trending_card_text_is_selectable(qapp):
         assert all(bool(label.textInteractionFlags() & sel) for label in matches), needle
 
 
+def test_trending_card_has_uniform_width_and_wrapped_title(qapp):
+    title = "A very long channel title that should wrap onto two lines instead of being clipped"
+    card = TrendingChannelCard(
+        TrendingCardData(
+            channel_id="UCx",
+            title=title,
+            subscriber_count=1000,
+            view_count=5000,
+            video_count=10,
+            viral_score=77,
+            growth_rate=60.0,
+            category_name="Tech & AI",
+            view_sub_ratio=5.0,
+            video_format="longform",
+            niche="tech_ai",
+            rpm={"min": 6.0, "max": 18.0, "avg": 12.0},
+        )
+    )
+    assert card.minimumWidth() == card.maximumWidth() == 300
+    title_label = next(l for l in card.findChildren(QLabel) if l.text() == title)
+    assert title_label.wordWrap() is True
+    assert title_label.toolTip() == title
+
+
 def test_trending_page_renders_rows(isolated_appdata, qapp):
     db.configure(None)
     te.save_trending_channels([_sample("UC1", "One", 90), _sample("UC2", "Two", 20)])

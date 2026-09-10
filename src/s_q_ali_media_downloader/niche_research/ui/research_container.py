@@ -127,7 +127,7 @@ class ResearchContainer(QWidget):
         page = QWidget()
         box = QVBoxLayout(page)
         box.setContentsMargins(24, 20, 24, 20)
-        box.setSpacing(12)
+        box.setSpacing(10)
 
         title = QLabel("Research Dashboard")
         title.setObjectName("headerTitle")
@@ -136,7 +136,7 @@ class ResearchContainer(QWidget):
         card = QFrame()
         card.setObjectName("emptyState")
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(32, 28, 32, 28)
+        card_layout.setContentsMargins(28, 24, 28, 24)
         card_layout.setSpacing(8)
         icon = QLabel("🚀")
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -157,13 +157,12 @@ class ResearchContainer(QWidget):
         intro.setWordWrap(True)
         card_layout.addWidget(intro)
         box.addWidget(card)
-        box.addStretch(1)
 
         for index, key in enumerate(("discovery", "keywords", "scorecard")):
             hint = QFrame()
             hint.setObjectName("svgCard")
             hint_layout = QHBoxLayout(hint)
-            hint_layout.setContentsMargins(12, 14, 12, 14)
+            hint_layout.setContentsMargins(12, 12, 12, 12)
             guide = QLabel(
                 [
                     "🔥  Start here — run Niche Discovery to surface channels.",
