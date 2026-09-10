@@ -17,6 +17,7 @@ Errors that can never succeed — deleted, private, region-blocked — skip
 the retries and fail immediately.
 """
 
+import logging
 import os
 import random
 import re
@@ -26,6 +27,8 @@ import unicodedata
 
 import yt_dlp
 from PySide6.QtCore import QThread, Signal
+
+logger = logging.getLogger(__name__)
 
 try:
     from yt_dlp.networking.impersonate import ImpersonateTarget
@@ -124,6 +127,7 @@ def impersonate_target():
 
     result = (None, "unavailable — curl_cffi missing")
     if ImpersonateTarget is None:
+        _impersonate_warn(result[1])
         _IMPERSONATE_CACHE = result
         return result
 
@@ -138,10 +142,18 @@ def impersonate_target():
         best = chrome[0] if chrome else (targets[0] if targets else None)
         if best is not None:
             result = (best, str(best))
+        else:
+            result = (None, "unavailable — no impersonate targets")
     except Exception as exc:
         result = (None, f"unavailable ({exc})")
+    if result[0] is None:
+        _impersonate_warn(result[1])
     _IMPERSONATE_CACHE = result
     return result
+
+
+def _impersonate_warn(label: str) -> None:
+    logger.warning("Browser impersonation %s — TikTok downloads will rely on fallbacks.", label)
 
 
 def impersonation_summary():

@@ -115,7 +115,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
-echo Installer built: release\S-Q-Ali-Media-Downloader-Setup-2.0.0.exe
+echo Installer built: release\S-Q-Ali-Media-Downloader-Setup-2.1.0.exe
 
 :done
 echo.
@@ -123,7 +123,7 @@ echo ============================================================
 echo  BUILD COMPLETE
 echo ============================================================
 echo  Portable:  %PORTABLE%\%APP_NAME%.exe
-echo  Installer: release\S-Q-Ali-Media-Downloader-Setup-2.0.0.exe (if built)
+echo  Installer: release\S-Q-Ali-Media-Downloader-Setup-2.1.0.exe (if built)
 echo ============================================================
 echo.
 endlocal

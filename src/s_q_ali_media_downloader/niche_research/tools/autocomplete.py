@@ -1,4 +1,4 @@
-"""Keyless YouTube autocomplete (ported from Niche-Scope's lib/autocomplete.ts).
+"""Keyless YouTube autocomplete (ported from the companion research web tool's lib/autocomplete.ts).
 
 Suggestions come straight from YouTube's search logs via the undocumented
 ``suggestqueries.google.com`` endpoint — no API key, no quota cost.

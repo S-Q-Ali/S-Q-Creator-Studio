@@ -1,6 +1,6 @@
 """AnalysisModal — AI channel strategy, ideas, scripts, blueprint + thumbnail.
 
-Ported from Niche-Scope's AnalysisModal.tsx. Rendered as a QDialog with a
+Ported from the companion research web tool's AnalysisModal.tsx. Rendered as a QDialog with a
 tabbed body. All network/analysis work runs on QThread workers.
 """
 

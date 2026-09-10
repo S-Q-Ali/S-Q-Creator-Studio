@@ -1,6 +1,6 @@
 """Competitors page — dashboard of tracked videos / channels / keywords.
 
-Ported from Niche-Scope's CompetitorsView.tsx. Shows VPH live chips, subscriber
+Ported from the companion research web tool's CompetitorsView.tsx. Shows VPH live chips, subscriber
 growth, and score sparklines, plus a "Refresh now" button (and a 1h poller) that
 records fresh snapshots via competitor_engine.refresh_snapshots.
 """

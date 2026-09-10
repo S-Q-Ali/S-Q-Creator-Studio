@@ -1,4 +1,4 @@
-"""Niche-Scope style trending channel card (ported from TrendingChannelCard.tsx)."""
+"""Trending channel card in the app's visual style (ported from TrendingChannelCard.tsx)."""
 
 from __future__ import annotations
 

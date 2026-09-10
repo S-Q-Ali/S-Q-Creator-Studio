@@ -1,6 +1,6 @@
 """ResearchContainer — sidebar + stacked research pages for the main nav.
 
-Ported from Niche-Scope's DashboardShell: internal sidebar (Dashboard /
+Ported from the companion research web tool's DashboardShell: internal sidebar (Dashboard /
 Niche Discovery / Keyword Research / Scorecard / Competitors / Settings)
 over a QStackedWidget of the research pages. Also owns the NichePoller that
 fires hourly snapshot refreshes on the Competitors page.

@@ -1,4 +1,4 @@
-"""Tests for the keyword engine (ported from Niche-Scope's keywordEngine.ts)."""
+"""Tests for the keyword engine (ported from the companion research web tool's keywordEngine.ts)."""
 
 from s_q_ali_media_downloader.niche_research.research import keyword_engine as ke
 from s_q_ali_media_downloader.niche_research.storage import db

@@ -1,6 +1,6 @@
 """YouTube fetch layer for Niche Research (yt-dlp primary, API-key hybrid optional).
 
-Ported from Niche-Scope's lib/tools/youtubeClient + friends. The default path is
+Ported from the companion research web tool's lib/tools/youtubeClient + friends. The default path is
 yt-dlp with curl_cffi impersonation — zero API key, zero quota, unlimited calls.
 If the user configures a YouTube Data API v3 key (Settings → API Keys) the client
 uses it where it produces better data (currently: search + video stats + channel

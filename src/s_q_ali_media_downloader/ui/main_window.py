@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader import __version__
 from s_q_ali_media_downloader.engine import (
     ACCOUNT_LIMITS,
     APP_NAME,
@@ -56,8 +57,8 @@ from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, glyph_icon, shield_pixmap
 
 ORG = "S-Q-Ali"
-VERSION = "2.0.0"
-SETTINGS_VERSION = "2.0"
+VERSION = __version__
+SETTINGS_VERSION = "2.1"
 
 NOTICE = "Use only for content you own or have permission to download."
 INLINE_RETRY_WAIT_TEXT = "2-5s"

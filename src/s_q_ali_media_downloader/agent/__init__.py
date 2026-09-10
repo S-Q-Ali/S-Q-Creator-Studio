@@ -1,17 +1,5 @@
-"""Autonomous YouTube Channel & Social Verification Agent Module."""
+"""Autonomous channel discovery and cross-platform social verification agent.
 
-from s_q_ali_media_downloader.agent.orchestrator import AgentOrchestrator
-from s_q_ali_media_downloader.agent.schema import (
-    AgentSearchResult,
-    ChannelMetadata,
-    SocialPresence,
-    SocialStatus,
-)
-
-__all__ = [
-    "AgentOrchestrator",
-    "AgentSearchResult",
-    "ChannelMetadata",
-    "SocialPresence",
-    "SocialStatus",
-]
+Import the pieces you need from submodules directly
+(``agent.orchestrator``, ``agent.schema``, ``agent.tools.*``).
+"""

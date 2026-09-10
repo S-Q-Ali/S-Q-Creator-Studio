@@ -42,7 +42,7 @@ class AgentOrchestrator:
             try:
                 self.progress_callback(percent, message)
             except Exception as e:
-                logger.warning(f"Progress callback error: {e}")
+                logger.warning("Progress callback error: %s", e)
 
     def run_discovery(
         self,

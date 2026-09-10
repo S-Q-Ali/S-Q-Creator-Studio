@@ -1,4 +1,4 @@
-"""Niche catalog — ported from Niche-Scope's lib/niches.ts."""
+"""Niche catalog — ported from the companion research web tool's lib/niches.ts."""
 
 from __future__ import annotations
 

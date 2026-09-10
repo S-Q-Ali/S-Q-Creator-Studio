@@ -1,4 +1,4 @@
-"""Keyword research engine — ported from Niche-Scope's lib/keywordEngine.ts.
+"""Keyword research engine — ported from the companion research web tool's lib/keywordEngine.ts.
 
 Transparent scoring (no black box):
   - demand: 0-100 from YouTube autocomplete ordering (earlier suggestion = more
@@ -9,7 +9,7 @@ Transparent scoring (no black box):
 
 yt-dlp adaptation notes:
 - ``search_videos`` already returns full view/like/comment stats, so ranking a
-  keyword needs a single search call (Niche-Scope needed a second ``fetchVideos``).
+  keyword needs a single search call (the web tool needed a second ``fetchVideos``).
 - Results are written back to the ``videos`` table so ``get_ranked_videos`` can
   JOIN the rankings snapshots, matching the original UX.
 """

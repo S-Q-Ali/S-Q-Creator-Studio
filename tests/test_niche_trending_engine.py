@@ -1,4 +1,4 @@
-"""Tests for the trending channel engine (ported from Niche-Scope trendingEngine.ts)."""
+"""Tests for the trending channel engine (ported from the companion research web tool trendingEngine.ts)."""
 
 from datetime import datetime, timedelta, timezone
 

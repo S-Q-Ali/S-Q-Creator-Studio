@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.14'
           cache: pip
 
       - name: Install dependencies
@@ -29,9 +29,12 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: pytest
 
+      - name: Audit dependencies (OSV/pip-audit)
+        run: python -m pip_audit
+
       - name: Build EXE
         run: |
-          pyinstaller --noconfirm --clean --onedir --windowed `
+          python -m PyInstaller --noconfirm --clean --onedir --windowed `
             --name "S-Q-Ali Media Downloader" `
             --icon "src\s_q_ali_media_downloader\resources\icon.ico" `
             --add-data "src\s_q_ali_media_downloader\resources\icon.ico;." `

@@ -1,6 +1,6 @@
 """Scorecard page — paste a video/channel URL and get a vidIQ-style SEO score.
 
-Ported from Niche-Scope's ScorecardLookup.tsx (Video/Channel tabs, stats strip,
+Ported from the companion research web tool's ScorecardLookup.tsx (Video/Channel tabs, stats strip,
 recent uploads, SEO panel with per-check pass/fail circles).
 """
 

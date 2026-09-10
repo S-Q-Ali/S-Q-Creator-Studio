@@ -1,6 +1,6 @@
 """Keyword Research page — autocomplete expansion + scored results table + detail.
 
-Ported from Niche-Scope's KeywordResearch.tsx (table with ScoreBadge /
+Ported from the companion research web tool's KeywordResearch.tsx (table with ScoreBadge /
 CompetitionBadge) plus the keyword detail view (Sparkline of snapshot history,
 ranked-videos breakdown, Track button).
 """
@@ -77,7 +77,7 @@ class KeywordResearchPage(QWidget):
         header.addLayout(title_box, 1)
         root.addLayout(header)
 
-        # Search form (mimics the Niche-Scope form row)
+        # Search form (mimics the web tool's form row)
         form = QHBoxLayout()
         form.setSpacing(8)
         self._seed_edit = QLineEdit()

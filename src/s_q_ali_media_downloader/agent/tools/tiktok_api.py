@@ -157,10 +157,10 @@ class TikTokApiSession:
                     if name and value:
                         flat[name] = value
         except Exception as e:
-            logger.warning(f"Failed to load cookies file {cookiefile}: {e}")
+            logger.warning("Failed to load cookies file %s: %s", cookiefile, e)
             return {}
         if flat:
-            logger.info(f"Loaded {len(flat)} cookies from {cookiefile}")
+            logger.info("Loaded %d cookies from %s", len(flat), cookiefile)
         return flat
 
     @property
@@ -237,11 +237,11 @@ class TikTokApiSession:
             with self._client() as client:
                 resp = client.get(url, headers={"Referer": "https://www.tiktok.com/"})
                 if resp.status_code != 200 or not resp.text.strip():
-                    logger.info(f"Signed API {path} rejected (empty/{resp.status_code})")
+                    logger.info("Signed API %s rejected (empty/%d)", path, resp.status_code)
                     return []
                 data = resp.json()
         except Exception as e:
-            logger.warning(f"Signed API {path} failed: {e}")
+            logger.warning("Signed API %s failed: %s", path, e)
             return []
         if data.get("statusCode") not in (0, None):
             return []
@@ -262,7 +262,7 @@ class TikTokApiSession:
                     return []
                 html = resp.text
         except Exception as e:
-            logger.warning(f"TikTok HTML harvest failed for {url}: {e}")
+            logger.warning("TikTok HTML harvest failed for %s: %s", url, e)
             return []
         handles = HANDLE_PATTERN.findall(html) + UNIQUE_ID_PATTERN.findall(html)
         return handles

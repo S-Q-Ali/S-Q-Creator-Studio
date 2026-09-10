@@ -18,7 +18,9 @@ Bulk-download **TikTok** and **YouTube** videos with a clean, queue-based deskto
 - **Quality presets** — Best available → 2160p/1440p/1080p/720p/480p, plus **Audio only** (MP3 via bundled ffmpeg).
 - **Account based** — paste a public TikTok profile and pull its newest video URLs for review.
 - **Browser impersonation** — TikTok requests are signed with a real Chrome identity so rate-limit failures are far less likely.
-- **Dark theme** with a cyan accent, built with PySide6.
+- **AI Channel Finder** — cross-platform social discovery: YouTube → Facebook/Instagram/TikTok, and TikTok → YouTube. Uses a keyless yt-dlp search by default; an optional YouTube Data API key lifts quota walls.
+- **Niche Research** — keyless keyword research, trending-channel discovery, SEO scorecards, and competitor tracking, all in the same dark theme.
+- **Single dark theme** — ink-plum surfaces with a cyan accent across the whole app, built with PySide6; research UI shares it.
 
 > Only download content you own or have permission to download.
 
@@ -26,7 +28,7 @@ Bulk-download **TikTok** and **YouTube** videos with a clean, queue-based deskto
 
 ### Installer (recommended)
 
-Download `S-Q-Ali-Media-Downloader-Setup-2.0.0.exe` from the [latest release](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases).
+Download `S-Q-Ali-Media-Downloader-Setup-2.1.0.exe` from the [latest release](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases).
 
 - Per-user install — **no administrator rights needed**.
 - Bundles `ffmpeg.exe`, so audio-only extraction and format merging work out of the box.
@@ -78,10 +80,11 @@ YouTube and TikTok links are handled separately: TikTok uses Chrome impersonatio
 
 - **PySide6** — Qt 6 desktop UI
 - **yt-dlp** — extraction and download engine
-- **curl_cffi** — TLS fingerprint impersonation for TikTok (pinned to `0.15.x`)
+- **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.18`)
+- **httpx / pydantic / beautifulsoup4** — discovery HTTP, typed schemas, bio scraping
 - **PyInstaller** — standalone EXE packaging
 - **Inno Setup** — per-user installer
-- **pytest / ruff / GitHub Actions** — tests, lint, CI
+- **pytest / ruff / GitHub Actions (pip-audit gate)** — tests, lint, CI
 
 ## Links
 

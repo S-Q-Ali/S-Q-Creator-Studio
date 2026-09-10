@@ -1,4 +1,4 @@
-"""Niche Discovery page — trending channel card grid (Niche-Scope look)."""
+"""Niche Discovery page — trending channel card grid (app look)."""
 
 from __future__ import annotations
 

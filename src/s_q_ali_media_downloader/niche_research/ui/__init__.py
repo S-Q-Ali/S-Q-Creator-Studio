@@ -1,1 +1,1 @@
-"""Niche Research UI package (Niche-Scope style widgets and pages)."""
+"""Niche Research UI package (app-style widgets and pages)."""

@@ -1,4 +1,4 @@
-"""Tests for the keyless YouTube autocomplete (ported from Niche-Scope)."""
+"""Tests for the keyless YouTube autocomplete (ported from the companion research web tool)."""
 
 import httpx
 import pytest

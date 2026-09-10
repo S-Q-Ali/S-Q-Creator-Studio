@@ -1,4 +1,4 @@
-"""Trending channel discovery — ported from Niche-Scope's lib/trendingEngine.ts.
+"""Trending channel discovery — ported from the companion research web tool's lib/trendingEngine.ts.
 
 yt-dlp adaptation notes:
 - Discovery searches are run through :func:`youtube_client.search_videos` with a

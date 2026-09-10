@@ -1,6 +1,6 @@
 """Competitor dashboard: tracked videos / channels / keywords + snapshot refresh.
 
-Ported from Niche-Scope's lib/competitorEngine.ts (getTrackedVideos /
+Ported from the companion research web tool's lib/competitorEngine.ts (getTrackedVideos /
 getTrackedChannels / getTrackedKeywords / getCompetitorDashboard) and the
 ``/api/competitors/refresh`` endpoint. The dashboard is a pure read over the
 shared SQLite tables; the poller (ui/competitors_page) drives

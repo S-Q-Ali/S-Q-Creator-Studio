@@ -1,4 +1,4 @@
-"""Tests for the niche catalog (ported from Niche-Scope's lib/niches.ts)."""
+"""Tests for the niche catalog (ported from the companion research web tool's lib/niches.ts)."""
 
 from s_q_ali_media_downloader.niche_research.data.niches import (
     LONGFORM,
@@ -39,7 +39,7 @@ def test_no_duplicate_niche_ids_within_format():
 
 
 def test_format_shared_ids_are_reused_like_source():
-    # Niche-Scope reuses the same id across formats (e.g. faceless, tech_ai).
+    # S-Q-Ali Media Downloader reuses the same id across formats (e.g. faceless, tech_ai).
     assert NICHES["longform"]["faceless"].name == "Faceless YouTube"
     assert NICHES["shortform"]["faceless"].name == "Faceless Shorts"
 

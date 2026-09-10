@@ -54,6 +54,27 @@ All notable changes are documented here. The format follows
   (`@handle` / profile URLs) or a cookies.txt file. YouTube-existence
   checking is unaffected.
 
+### Engineering hardening (2026-09-09)
+- **One theme.** The research suite now renders the app's single dark
+  ink-plum/cyan system — the red accent, zinc cards, and OS light/dark
+  switching are gone (`research_style()` always returns dark).
+- **Secrets at rest.** API keys are sealed with Windows DPAPI in the settings
+  store (plaintext rows migrate on first read); Gemini keys move out of the
+  query string into the `x-goog-api-key` header.
+- **WCAG-AA contrast.** Faint text lifted to `#8B83A0`; score/competition/SEO
+  badge fills moved to the Tailwind-700 family; light secondary text now
+  `#52525b`.
+- **Version single-source.** Title bar, installer names, README, and packaging
+  all derive from `__version__` (`2.1.0`).
+- **Tests** grew to a QSS-parse regression for both stylesheets plus
+  metadata-extractor and orchestrator control-flow coverage.
+- **Git hygiene.** Session exports and personal `opencode.json` are ignored;
+  a stray `W` token at the end of the research stylesheet removed.
+- **CI.** Runs on Python 3.14, builds via `python -m PyInstaller`, and gates
+  on `pip-audit`.
+- **Dependencies.** `curl_cffi` pin relaxed to `>=0.15,<0.18`;
+  `httpx`/`pydantic`/`beautifulsoup4` declared in `pyproject.toml`.
+
 ## [2.0.0] — 2026-08-06
 
 ### Added
