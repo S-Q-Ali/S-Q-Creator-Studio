@@ -611,9 +611,7 @@ class AgentTabWidget(QWidget):
 
         if selected_urls:
             self.send_to_queue_requested.emit(selected_urls)
-            QMessageBox.information(
-                self, "Sent to Queue", f"Sent {len(selected_urls)} URLs to download queue!"
-            )
+            self.lbl_status.setText(f"Sent {len(selected_urls)} URLs to the download queue.")
         else:
             QMessageBox.warning(self, "No Selection", "Please select at least one entry!")
 
@@ -627,7 +625,9 @@ class AgentTabWidget(QWidget):
             from PySide6.QtWidgets import QApplication
 
             QApplication.clipboard().setText("\n".join(links))
-            QMessageBox.information(self, "Copied", f"Copied {len(links)} Facebook page links!")
+            self.lbl_status.setText(f"Copied {len(links)} Facebook page link{'s' if len(links) != 1 else ''}.")
+        else:
+            self.lbl_status.setText("No verified Facebook page links to copy.")
 
     def _copy_ig_links(self):
         links = []
@@ -639,7 +639,11 @@ class AgentTabWidget(QWidget):
             from PySide6.QtWidgets import QApplication
 
             QApplication.clipboard().setText("\n".join(links))
-            QMessageBox.information(self, "Copied", f"Copied {len(links)} Instagram profile links!")
+            self.lbl_status.setText(
+                f"Copied {len(links)} Instagram profile link{'s' if len(links) != 1 else ''}."
+            )
+        else:
+            self.lbl_status.setText("No verified Instagram profile links to copy.")
 
     def _copy_tiktok_links(self):
         links = []
@@ -654,7 +658,11 @@ class AgentTabWidget(QWidget):
             from PySide6.QtWidgets import QApplication
 
             QApplication.clipboard().setText("\n".join(links))
-            QMessageBox.information(self, "Copied", f"Copied {len(links)} TikTok profile links!")
+            self.lbl_status.setText(
+                f"Copied {len(links)} TikTok profile link{'s' if len(links) != 1 else ''}."
+            )
+        else:
+            self.lbl_status.setText("No TikTok profile links to copy.")
 
     def _export_csv(self):
         if not self.search_result:
@@ -729,7 +737,7 @@ class AgentTabWidget(QWidget):
                             ch.opportunity_flag,
                         ]
                     )
-        QMessageBox.information(self, "Exported", f"Successfully exported to {path}!")
+        self.lbl_status.setText(f"Saved {len(self.search_result.channels if not is_tiktok_mode else self.search_result.profiles)} rows to {path}")
 
     def _export_json(self):
         if not self.search_result:
@@ -740,4 +748,4 @@ class AgentTabWidget(QWidget):
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(self.search_result.model_dump_json(indent=2))
-            QMessageBox.information(self, "Exported", f"Successfully exported to {path}!")
+            self.lbl_status.setText(f"Saved JSON results to {path}")

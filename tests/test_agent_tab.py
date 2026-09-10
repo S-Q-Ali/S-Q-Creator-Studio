@@ -85,3 +85,34 @@ def test_open_cell_url_opens_only_link_cells(qapp, isolated_appdata, monkeypatch
     tab._open_cell_url(0, 0)
     tab._open_cell_url(0, 1)
     assert opened == ["https://example.com/x"]
+
+
+def test_send_selected_to_queue_uses_inline_status(qapp, isolated_appdata, monkeypatch):
+    from s_q_ali_media_downloader.ui import agent_tab as at
+
+    popups = []
+    monkeypatch.setattr(at.QMessageBox, "information", lambda *a, **k: popups.append(a))
+    tab = AgentTabWidget()
+    channel = ChannelMetadata(
+        channel_id="ucx",
+        title="Test Channel",
+        youtube_url="https://www.youtube.com/channel/ucx",
+        latest_video_url="https://www.youtube.com/watch?v=abc",
+    )
+    tab._populate_table([channel])
+    tab._send_selected_to_queue()
+    assert popups == []
+    assert tab.lbl_status.text().startswith("Sent")
+    tab.deleteLater()
+
+
+def test_copy_links_uses_inline_status(qapp, isolated_appdata, monkeypatch):
+    from s_q_ali_media_downloader.ui import agent_tab as at
+
+    popups = []
+    monkeypatch.setattr(at.QMessageBox, "information", lambda *a, **k: popups.append(a))
+    tab = AgentTabWidget()
+    tab._copy_fb_links()
+    assert popups == []
+    assert "Facebook" in tab.lbl_status.text()
+    tab.deleteLater()

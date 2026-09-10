@@ -114,6 +114,42 @@ def test_container_analysis_signal(qapp, monkeypatch):
     container.deleteLater()
 
 
+def test_container_analysis_modal_not_stacked(qapp, monkeypatch):
+    import s_q_ali_media_downloader.niche_research.ui.research_container as rc
+
+    calls = []
+
+    class _FakeSignal:
+        def __init__(self):
+            self.slots = []
+
+        def connect(self, slot):
+            self.slots.append(slot)
+
+        def emit(self, *args):
+            for slot in self.slots:
+                slot(*args)
+
+    class _FakeModal:
+        def __init__(self, channel_id, parent=None):
+            self.channel_id = channel_id
+            self.finished = _FakeSignal()
+
+        def exec(self):
+            calls.append(self.channel_id)
+
+    monkeypatch.setattr(rc, "AnalysisModal", _FakeModal)
+    container = ResearchContainer()
+    container._open_analysis("UC1")
+    container._open_analysis("UC2")  # already open -> should be ignored
+    assert calls == ["UC1"]
+    container._analysis_modal.finished.emit(0)  # user closes the modal
+    container._open_analysis("UC3")
+    assert calls == ["UC1", "UC3"]
+    container.stop_poller()
+    container.deleteLater()
+
+
 def test_main_window_research_nav(qapp):
     from s_q_ali_media_downloader.ui.main_window import MainWindow
 

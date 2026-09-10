@@ -43,6 +43,7 @@ class ResearchContainer(QWidget):
         super().__init__(parent)
         self.setObjectName("researchContainer")
         self.setStyleSheet(research_style())
+        self._analysis_modal = None
         self._build()
 
     def _build(self) -> None:
@@ -216,9 +217,11 @@ class ResearchContainer(QWidget):
             self.competitors_page.refresh_now()
 
     def _open_analysis(self, channel_id: str) -> None:
-        if not channel_id:
+        if not channel_id or self._analysis_modal is not None:
             return
         modal = AnalysisModal(channel_id, parent=self)
+        self._analysis_modal = modal
+        modal.finished.connect(lambda *args: setattr(self, "_analysis_modal", None))
         modal.exec()
 
     def stop_poller(self) -> None:
