@@ -63,6 +63,22 @@ def test_avatar_empty_url_keeps_initials_fallback(qapp, isolated_appdata):
     avatar.deleteLater()
 
 
+def test_avatar_ignores_image_for_other_url(qapp, isolated_appdata):
+    """Regression: a single shared loader must not cross-apply one channel's
+    DP bytes onto another channel's avatar (all DPs looked identical)."""
+    avatar = w.AvatarThumbnail(PNG_URL, "My Channel")
+    avatar._on_image("https://other/url.jpg", _png_bytes())
+    assert avatar._pixmap is None
+    avatar.deleteLater()
+
+
+def test_avatar_accepts_image_for_own_url(qapp, isolated_appdata):
+    avatar = w.AvatarThumbnail(PNG_URL, "My Channel")
+    avatar._on_image(PNG_URL, _png_bytes())
+    assert avatar._pixmap is not None and not avatar._pixmap.isNull()
+    avatar.deleteLater()
+
+
 def test_loader_delivers_bytes_async(qapp, monkeypatch, isolated_appdata):
     monkeypatch.setattr(w, "_fetch_image_bytes", lambda url, timeout=8: _png_bytes())
     received = {}

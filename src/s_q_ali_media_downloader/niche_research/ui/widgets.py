@@ -483,6 +483,7 @@ class AvatarThumbnail(QWidget):
 
     def __init__(self, url: str, text: str, size: int = 48, parent: QWidget | None = None):
         super().__init__(parent)
+        self._url = url
         self._pixmap: QPixmap | None = None
         self._initials = get_initials(text)
         self._size = size
@@ -510,7 +511,7 @@ class AvatarThumbnail(QWidget):
         self.update()
 
     def _on_image(self, url: str, data: object) -> None:
-        if data:
+        if data and url == self._url:
             _write_cached_image(url, data)
             self._apply_bytes(data)
 
