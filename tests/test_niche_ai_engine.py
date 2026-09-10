@@ -250,10 +250,92 @@ def test_analyze_channel_no_providers_raises(isolated_appdata, monkeypatch):
         ai.analyze_channel("UCxyz")
 
 
-def test_generate_thumbnail_missing_key(isolated_appdata):
+def test_generate_thumbnail_no_image_provider_messages_settings(isolated_appdata):
     result = ai.generate_thumbnail("My video")
     assert result["success"] is False
-    assert "aihubmix_api_key" in result["error"]
+    assert "Settings" in result["error"]
+    assert "No AI image provider" in result["error"]
+
+
+def test_image_provider_defs_honor_primary_and_keys(isolated_appdata):
+    assert ai._image_provider_defs() == []
+    db.set_setting("google_ai_api_key", "k-google")
+    db.set_setting("openrouter_api_key", "k-or")
+    defs = ai._image_provider_defs()
+    assert [d["name"] for d in defs] == ["google", "openrouter"]
+    db.set_setting("ai_primary_provider", "openrouter")
+    defs = ai._image_provider_defs()
+    assert [d["name"] for d in defs] == ["openrouter", "google"]
+
+
+def test_parse_gemini_image_response_finds_inline_data(isolated_appdata):
+    data = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "Here is your thumbnail"},
+                        {"inlineData": {"mimeType": "image/png", "data": "QUJD"}},
+                    ]
+                }
+            }
+        ]
+    }
+    result = ai._parse_image_response("google", "gemini_content", data)
+    assert result["success"] is True
+    assert result["imageData"] == "data:image/png;base64,QUJD"
+
+
+def test_parse_gemini_image_response_no_inline_data(isolated_appdata):
+    data = {"candidates": [{"content": {"parts": [{"text": "only text"}]}}]}
+    result = ai._parse_image_response("google", "gemini_content", data)
+    assert result["success"] is False
+    assert "No image" in result["error"]
+
+
+def test_parse_openai_image_response_b64(isolated_appdata):
+    result = ai._parse_image_response(
+        "aihubmix", "openai_images", {"data": [{"b64_json": "YWJj"}]}
+    )
+    assert result["success"] is True
+    assert result["imageData"] == "data:image/png;base64,YWJj"
+
+
+def test_parse_image_response_error_field(isolated_appdata):
+    result = ai._parse_image_response(
+        "openrouter", "openrouter_images", {"error": {"message": "bad request"}}
+    )
+    assert result["success"] is False
+    assert "bad request" in result["error"]
+
+
+def test_generate_thumbnail_falls_back_across_providers(isolated_appdata, monkeypatch):
+    db.set_setting("aihubmix_api_key", "k1")
+    db.set_setting("google_ai_api_key", "k2")
+    calls = []
+
+    def fake_call(provider, prompt):
+        calls.append(provider["name"])
+        if provider["name"] == "aihubmix":
+            return {"success": False, "error": "boom 401"}
+        return {"success": True, "imageData": "data:image/png;base64,QUJD"}
+
+    monkeypatch.setattr(ai, "_call_image_provider", fake_call)
+    result = ai.generate_thumbnail("T")
+    assert result["success"] is True
+    assert calls == ["aihubmix", "google"]
+
+
+def test_generate_thumbnail_all_providers_fail_is_clear(isolated_appdata, monkeypatch):
+    db.set_setting("aihubmix_api_key", "k1")
+
+    def fake_call(provider, prompt):
+        return {"success": False, "error": "nope"}
+
+    monkeypatch.setattr(ai, "_call_image_provider", fake_call)
+    result = ai.generate_thumbnail("T")
+    assert result["success"] is False
+    assert "aihubmix" in result["error"]
 
 
 def test_generate_thumbnail_styles_build_prompt_shape(isolated_appdata, monkeypatch):
@@ -290,5 +372,8 @@ def test_generate_thumbnail_styles_build_prompt_shape(isolated_appdata, monkeypa
     result = ai.generate_thumbnail("Big title", style="vibrant", niche="Tech")
     assert result["success"] is True
     assert result["imageData"].startswith("data:image/png;base64,")
+    assert captured["url"].endswith("/v1/images/generations")
+    assert captured["payload"]["size"] == "1536x1024"
+    assert captured["payload"]["response_format"] == "b64_json"
     assert "vibrant" in captured["payload"]["prompt"]
     assert "Niche: Tech" in captured["payload"]["prompt"]

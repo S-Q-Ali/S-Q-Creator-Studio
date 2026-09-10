@@ -88,11 +88,15 @@ class SettingsPage(QWidget):
             (
                 "aihubmix_api_key",
                 "aiHubMix API key",
-                "Used for chat analysis and the Thumbnail generator (gpt-image-2-free).",
+                "Used for chat analysis and as the first choice for the Thumbnail generator.",
             ),
-            ("groq_api_key", "Groq API key", ""),
-            ("openrouter_api_key", "OpenRouter API key", ""),
-            ("google_ai_api_key", "Google AI (Gemini) API key", ""),
+            ("groq_api_key", "Groq API key", "Chat analysis only."),
+            ("openrouter_api_key", "OpenRouter API key", "Chat analysis and Thumbnail fallback."),
+            (
+                "google_ai_api_key",
+                "Google AI (Gemini) API key",
+                "Chat analysis and Thumbnail generation fallback.",
+            ),
         ):
             edit = QLineEdit()
             edit.setPlaceholderText("sk-...")

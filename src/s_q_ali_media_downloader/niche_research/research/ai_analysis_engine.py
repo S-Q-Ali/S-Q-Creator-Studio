@@ -559,14 +559,133 @@ def _upload_date(value: str) -> str:
 # --------------------------------------------------------------------------- #
 # Thumbnail generation (lib/thumbnailGenerator.ts)
 # --------------------------------------------------------------------------- #
+THUMB_IMAGE_PROVIDERS = ("aihubmix", "google", "openrouter")
+_IMAGE_SETTING_KEY = {
+    "aihubmix": "aihubmix_api_key",
+    "google": "google_ai_api_key",
+    "openrouter": "openrouter_api_key",
+}
+_IMAGE_MODELS = {
+    "aihubmix": "gpt-image-1",
+    "google": "gemini-2.5-flash-image",
+    "openrouter": "google/gemini-2.5-flash-image",
+}
+
+
+def _image_def(name: str, api_key: str) -> dict[str, Any]:
+    if name == "google":
+        return {
+            "name": "google",
+            "mode": "gemini_content",
+            "path": (
+                "https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{_IMAGE_MODELS['google']}:generateContent"
+            ),
+            "api_key": api_key,
+        }
+    if name == "openrouter":
+        return {
+            "name": "openrouter",
+            "mode": "openrouter_images",
+            "path": "https://openrouter.ai/api/v1/images",
+            "model": _IMAGE_MODELS["openrouter"],
+            "api_key": api_key,
+        }
+    return {
+        "name": "aihubmix",
+        "mode": "openai_images",
+        "path": "https://aihubmix.com/v1/images/generations",
+        "model": _IMAGE_MODELS["aihubmix"],
+        "api_key": api_key,
+    }
+
+
+def _image_provider_defs() -> list[dict[str, Any]]:
+    """Image-capable providers in priority order; the Settings primary first."""
+    ordered = list(THUMB_IMAGE_PROVIDERS)
+    primary = db.get_setting("ai_primary_provider")
+    if primary and primary in ordered:
+        ordered.remove(primary)
+        ordered.insert(0, primary)
+    configured: list[dict[str, Any]] = []
+    for name in ordered:
+        key = db.get_setting(_IMAGE_SETTING_KEY[name])
+        if key and key.strip():
+            configured.append(_image_def(name, key.strip()))
+    return configured
+
+
+def _call_image_provider(provider: dict[str, Any], prompt: str) -> dict[str, Any]:
+    mode = provider["mode"]
+    headers = {"Content-Type": "application/json"}
+    if mode == "gemini_content":
+        headers["x-goog-api-key"] = provider["api_key"]
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "responseModalities": ["TEXT", "IMAGE"],
+                "imageConfig": {"aspectRatio": "16:9"},
+            },
+        }
+    else:
+        headers["Authorization"] = f"Bearer {provider['api_key']}"
+        if mode == "openai_images":
+            payload = {
+                "model": provider["model"],
+                "prompt": prompt,
+                "n": 1,
+                "size": "1536x1024",
+                "quality": "medium",
+                "response_format": "b64_json",
+            }
+        else:  # openrouter_images
+            payload = {
+                "model": provider["model"],
+                "prompt": prompt,
+                "n": 1,
+                "aspect_ratio": "16:9",
+                "output_format": "png",
+                "quality": "high",
+            }
+    try:
+        with httpx.Client(timeout=180.0) as client:
+            res = client.post(provider["path"], headers=headers, json=payload)
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+    if res.status_code != 200:
+        return {"success": False, "error": f"API error {res.status_code}: {res.text[:300]}"}
+    return _parse_image_response(provider["name"], mode, res.json())
+
+
+def _parse_image_response(name: str, mode: str, data: dict[str, Any]) -> dict[str, Any]:
+    if data.get("error"):
+        message = data["error"].get("message") if isinstance(data["error"], dict) else data["error"]
+        return {"success": False, "error": f"{name} error: {message}"}
+    if mode == "gemini_content":
+        for candidate in data.get("candidates") or []:
+            for part in (candidate.get("content") or {}).get("parts") or []:
+                inline = part.get("inlineData") or {}
+                if inline.get("data"):
+                    mime = inline.get("mimeType") or "image/png"
+                    return {
+                        "success": True,
+                        "imageData": f"data:{mime};base64,{inline['data']}",
+                    }
+        return {"success": False, "error": "No image data in Gemini response"}
+    image_data = (data.get("data") or [{}])[0].get("b64_json")
+    if not image_data:
+        return {"success": False, "error": "No image data in response"}
+    return {"success": True, "imageData": f"data:image/png;base64,{image_data}"}
+
+
 def generate_thumbnail(
     title: str, *, style: str = "bold", niche: str | None = None
 ) -> dict[str, Any]:
-    """Generate a 16:9 thumbnail via an image model; returns base64 PNG data URI."""
-    api_key = db.get_setting("aihubmix_api_key")
-    if not api_key:
-        return {"success": False, "error": "aihubmix_api_key not configured in Settings"}
+    """Generate a 16:9 thumbnail via an image model; returns base64 PNG data URI.
 
+    Falls back across every configured image provider (aiHubMix → Google AI →
+    OpenRouter), trying the Settings primary first.
+    """
     style_prompt = STYLE_PROMPTS.get(style, STYLE_PROMPTS["bold"])
     niche_part = f"Niche: {niche}. " if niche else ""
     prompt = (
@@ -574,32 +693,26 @@ def generate_thumbnail(
         "Aspect ratio 16:9, high resolution, clickable, professional quality."
     )
 
-    try:
-        with httpx.Client(timeout=120.0) as client:
-            res = client.post(
-                "https://aihubmix.com/v1/images/generations",
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": "gpt-image-2-free",
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": "1536x1024",
-                    "quality": "auto",
-                },
-            )
-        if res.status_code != 200:
-            return {"success": False, "error": f"API error {res.status_code}: {res.text[:500]}"}
-        data = res.json()
-        if data.get("error"):
-            err = data["error"].get("message") if isinstance(data["error"], dict) else data["error"]
-            return {"success": False, "error": str(err)}
-        image_data = (data.get("data") or [{}])[0].get("b64_json")
-        if not image_data:
-            return {"success": False, "error": "No image data in response"}
+    providers = _image_provider_defs()
+    if not providers:
         return {
-            "success": True,
-            "imageData": f"data:image/png;base64,{image_data}",
-            "revisedPrompt": (data.get("data") or [{}])[0].get("revised_prompt"),
+            "success": False,
+            "error": (
+                "No AI image provider configured. Add an API key (aiHubMix, "
+                "Google AI, or OpenRouter) in the Niche Research > Settings page."
+            ),
         }
-    except Exception as exc:
-        return {"success": False, "error": str(exc)}
+
+    errors: list[str] = []
+    for provider in providers:
+        logger.info("Trying image provider: %s", provider["name"])
+        result = _call_image_provider(provider, prompt)
+        if result.get("success"):
+            logger.info("Thumbnail generated with provider: %s", provider["name"])
+            return result
+        logger.warning("Image provider %s failed: %s", provider["name"], result["error"])
+        errors.append(f"{provider['name']}: {result['error']}")
+    return {
+        "success": False,
+        "error": "Thumbnail generation failed on all providers. " + " | ".join(errors),
+    }
