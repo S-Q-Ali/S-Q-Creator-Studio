@@ -193,7 +193,7 @@ class KeywordResearchPage(QWidget):
         def metric(label: str) -> tuple[QVBoxLayout, QLabel]:
             box = QVBoxLayout()
             box.setSpacing(2)
-            value = QLabel("0")
+            value = QLabel("—")
             value.setObjectName("kwMetricValue")
             cap = QLabel(label)
             cap.setObjectName("kwMetricLabel")

@@ -2,9 +2,146 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QSize, Qt
+import hashlib
+import logging
+import os
+import queue
+import threading
+
+from PySide6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import QLabel, QLayout, QSizePolicy, QWidget
+
+from s_q_ali_media_downloader.niche_research.ui.theme import (
+    ACCENT,
+    ACCENT_TEXT,
+    CARD,
+    DANGER,
+    PANEL,
+    TEAL,
+    TEXT,
+)
+
+logger = logging.getLogger(__name__)
+
+
+# --------------------------------------------------------------------------- #
+# Async thumbnail loading (never block the GUI thread)
+# --------------------------------------------------------------------------- #
+def _url_candidates(url: str) -> list[str]:
+    """Progressively lower-quality variants for a video URL."""
+    candidates = [url]
+    if "maxresdefault" in url:
+        candidates.append(url.replace("maxresdefault", "hqdefault"))
+        candidates.append(url.replace("maxresdefault", "mqdefault"))
+    return candidates
+
+
+def _fetch_image_bytes(url: str, timeout: float = 8.0) -> bytes | None:
+    """Background download with cheap fallback chain. Returns raw bytes or None."""
+    import httpx
+
+    for candidate in _url_candidates(url):
+        try:
+            resp = httpx.get(
+                candidate,
+                headers={"accept": "image/*"},
+                timeout=timeout,
+                follow_redirects=True,
+            )
+        except Exception:
+            logger.debug("thumbnail fetch failed for %s", candidate, exc_info=True)
+            continue
+        if resp.status_code == 200 and resp.content:
+            return resp.content
+    return None
+
+
+def _cache_dir() -> str:
+    override = os.environ.get("NICHE_DB_PATH")
+    if override:
+        base = os.path.dirname(os.path.abspath(override))
+    else:
+        base = os.path.join(
+            os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"),
+            "S-Q-Ali Media Downloader",
+            "storage",
+        )
+    directory = os.path.join(base, "thumb_cache")
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError:
+        pass
+    return directory
+
+
+def _cache_key(url: str) -> str:
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()
+
+
+def _read_cached_image(url: str) -> bytes | None:
+    try:
+        with open(os.path.join(_cache_dir(), _cache_key(url) + ".img"), "rb") as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+def _write_cached_image(url: str, data: bytes) -> None:
+    try:
+        with open(os.path.join(_cache_dir(), _cache_key(url) + ".img"), "wb") as fh:
+            fh.write(data)
+    except OSError:
+        pass
+
+
+class ThumbLoader(QObject):
+    """Fetches thumbnail bytes off the GUI thread and delivers them on it.
+
+    A single daemon thread consumes a small request queue and drops results into
+    a results queue; a QTimer on the GUI thread drains that queue and emits
+    ``finished`` — every Qt object is only ever touched on the GUI thread, so the
+    loader is safe to abandon at interpreter shutdown (no cross-thread signals,
+    no owned QThreads).
+    """
+
+    finished = Signal(str, object)  # url -> bytes | None
+
+    def __init__(self, parent: QObject | None = None):
+        super().__init__(parent)
+        self._requests: queue.Queue = queue.Queue()
+        self._results: queue.Queue = queue.Queue()
+        self._timer = QTimer(self)
+        self._timer.setInterval(150)
+        self._timer.timeout.connect(self._drain)
+        self._timer.start()
+        worker = threading.Thread(target=self._run, daemon=True)
+        worker.start()
+
+    def start(self, url: str) -> None:
+        if url:
+            self._requests.put(url)
+
+    def _run(self) -> None:
+        while True:
+            url = self._requests.get()
+            data = _fetch_image_bytes(url)
+            self._results.put((url, data))
+
+    def _drain(self) -> None:
+        while not self._results.empty():
+            url, data = self._results.get_nowait()
+            self.finished.emit(url, data)
+
+
+_loader_singleton: ThumbLoader | None = None
+
+
+def thumb_loader() -> ThumbLoader:
+    global _loader_singleton
+    if _loader_singleton is None:
+        _loader_singleton = ThumbLoader()
+    return _loader_singleton
 
 
 # --------------------------------------------------------------------------- #
@@ -234,7 +371,7 @@ class Sparkline(QWidget):
         *,
         width: int = 140,
         height: int = 36,
-        stroke: str = "#dc2626",
+        stroke: str = DANGER,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -300,7 +437,7 @@ class Sparkline(QWidget):
         painter.drawPath(path)
 
         last_x, last_y = pts[-1]
-        dot_color = QColor("#2DD4BF")
+        dot_color = QColor(TEAL)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(dot_color)
         painter.drawEllipse(QPointF(last_x, last_y), 2.5, 2.5)
@@ -322,12 +459,12 @@ class AvatarInitials(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         grad = QLinearGradient(0, 0, self._size, self._size)
-        grad.setColorAt(0, QColor("#22D3EE"))
-        grad.setColorAt(1, QColor("#2DD4BF"))
-        painter.setPen(Qt.PenStyle.NoPen)
+        grad.setColorAt(0, QColor(ACCENT))
+        grad.setColorAt(1, QColor(TEAL))
         painter.setBrush(QBrush(grad))
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(0, 0, self._size, self._size)
-        painter.setPen(QColor("#ffffff"))
+        painter.setPen(QColor(ACCENT_TEXT))
         font = painter.font()
         font.setBold(True)
         font.setPixelSize(int(self._size * 0.34))
@@ -338,7 +475,11 @@ class AvatarInitials(QWidget):
 
 
 class AvatarThumbnail(QWidget):
-    """Round channel avatar with a fetched image, falling back to initials."""
+    """Round channel avatar with a fetched image, falling back to initials.
+
+    The image loads asynchronously off the GUI thread; on failure (or an
+    empty/blocked DP url) the initials avatar renders instead.
+    """
 
     def __init__(self, url: str, text: str, size: int = 48, parent: QWidget | None = None):
         super().__init__(parent)
@@ -346,27 +487,32 @@ class AvatarThumbnail(QWidget):
         self._initials = get_initials(text)
         self._size = size
         self.setFixedSize(size, size)
-        self._load(url)
+        thumb_loader().finished.connect(self._on_image)
+        if url:
+            self._start(url)
 
-    def _load(self, url: str) -> None:
-        if not url:
+    def _start(self, url: str) -> None:
+        cached = _read_cached_image(url)
+        if cached is not None:
+            self._apply_bytes(cached)
             return
-        try:
-            import httpx
+        thumb_loader().start(url)
 
-            resp = httpx.get(url, timeout=8, follow_redirects=True)
-            if resp.status_code == 200 and resp.content:
-                pixmap = QPixmap()
-                if pixmap.loadFromData(resp.content):
-                    self._pixmap = pixmap.scaled(
-                        self._size,
-                        self._size,
-                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-        except Exception:
-            self._pixmap = None
+    def _apply_bytes(self, data: bytes) -> None:
+        pixmap = QPixmap()
+        if data and pixmap.loadFromData(data):
+            self._pixmap = pixmap.scaled(
+                self._size,
+                self._size,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         self.update()
+
+    def _on_image(self, url: str, data: object) -> None:
+        if data:
+            _write_cached_image(url, data)
+            self._apply_bytes(data)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -383,12 +529,12 @@ class AvatarThumbnail(QWidget):
         from PySide6.QtGui import QBrush, QLinearGradient
 
         grad = QLinearGradient(0, 0, self._size, self._size)
-        grad.setColorAt(0, QColor("#ef4444"))
-        grad.setColorAt(1, QColor("#be123c"))
+        grad.setColorAt(0, QColor(ACCENT))
+        grad.setColorAt(1, QColor(TEAL))
         painter.setBrush(QBrush(grad))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(0, 0, self._size, self._size)
-        painter.setPen(QColor("#ffffff"))
+        painter.setPen(QColor(ACCENT_TEXT))
         font = painter.font()
         font.setBold(True)
         font.setPixelSize(int(self._size * 0.34))
@@ -399,7 +545,10 @@ class AvatarThumbnail(QWidget):
 
 
 class VideoThumb(QWidget):
-    """Rounded 16:9 video thumbnail with a fallback play glyph."""
+    """Rounded 16:9 video thumbnail with a fallback play glyph.
+
+    Loads asynchronously with a maxres→hq→mq fallback chain and a disk cache.
+    """
 
     def __init__(self, url: str, text: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -408,36 +557,50 @@ class VideoThumb(QWidget):
         self._pixmap: QPixmap | None = None
         self.setFixedSize(120, 68)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        thumb_loader().finished.connect(self._on_image)
         if url:
-            self._load()
+            cached = _read_cached_image(url)
+            if cached is not None:
+                self._apply_bytes(cached)
+            else:
+                thumb_loader().start(url)
 
-    def _load(self) -> None:
-        try:
-            import httpx
-
-            headers = {"accept": "image/*"}
-            resp = httpx.get(self._url, headers=headers, timeout=8)
-            self._pixmap = QPixmap()
-            self._pixmap.loadFromData(resp.content)
-        except Exception:
-            self._pixmap = None
+    def _apply_bytes(self, data: bytes) -> None:
+        pixmap = QPixmap()
+        if data and pixmap.loadFromData(data):
+            self._pixmap = pixmap
         self.update()
+
+    def _on_image(self, url: str, data: object) -> None:
+        if data and url == self._url:
+            _write_cached_image(url, data)
+            self._apply_bytes(data)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#1A1722"))
+        painter.setBrush(QColor(CARD))
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 6, 6)
-        if self._pixmap and not self._pixmap.isNull():
-            painter.drawPixmap(self.rect(), self._pixmap)
+        if self._pixmap is not None and not self._pixmap.isNull():
+            scaled = self._pixmap.scaled(
+                self.width(),
+                self.height(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            x = (scaled.width() - self.width()) // 2
+            y = (scaled.height() - self.height()) // 2
+            painter.drawPixmap(
+                self.rect(), scaled, QRect(x, y, self.width(), self.height())
+            )
         painter.setBrush(QColor(0, 0, 0, 110))
         painter.drawRoundedRect(0, 0, self.width(), self.height(), 6, 6)
-        color = QColor("#ffffff")
+        color = QColor(TEXT)
         painter.setBrush(color)
         painter.drawEllipse(self.width() - 22, int((self.height() - 16) / 2) + 8, 16, 16)
-        painter.setPen(QColor("#241F30"))
+        painter.setPen(QColor(PANEL))
         painter.drawPolygon(
             [
                 QPoint(self.width() - 18, int((self.height() - 10) / 2) + 4),

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import pytest
+from PySide6.QtWidgets import QLabel
 
 from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
 from s_q_ali_media_downloader.niche_research.storage import db
+from s_q_ali_media_downloader.niche_research.tools import youtube_client as yc
 from s_q_ali_media_downloader.niche_research.ui.analysis_modal import AnalysisModal
 from s_q_ali_media_downloader.niche_research.ui.settings_page import SettingsPage
 
@@ -161,6 +163,60 @@ def test_settings_page_primary_provider_order(qapp):
     assert db.get_setting("ai_primary_provider") == "groq"
     assert ai.get_providers()[0]["name"] == "groq"
     page.deleteLater()
+
+
+def test_settings_page_saves_youtube_api_key(qapp):
+    page = SettingsPage()
+    page._keys["youtube_api_key"].setText("AIzaSyYouTubeTest")
+    page._save()
+    assert db.get_setting("youtube_api_key") == "AIzaSyYouTubeTest"
+    assert yc.get_api_key() == "AIzaSyYouTubeTest"
+    page.deleteLater()
+
+
+def test_settings_provider_combo_is_visible_in_layout(qapp):
+    page = SettingsPage()
+    page.show()
+    qapp.processEvents()
+    assert page._default_provider.width() > 0
+    assert page._default_provider.isVisible()
+    assert page._keys["youtube_api_key"].isVisible()
+    page.deleteLater()
+
+
+def _stats_map(modal) -> dict:
+    result = {}
+    for i in range(modal._stats_row.count()):
+        tile = modal._stats_row.itemAt(i).widget()
+        val = next(
+            l for l in tile.findChildren(QLabel) if l.objectName() == "statTileValue"
+        )
+        cap = next(
+            l for l in tile.findChildren(QLabel) if l.objectName() == "statTileLabel"
+        )
+        result[cap.text()] = val.text()
+    return result
+
+
+def test_modal_stats_show_dash_for_unknown(qapp, monkeypatch):
+    monkeypatch.setattr(
+        ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False)
+    )
+    data = _sample_data(False)
+    # keyless discovery leaves exact stats unknown -> honest "—", never 0
+    data["channel"]["subscriberCount"] = None
+    data["channel"]["viewCount"] = None
+    data["channel"]["videoCount"] = None
+    data["trending"] = {"growthRate": None, "viewSubRatio": None, "categoryName": "Tech"}
+    modal = AnalysisModal("UCabc")
+    modal._on_channel_data(data)
+    tiles = _stats_map(modal)
+    assert tiles["Videos"] == "—"
+    assert tiles["Subscribers"] == "—"
+    assert tiles["Total Views"] == "—"
+    assert "— growth (30d)" in " ".join(t.text() for t in modal.findChildren(QLabel))
+    modal.reject()
+    modal.deleteLater()
 
 
 def test_modal_renders_not_analyzed(qapp, monkeypatch):

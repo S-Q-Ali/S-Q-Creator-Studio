@@ -434,8 +434,8 @@ def save_channel_snapshot(channel: ChannelInfo) -> None:
             channel.country,
             channel.publish_date,
             channel.subscriber_count,
-            channel.video_count,
-            channel.view_count,
+            channel.video_count or None,
+            channel.view_count or None,
             json_dumps(channel.channel_tags),
             json_dumps(channel.topic_categories),
             db.now(),
@@ -450,8 +450,8 @@ def save_channel_snapshot(channel: ChannelInfo) -> None:
             channel.channel_id,
             db.now(),
             channel.subscriber_count,
-            channel.video_count,
-            channel.view_count,
+            channel.video_count or None,
+            channel.view_count or None,
         ),
     )
 

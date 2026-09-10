@@ -195,12 +195,35 @@ def _to_video_info(d: dict) -> VideoInfo:
     )
 
 
+def _channel_avatar(d: dict) -> str:
+    """Pick the channel's display picture (not banner). Empty string = unknown.
+
+    yt-dlp exposes avatars under ``thumbnails`` entries with ids like
+    'avatar' / 'avatar_uncropped' and banners with 'banner*' ids. A banner
+    is never a valid channel DP — the caller falls back to initials.
+    """
+    explicit = d.get("avatar") or ""
+    if explicit:
+        return explicit
+    thumbs = [t for t in (d.get("thumbnails") or []) if isinstance(t, dict) and t.get("url")]
+    for entry in thumbs:
+        if "avatar" in str(entry.get("id") or "").lower():
+            return entry["url"]
+    for entry in thumbs:
+        if "banner" not in str(entry.get("id") or "").lower():
+            return entry["url"]
+    thumb = d.get("thumbnail")
+    if thumb and isinstance(thumb, str) and "banner" not in thumb.lower():
+        return thumb
+    return ""
+
+
 def _to_channel_info(d: dict) -> ChannelInfo:
     tags = _parse_json_list(d.get("channel_tags") or d.get("tags"))
     categories = _parse_json_list(d.get("topic_categories") or d.get("categories"))
     subs = d.get("channel_follower_count") or d.get("subscriber_count") or 0
     views = d.get("view_count") or d.get("channel_view_count") or 0
-    vids = d.get("channel_video_count") or 0
+    vids = d.get("channel_video_count") or d.get("playlist_count") or 0
     uploads: list[dict[str, Any]] = []
     for entry in d.get("entries") or []:
         if isinstance(entry, dict):
@@ -215,13 +238,12 @@ def _to_channel_info(d: dict) -> ChannelInfo:
                     "thumbnail_url": thumb_url,
                 }
             )
-    channel_thumbs = d.get("thumbnails") or []
-    avatar = d.get("avatar") or (channel_thumbs[0].get("url") if channel_thumbs else "") or ""
+    avatar = _channel_avatar(d)
     return ChannelInfo(
         channel_id=d.get("id") or d.get("channel_id") or d.get("uploader_id") or "",
         title=d.get("channel") or d.get("uploader") or d.get("title") or "",
         description=d.get("description") or "",
-        thumbnail_url=d.get("thumbnail") or avatar or "",
+        thumbnail_url=avatar,
         custom_url=d.get("uploader_url") or "",
         country=d.get("country") or "",
         publish_date=d.get("channel_joined_date") or "",

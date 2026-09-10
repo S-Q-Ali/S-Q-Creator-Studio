@@ -113,6 +113,48 @@ def test_to_channel_info_thumbnail_from_thumbnails_list():
     assert info.thumbnail_url == "https://t.url"
 
 
+def test_to_channel_info_uses_playlist_count_for_video_count():
+    data = {
+        "id": "UCxyz",
+        "channel": "My Channel",
+        "playlist_count": 15,
+        "entries": [],
+    }
+    info = yc._to_channel_info(data)
+    assert info.video_count == 15
+    assert info.title == "My Channel"
+
+
+def test_to_channel_info_no_playlist_count_is_zero_unknown():
+    info = yc._to_channel_info({"id": "UCxyz", "channel": "X", "entries": []})
+    assert info.video_count == 0
+
+
+def test_to_channel_info_prefers_avatar_id_thumbnail_over_banner():
+    data = {
+        "id": "UCxyz",
+        "channel": "My Channel",
+        "thumbnails": [
+            {"url": "https://banner.url", "id": "banner_uncropped"},
+            {"url": "https://avatar.url", "id": "avatar"},
+        ],
+        "entries": [],
+    }
+    info = yc._to_channel_info(data)
+    assert info.thumbnail_url == "https://avatar.url"
+
+
+def test_to_channel_info_skips_banner_when_no_avatar_available():
+    data = {
+        "id": "UCxyz",
+        "channel": "My Channel",
+        "thumbnails": [{"url": "https://banner.url", "id": "banner"}],
+        "entries": [],
+    }
+    info = yc._to_channel_info(data)
+    assert info.thumbnail_url == ""
+
+
 def test_search_videos_ytdlp_dispatch(monkeypatch):
     fetched = {}
 

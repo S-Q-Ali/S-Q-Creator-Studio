@@ -35,6 +35,35 @@ def test_score_label_letters():
     assert se.score_label(20) == "F"
 
 
+def test_save_channel_snapshot_keeps_unknown_counts_null():
+    db.configure(None)
+    channel = ChannelInfo(channel_id="UCxyz", video_count=0, view_count=0, subscriber_count=1000)
+    se.save_channel_snapshot(channel)
+    row = db.get(
+        "SELECT subscriber_count, video_count, view_count FROM channels WHERE channel_id = ?",
+        ("UCxyz",),
+    )
+    assert row is not None
+    assert row["subscriber_count"] == 1000
+    assert row["video_count"] is None  # unknown, not a fabricated 0
+    assert row["view_count"] is None  # unknown, not a fabricated 0
+    db.close_db()
+
+
+def test_save_channel_snapshot_keeps_real_counts():
+    db.configure(None)
+    channel = ChannelInfo(
+        channel_id="UCxyz2", subscriber_count=1000, video_count=42, view_count=7_000_000
+    )
+    se.save_channel_snapshot(channel)
+    row = db.get(
+        "SELECT subscriber_count, video_count, view_count FROM channels WHERE channel_id = ?",
+        ("UCxyz2",),
+    )
+    assert row == {"subscriber_count": 1000, "video_count": 42, "view_count": 7_000_000}
+    db.close_db()
+
+
 def test_seo_full_video():
     result = se.compute_seo_score(
         {

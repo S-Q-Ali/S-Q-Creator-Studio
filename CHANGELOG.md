@@ -3,6 +3,34 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.0] — 2026-09-10
+
+### Fixed
+- **Channel video counts were always "0"** in Niche Discovery / Scorecard /
+  AI Analysis: `channel_video_count` does not exist in yt-dlp; the pipeline now
+  falls back to `playlist_count`, so totals like "1.2K videos" match the web tool.
+- **Channel stat downloads blocked the UI** — avatars and video thumbs now load
+  asynchronously off the GUI thread with a disk cache, a `maxres→hq→mq` fallback
+  chain, and a smooth crop instead of a stretch.
+- **Avatar placeholders were broken**: a channel with no real profile picture
+  showed a red "error" gradient instead of a clean initials avatar; it now falls
+  back to the "S-Q" cyan→teal initials treatment.
+- Scorecard/AI Analysis no longer show a fabricated `0` for stats that keyless
+  research couldn't measure — unknown counts display a neutral `—`; the DB stores
+  NULL instead of zero for unknown totals.
+
+### Added
+- **YouTube Data API key field in Settings** (optional): unlocks exact channel
+  stats — total uploads, total views, join date — matching the web tool. Search &
+  discovery stay keyless (yt-dlp). The "Default AI provider" dropdown is now
+  visible (it was silently hidden on small windows).
+- Research UI now renders with the app's font family (`Segoe UI Variable
+  Display` → `Segoe UI` → `Inter`) so the whole suite reads as one brand.
+
+### Changed
+- Keyword detail metrics and analysis-modal stat tiles start at `—` instead of `0`
+  until real data arrives.
+
 ## [2.2.0] — 2026-09-10
 
 ### Changed

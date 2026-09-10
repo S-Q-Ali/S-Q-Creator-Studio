@@ -43,6 +43,10 @@ CHIP_AMBER_BG = "#451A03"
 CHIP_BLUE_BG = "#172554"
 CHIP_PURPLE_BG = "#3B0764"
 
+# App-wide type family — matches the downloader's theme.py so the research
+# suite reads as one family with the rest of the app.
+FONT_FAMILY = "'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif"
+
 _C = {
     "bg": BG,
     "card_bg": CARD,
@@ -74,11 +78,13 @@ def _build_qss(c: dict[str, str]) -> str:
 QWidget#researchPage {{
     background-color: {c["bg"]};
     color: {c["text_primary"]};
+    font-family: {FONT_FAMILY};
     font-size: 14px;
 }}
 
 QWidget {{
     color: {c["text_primary"]};
+    font-family: {FONT_FAMILY};
 }}
 
 QLabel#headerTitle {{

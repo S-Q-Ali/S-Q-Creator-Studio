@@ -36,7 +36,8 @@ class SettingsPage(QWidget):
         title = QLabel("Research Settings")
         title.setObjectName("headerTitle")
         subtitle = QLabel(
-            "Optional API keys. AI analysis prefers aiHubMix, then Groq, OpenRouter, Google."
+            "Optional API keys. A YouTube Data API key unlocks exact channel stats; "
+            "AI analysis prefers aiHubMix, then Groq, OpenRouter, Google."
         )
         subtitle.setObjectName("headerSubtitle")
         title_box.addWidget(title)
@@ -63,8 +64,27 @@ class SettingsPage(QWidget):
         idx = self._default_provider.findData(current)
         self._default_provider.setCurrentIndex(max(idx, 0))
 
+        provider_card = QFrame()
+        provider_card.setObjectName("panel")
+        provider_layout = QFormLayout(provider_card)
+        provider_layout.setContentsMargins(14, 12, 14, 12)
+        provider_layout.setSpacing(6)
+        provider_layout.addRow("Default AI provider", self._default_provider)
+        provider_hint = QLabel("Used by the AI channel analysis when several keys are set.")
+        provider_hint.setObjectName("formHint")
+        provider_layout.addRow("", provider_hint)
+        body_layout.addWidget(provider_card)
+
         self._keys: dict[str, QLineEdit] = {}
         for key, label, hint in (
+            (
+                "youtube_api_key",
+                "YouTube Data API key",
+                (
+                    "Optional. Unlocks exact channel stats — total uploads, total views, join date — "
+                    "matching the web tool. Channel search & discovery always stay keyless (yt-dlp)."
+                ),
+            ),
             (
                 "aihubmix_api_key",
                 "aiHubMix API key",

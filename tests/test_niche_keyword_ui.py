@@ -8,6 +8,14 @@ from s_q_ali_media_downloader.niche_research.ui import widgets as w
 from s_q_ali_media_downloader.niche_research.ui.keyword_page import KeywordResearchPage
 
 
+def test_research_style_has_app_font_family():
+    from s_q_ali_media_downloader.niche_research.ui.theme import FONT_FAMILY, research_style
+
+    css = research_style()
+    assert FONT_FAMILY in css
+    assert "Segoe UI" in css
+
+
 def test_score_badge_object_names(qapp):
     from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
@@ -183,6 +191,16 @@ def test_keyword_page_detail_view(isolated_appdata, qapp):
     page._back_btn.click()
     qapp.processEvents()
     assert page._stack.currentWidget() is page._results_page
+    db.close_db()
+
+
+def test_keyword_detail_metrics_start_honest(isolated_appdata, qapp):
+    db.configure(None)
+    page = KeywordResearchPage()
+    # no term selected yet -> "—" instead of a fabricated 0
+    assert page._demand_value.text() == "—"
+    assert page._competition_value.text() == "—"
+    assert page._overall_value.text() == "—"
     db.close_db()
 
 

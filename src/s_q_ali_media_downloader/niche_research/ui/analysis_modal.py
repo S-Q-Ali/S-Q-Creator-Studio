@@ -84,7 +84,9 @@ class ThumbnailWorker(QThread):
             self.failed.emit(str(exc))
 
 
-def _fmt(n: float) -> str:
+def _fmt(n: float | None) -> str:
+    if n is None:
+        return "—"
     if n >= 1_000_000:
         return f"{n / 1_000_000:.1f}M"
     if n >= 1_000:
@@ -433,20 +435,24 @@ class AnalysisModal(QDialog):
         # Stats
         self._clear_layout(self._stats_row)
         for label, value in (
-            ("Subscribers", _fmt(channel.get("subscriberCount") or 0)),
-            ("Total Views", _fmt(channel.get("viewCount") or 0)),
-            ("Videos", str(channel.get("videoCount") or 0)),
-            ("Viral Score", f"{(trending or {}).get('viralScore', 0)}"),
+            ("Subscribers", _fmt(channel.get("subscriberCount"))),
+            ("Total Views", _fmt(channel.get("viewCount"))),
+            ("Videos", _fmt(channel.get("videoCount"))),
+            ("Viral Score", _fmt((trending or {}).get("viralScore"))),
         ):
             self._stats_row.addWidget(self._stat_tile(value, label))
 
         # Trending row
         self._clear_layout(self._trending_row)
         if trending:
-            growth = QLabel(f"+{trending.get('growthRate', 0):.1f}% growth (30d)")
+            growth = trending.get("growthRate")
+            growth_text = f"+{growth:.1f}% growth (30d)" if growth is not None else "— growth (30d)"
+            growth = QLabel(growth_text)
             growth.setObjectName("growthPositive")
             self._trending_row.addWidget(growth)
-            ratio = QLabel(f"{trending.get('viewSubRatio', 0):.1f}x View/Sub Ratio")
+            ratio = trending.get("viewSubRatio")
+            ratio_text = f"{ratio:.1f}x View/Sub Ratio" if ratio is not None else "— View/Sub Ratio"
+            ratio = QLabel(ratio_text)
             ratio.setObjectName("smallLabel")
             self._trending_row.addWidget(ratio)
             if trending.get("isNewlyCreated"):
@@ -476,7 +482,7 @@ class AnalysisModal(QDialog):
             title.setFixedWidth(128)
             tile_layout.addWidget(title)
             meta = QLabel(
-                f"{_fmt(video.get('viewCount') or 0)} views"
+                f"{_fmt(video.get('viewCount'))} views"
                 + (f" · {video['publishedAt']}" if video.get("publishedAt") else "")
             )
             meta.setObjectName("urlMeta")

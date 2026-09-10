@@ -222,6 +222,30 @@ def test_unknown_niche_returns_empty():
     assert searches == 0
 
 
+def test_discover_reports_real_total_videos_not_search_pool(monkeypatch):
+    channel = ChannelInfo(
+        channel_id="UCa",
+        title="Alpha",
+        description="no ai",
+        subscriber_count=50_000,
+        video_count=15,  # real total from yt-dlp playlist_count
+    )
+
+    def fake_search(query, max_results, days_recent, cookiefile, progress):
+        return [_make_raw_video(f"a{i}", "UCa", 100_000 + i, 5000 + i, 100 + i, i + 1, 600) for i in range(3)]
+
+    def fake_fetch_channels(channel_ids, cookiefile=None, uploads_limit=30, progress=None):
+        return [channel]
+
+    monkeypatch.setattr(te, "search_videos", fake_search)
+    monkeypatch.setattr(te, "fetch_channels", fake_fetch_channels)
+
+    result, _ = te.discover_trending_channels("longform", "tech_ai")
+    assert len(result) == 1
+    assert result[0].video_count == 15  # real channel total, not the 3 surfacing videos
+    assert result[0].recent_video_count == 3  # search-pool subset reported separately
+
+
 def test_save_and_query_trending(monkeypatch):
     channel = te.TrendingChannel(
         channel_id="UCx",

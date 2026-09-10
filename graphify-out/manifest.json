@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/research/scorecard_engine.py": {
-    "mtime": 1789013376.2557793,
-    "seen": 1789013534.1168115,
-    "ast_hash": "e6f568d9e24d38ac35018214553daf9e",
+    "mtime": 1789015775.048887,
+    "seen": 1789017842.5871696,
+    "ast_hash": "587e4d8f6ccc1860bbbd9c3840db7b21",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/research/trending_engine.py": {
@@ -186,9 +186,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/tools/youtube_client.py": {
-    "mtime": 1788983973.9351351,
-    "seen": 1788984488.2850294,
-    "ast_hash": "152a86c70811659f5282fe4d676e4d9d",
+    "mtime": 1789015772.805065,
+    "seen": 1789017842.5871696,
+    "ast_hash": "6f121295aca6c87b3247faa4bd11005e",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/__init__.py": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/analysis_modal.py": {
-    "mtime": 1788983973.9385622,
-    "seen": 1788984488.2850294,
-    "ast_hash": "7ce2eb4c7dc209cd8bc1634161856af0",
+    "mtime": 1789017120.8475678,
+    "seen": 1789017842.5871696,
+    "ast_hash": "04ecdb035c3b25451291241379c3e9d2",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/competitors_page.py": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/keyword_page.py": {
-    "mtime": 1788983973.94156,
-    "seen": 1788984488.2850294,
-    "ast_hash": "05dcbf89f67bc552f69d3a000acfdbb5",
+    "mtime": 1789017152.365071,
+    "seen": 1789017842.5871696,
+    "ast_hash": "4fe778a8b14604d1869177658e81d243",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/research_container.py": {
@@ -228,15 +228,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/settings_page.py": {
-    "mtime": 1788605545.5996008,
-    "seen": 1788977537.5740588,
-    "ast_hash": "b865f808478114ab70e02ba525d390e6",
-    "semantic_hash": "b865f808478114ab70e02ba525d390e6"
+    "mtime": 1789017771.189793,
+    "seen": 1789017842.5871696,
+    "ast_hash": "e6dea7c0f1465b4e91e0032f1183b389",
+    "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/theme.py": {
-    "mtime": 1788983927.802777,
-    "seen": 1788984488.2850294,
-    "ast_hash": "bfdf2ca281640a8e4a0609735bc9a10b",
+    "mtime": 1789017303.489746,
+    "seen": 1789017842.5871696,
+    "ast_hash": "be1128d88757526cb218bb0304ccafc2",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/trending_card.py": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/niche_research/ui/widgets.py": {
-    "mtime": 1788983973.9505625,
-    "seen": 1788984488.2850294,
-    "ast_hash": "edfd30ed2e4da3615d6566387e22bf7f",
+    "mtime": 1789017739.70051,
+    "seen": 1789017842.5871696,
+    "ast_hash": "c7fba8d251ff6de14f1edc441f1b26b3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -324,10 +324,10 @@
     "semantic_hash": "4d10a852aeb86e6a2b3dc4e93ba6521e"
   },
   "tests/test_niche_analysis_ui.py": {
-    "mtime": 1788639353.8469102,
-    "seen": 1788977537.5740588,
-    "ast_hash": "daa149eb65a1767c97829e0cf25456a3",
-    "semantic_hash": "daa149eb65a1767c97829e0cf25456a3"
+    "mtime": 1789017120.8505728,
+    "seen": 1789017842.5871696,
+    "ast_hash": "a687e6015316f551abdf1c608b6df4a1",
+    "semantic_hash": ""
   },
   "tests/test_niche_autocomplete.py": {
     "mtime": 1788983973.97357,
@@ -366,10 +366,10 @@
     "semantic_hash": ""
   },
   "tests/test_niche_keyword_ui.py": {
-    "mtime": 1788639298.6931472,
-    "seen": 1788977537.5740588,
-    "ast_hash": "ed78fa417e7c9c2887e29f49be9b0fc8",
-    "semantic_hash": "ed78fa417e7c9c2887e29f49be9b0fc8"
+    "mtime": 1789017379.5042672,
+    "seen": 1789017842.5871696,
+    "ast_hash": "6215f12b8e18bda86fe245474ba738ff",
+    "semantic_hash": ""
   },
   "tests/test_niche_research_container.py": {
     "mtime": 1788639281.5627477,
@@ -378,10 +378,10 @@
     "semantic_hash": "b73167a3aa3fc137aadb7fe5dfb1006e"
   },
   "tests/test_niche_scorecard_engine.py": {
-    "mtime": 1788604227.3056645,
-    "seen": 1788977537.5740588,
-    "ast_hash": "368047fdd7c0a434ff167a842dee5974",
-    "semantic_hash": "368047fdd7c0a434ff167a842dee5974"
+    "mtime": 1789015746.3502586,
+    "seen": 1789017842.5871696,
+    "ast_hash": "48a29f7a46913d5c88e26751f4227924",
+    "semantic_hash": ""
   },
   "tests/test_niche_scorecard_ui.py": {
     "mtime": 1788604059.623199,
@@ -390,9 +390,9 @@
     "semantic_hash": "e1c07ab5dec3c008ad067d78318ed28d"
   },
   "tests/test_niche_trending_engine.py": {
-    "mtime": 1788983973.98956,
-    "seen": 1788984488.2850294,
-    "ast_hash": "d2c78fc73614ce4d5479ddc37a33a720",
+    "mtime": 1789015816.3932402,
+    "seen": 1789017842.5871696,
+    "ast_hash": "b7faca932907b282e2e40ae812626fd1",
     "semantic_hash": ""
   },
   "tests/test_niche_ui.py": {
@@ -402,10 +402,10 @@
     "semantic_hash": ""
   },
   "tests/test_niche_youtube_client.py": {
-    "mtime": 1788952589.2189002,
-    "seen": 1788977537.5740588,
-    "ast_hash": "ea6a5fd086efec36bc67b83e16970d7b",
-    "semantic_hash": "ea6a5fd086efec36bc67b83e16970d7b"
+    "mtime": 1789015705.9665935,
+    "seen": 1789017842.5871696,
+    "ast_hash": "6cc195f5528aa4caa4d80d9435978ddf",
+    "semantic_hash": ""
   },
   "tests/test_social_verifier.py": {
     "mtime": 1787928877.150758,
@@ -1719,6 +1719,12 @@
     "mtime": 1788982079.5425656,
     "seen": 1788984488.2850294,
     "ast_hash": "ec8fbdc541a62160430606c2ff0a0577",
+    "semantic_hash": ""
+  },
+  "tests/test_niche_thumbnails.py": {
+    "mtime": 1789017121.045922,
+    "seen": 1789017842.5871696,
+    "ast_hash": "35de04835331f8b6b29aaf6181a011fe",
     "semantic_hash": ""
   }
 }
