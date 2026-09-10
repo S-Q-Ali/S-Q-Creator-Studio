@@ -318,7 +318,7 @@ class MainWindow(QMainWindow):
             "One TikTok or YouTube video link per line.\n\n"
             "https://www.tiktok.com/@user/video/123...\n"
             "https://www.youtube.com/watch?v=...\n"
-            "Playlists and channels expand into videos automatically."
+            "Playlists, channels and TikTok profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
         self.source_stack.addWidget(page_links)
@@ -851,7 +851,7 @@ class MainWindow(QMainWindow):
 
     def add_links(self):
         existing = {j.url for j in self.jobs}
-        added = skipped = duplicates = profiles = 0
+        added = skipped = duplicates = 0
         expand_links = []
         for line in self.links.toPlainText().splitlines():
             url = line.strip()
@@ -865,6 +865,13 @@ class MainWindow(QMainWindow):
                 existing.add(url)
                 expand_links.append(url)
                 continue
+            if is_profile_url(url):
+                if url in existing:
+                    duplicates += 1
+                    continue
+                existing.add(url)
+                expand_links.append(url)
+                continue
             if is_tiktok_url(url) or is_youtube_url(url):
                 if url in existing:
                     duplicates += 1
@@ -872,8 +879,6 @@ class MainWindow(QMainWindow):
                 existing.add(url)
                 self._add_job(Job(url))
                 added += 1
-            elif is_profile_url(url):
-                profiles += 1
             else:
                 skipped += 1
 
@@ -882,16 +887,11 @@ class MainWindow(QMainWindow):
         parts = [f"Added {added} link{'s' if added != 1 else ''}."]
         if expand_links:
             parts.append(
-                f"Expanding {len(expand_links)} playlist or channel "
-                f"link{'s' if len(expand_links) != 1 else ''}…"
+                f"Expanding {len(expand_links)} playlist, channel or TikTok "
+                f"profile link{'s' if len(expand_links) != 1 else ''}…"
             )
         if duplicates:
             parts.append(f"{duplicates} already queued.")
-        if profiles:
-            parts.append(
-                f"{profiles} profile link{'s' if profiles != 1 else ''} "
-                "skipped — use Account based for those."
-            )
         if skipped:
             parts.append(f"{skipped} skipped — TikTok or YouTube links only.")
 
@@ -913,12 +913,18 @@ class MainWindow(QMainWindow):
         if not self._expand_queue:
             return
         url = self._expand_queue.pop(0)
-        self.expander = YouTubeFetchThread(url, MAX_ACCOUNT_VIDEOS, self)
+        self.expander = self._expand_thread_for(url)
         self.expander.note.connect(self.set_status)
         self.expander.found.connect(self.on_youtube_found)
         self.expander.failed.connect(self.on_youtube_failed)
         self.expander.finished.connect(self._on_expand_finished)
         self.expander.start()
+
+    def _expand_thread_for(self, url):
+        limit = MAX_ACCOUNT_VIDEOS
+        if is_profile_url(url):
+            return AccountFetchThread(url, limit, False, self)
+        return YouTubeFetchThread(url, limit, self)
 
     def on_youtube_found(self, urls, label):
         existing = {j.url for j in self.jobs}

@@ -53,6 +53,33 @@ def test_add_links_classifies(qapp, isolated_appdata):
     window.close()
 
 
+def test_add_links_routes_tiktok_profile_to_expand_queue(qapp, isolated_appdata):
+    window = MainWindow()
+    window._start_next_expand = lambda: None  # don't spawn a real network thread
+    window.links.setPlainText(
+        "https://www.tiktok.com/@creator\n"
+        "https://www.tiktok.com/@owner/video/123\n"
+    )
+    window.add_links()
+    assert window._expand_queue and window._expand_queue[0] == "https://www.tiktok.com/@creator"
+    assert len(window.jobs) == 1
+    status = window.status_bar.text()
+    assert "Expanding" in status
+    assert "skipped" not in status
+    window.close()
+
+
+def test_expand_thread_for_picks_account_thread_for_tiktok_profile(qapp, isolated_appdata):
+    from s_q_ali_media_downloader.engine import AccountFetchThread, YouTubeFetchThread
+
+    window = MainWindow()
+    account = window._expand_thread_for("https://www.tiktok.com/@creator")
+    assert isinstance(account, AccountFetchThread)
+    playlist = window._expand_thread_for("https://www.youtube.com/playlist?list=abc")
+    assert isinstance(playlist, YouTubeFetchThread)
+    window.close()
+
+
 def test_rail_auto_collapses_on_research(qapp, isolated_appdata):
     window = MainWindow()
     window.show()
