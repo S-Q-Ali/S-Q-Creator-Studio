@@ -2,8 +2,8 @@
 
 import csv
 
-from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -101,6 +101,7 @@ class AgentTabWidget(QWidget):
     """Main UI view for AI Channel & Social Presence Discovery Agent."""
 
     send_to_queue_requested = Signal(list)
+    _URL_ROLE = Qt.ItemDataRole.UserRole + 1
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -266,6 +267,8 @@ class AgentTabWidget(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
         self._setup_table_columns(MODE_YOUTUBE)
+        self.table.cellClicked.connect(self._open_cell_url)
+        self.table.cellDoubleClicked.connect(self._open_cell_url)
 
         main_layout.addWidget(self.table, 1)
 
@@ -423,6 +426,26 @@ class AgentTabWidget(QWidget):
         QMessageBox.critical(self, "Agent Error", f"Agent failed with error:\n{error_msg}")
 
     @staticmethod
+    def _as_link_item(item, url, tooltip):
+        if not url:
+            return item
+        item.setData(AgentTabWidget._URL_ROLE, url)
+        item.setForeground(QColor(C["accent"]))
+        font = item.font()
+        font.setUnderline(True)
+        item.setFont(font)
+        item.setToolTip(tooltip)
+        return item
+
+    def _open_cell_url(self, row, col):
+        item = self.table.item(row, col)
+        if item is None:
+            return
+        url = item.data(self._URL_ROLE)
+        if url:
+            QDesktopServices.openUrl(QUrl(url))
+
+    @staticmethod
     def _status_item(status: SocialStatus, ok_label: str, unknown_label: str = "? Unconfirmed"):
         item = QTableWidgetItem()
         if status == SocialStatus.VERIFIED:
@@ -453,6 +476,7 @@ class AgentTabWidget(QWidget):
             title_item = QTableWidgetItem(ch.title)
             title_item.setData(Qt.UserRole, ch)
             self.table.setItem(row_idx, 1, title_item)
+            self._as_link_item(title_item, ch.youtube_url, "Click to open the YouTube channel")
 
             # Col 2: Handle
             self.table.setItem(row_idx, 2, QTableWidgetItem(ch.handle or "N/A"))
@@ -461,15 +485,37 @@ class AgentTabWidget(QWidget):
             self.table.setItem(row_idx, 3, QTableWidgetItem(ch.subscribers_formatted))
 
             # Col 4: Facebook Status Badge
-            self.table.setItem(row_idx, 4, self._status_item(ch.facebook.status, "Verified Page"))
+            fb_item = self._status_item(ch.facebook.status, "Verified Page")
+            fb_url = (
+                ch.facebook.verified_url
+                if ch.facebook.status == SocialStatus.VERIFIED
+                else None
+            )
+            self.table.setItem(
+                row_idx, 4, self._as_link_item(fb_item, fb_url, "Click to open the Facebook page")
+            )
 
             # Col 5: Instagram Status Badge
+            ig_item = self._status_item(ch.instagram.status, "Verified Profile")
+            ig_url = (
+                ch.instagram.verified_url
+                if ch.instagram.status == SocialStatus.VERIFIED
+                else None
+            )
             self.table.setItem(
-                row_idx, 5, self._status_item(ch.instagram.status, "Verified Profile")
+                row_idx,
+                5,
+                self._as_link_item(ig_item, ig_url, "Click to open the Instagram profile"),
             )
 
             # Col 6: TikTok Status Badge
-            self.table.setItem(row_idx, 6, self._status_item(ch.tiktok.status, "Verified Profile"))
+            tt_item = self._status_item(ch.tiktok.status, "Verified Profile")
+            tt_url = (
+                ch.tiktok.verified_url if ch.tiktok.status == SocialStatus.VERIFIED else None
+            )
+            self.table.setItem(
+                row_idx, 6, self._as_link_item(tt_item, tt_url, "Click to open the TikTok profile")
+            )
 
             # Col 7: Opportunity flag
             flag_item = QTableWidgetItem(ch.opportunity_flag)
@@ -500,6 +546,7 @@ class AgentTabWidget(QWidget):
             title_item = QTableWidgetItem(profile.nickname)
             title_item.setData(Qt.UserRole, profile)
             self.table.setItem(row_idx, 1, title_item)
+            self._as_link_item(title_item, profile.profile_url, "Click to open the TikTok profile")
 
             # Col 2: Handle
             self.table.setItem(row_idx, 2, QTableWidgetItem(f"@{profile.handle}"))
@@ -508,10 +555,24 @@ class AgentTabWidget(QWidget):
             self.table.setItem(row_idx, 3, QTableWidgetItem(profile.followers_formatted))
 
             # Col 4: YouTube status badge
-            self.table.setItem(row_idx, 4, self._status_item(profile.youtube.status, "Has Channel"))
+            yt_item = self._status_item(profile.youtube.status, "Has Channel")
+            yt_url = (
+                profile.youtube.verified_url
+                if profile.youtube.status == SocialStatus.VERIFIED
+                else None
+            )
+            self.table.setItem(
+                row_idx,
+                4,
+                self._as_link_item(yt_item, yt_url, "Click to open the YouTube channel"),
+            )
 
             # Col 5: YouTube channel URL (if any)
-            self.table.setItem(row_idx, 5, QTableWidgetItem(profile.youtube.verified_url or "—"))
+            yt_link = QTableWidgetItem(profile.youtube.verified_url or "—")
+            self.table.setItem(row_idx, 5, yt_link)
+            self._as_link_item(
+                yt_link, profile.youtube.verified_url, "Click to open the YouTube channel"
+            )
 
             # Col 6: Flag
             flag_item = QTableWidgetItem(profile.opportunity_flag)
