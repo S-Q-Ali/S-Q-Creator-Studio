@@ -279,6 +279,49 @@ def test_modal_thumbnail_error(qapp, monkeypatch):
     modal.deleteLater()
 
 
+def test_modal_text_is_selectable(qapp, monkeypatch):
+    from PySide6.QtCore import Qt
+
+    monkeypatch.setattr(
+        ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(True)
+    )
+    modal = AnalysisModal("UCabc")
+    modal._on_channel_data(_sample_data(True))
+    sel = Qt.TextInteractionFlag.TextSelectableByMouse
+    labels = modal.findChildren(QLabel)
+    for needle in (
+        "How to",
+        "2-3 per week",
+        "Idea one",
+        "Script one",
+        "10 videos",
+        "Recent one",
+        "Test Channel",
+    ):
+        matches = [label for label in labels if needle in label.text()]
+        assert matches, needle
+        assert all(bool(label.textInteractionFlags() & sel) for label in matches), needle
+    modal.reject()
+    modal.deleteLater()
+
+
+def test_modal_re_render_after_analyze_rebuilds_layouts(qapp, monkeypatch):
+    monkeypatch.setattr(
+        ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(True)
+    )
+    modal = AnalysisModal("UCabc")
+    modal._on_channel_data(_sample_data(True))
+    # The Analyze -> reload path renders the same modal a second time. The
+    # trending row carries a trailing stretch spacer that used to make
+    # _clear_layout crash mid-rebuild.
+    modal._on_channel_data(_sample_data(True))
+    texts = [label.text() for label in modal.findChildren(QLabel)]
+    assert any("2-3 per week" in text for text in texts)
+    assert any("Script one" in text for text in texts)
+    modal.reject()
+    modal.deleteLater()
+
+
 def test_modal_fmt_duration():
     assert AnalysisModal._fmt_duration(0) == "0:00"
     assert AnalysisModal._fmt_duration(601) == "10:01"

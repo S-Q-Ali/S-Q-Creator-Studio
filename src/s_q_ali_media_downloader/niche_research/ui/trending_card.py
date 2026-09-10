@@ -37,15 +37,20 @@ class TrendingCardData:
     rpm: dict | None = None  # {"min":..,"max":..,"avg":..}
 
 
+def _selectable(label: QLabel) -> QLabel:
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    return label
+
+
 def _stat_block(value_text: str, key_text: str) -> QWidget:
     widget = QWidget()
     layout = QVBoxLayout(widget)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    value = QLabel(value_text)
+    value = _selectable(QLabel(value_text))
     value.setObjectName("statValue")
     value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    key = QLabel(key_text)
+    key = _selectable(QLabel(key_text))
     key.setObjectName("statKey")
     key.setAlignment(Qt.AlignmentFlag.AlignCenter)
     layout.addWidget(value)
@@ -75,14 +80,14 @@ class TrendingChannelCard(QFrame):
             else w.AvatarInitials(data.title, size=48)
         )
         title_box = QVBoxLayout()
-        title = QLabel(data.title or "Untitled Channel")
+        title = _selectable(QLabel(data.title or "Untitled Channel"))
         title.setWordWrap(False)
         title.setToolTip(data.title)
         title.setStyleSheet(
             "font-size: 14px; font-weight: 600; color: palette(text); "
             "background: transparent; border: none;"
         )
-        category = QLabel(data.category_name or "")
+        category = _selectable(QLabel(data.category_name or ""))
         category.setStyleSheet(
             "font-size: 12px; color: palette(mid); background: transparent; border: none;"
         )
@@ -121,9 +126,9 @@ class TrendingChannelCard(QFrame):
         # Growth + V/S row
         meta = QHBoxLayout()
         positive = data.growth_rate >= 0
-        growth = QLabel(f"{'+' if positive else ''}{data.growth_rate:.1f}% growth")
+        growth = _selectable(QLabel(f"{'+' if positive else ''}{data.growth_rate:.1f}% growth"))
         growth.setObjectName("growthPositive" if positive else "growthNegative")
-        vs = QLabel(f"{data.view_sub_ratio:.1f}x V/S")
+        vs = _selectable(QLabel(f"{data.view_sub_ratio:.1f}x V/S"))
         vs.setStyleSheet("font-size: 12px; color: palette(mid);")
         meta.addWidget(growth)
         meta.addStretch(1)
@@ -137,9 +142,9 @@ class TrendingChannelCard(QFrame):
             rpm_layout = QHBoxLayout(rpm_bar)
             rpm_layout.setContentsMargins(10, 6, 10, 6)
             rpm_layout.setSpacing(4)
-            earn = QLabel(f"Est. {w.format_earnings(data.rpm, data.view_count)}/total")
+            earn = _selectable(QLabel(f"Est. {w.format_earnings(data.rpm, data.view_count)}/total"))
             earn.setObjectName("rpmLabel")
-            rpm_avg = QLabel(f"(RPM ${data.rpm['avg']})")
+            rpm_avg = _selectable(QLabel(f"(RPM ${data.rpm['avg']})"))
             rpm_avg.setObjectName("rpmSubLabel")
             rpm_layout.addWidget(QLabel("\U0001f4b0"))
             rpm_layout.addWidget(earn)

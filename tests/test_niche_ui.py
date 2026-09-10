@@ -91,6 +91,33 @@ def test_trending_card_emits_analyze(qapp):
     assert emitted == ["UCx"]
 
 
+def test_trending_card_text_is_selectable(qapp):
+    from PySide6.QtCore import Qt
+
+    card = TrendingChannelCard(
+        TrendingCardData(
+            channel_id="UCx",
+            title="My Channel",
+            subscriber_count=1000,
+            view_count=5000,
+            video_count=10,
+            viral_score=77,
+            growth_rate=60.0,
+            category_name="Tech & AI",
+            view_sub_ratio=5.0,
+            video_format="longform",
+            niche="tech_ai",
+            rpm={"min": 6.0, "max": 18.0, "avg": 12.0},
+        )
+    )
+    sel = Qt.TextInteractionFlag.TextSelectableByMouse
+    labels = card.findChildren(QLabel)
+    for needle in ("My Channel", "Tech & AI", "+60.0% growth", "5.0x V/S", "Est.", "(RPM $12.0)"):
+        matches = [label for label in labels if needle in label.text()]
+        assert matches, needle
+        assert all(bool(label.textInteractionFlags() & sel) for label in matches), needle
+
+
 def test_trending_page_renders_rows(isolated_appdata, qapp):
     db.configure(None)
     te.save_trending_channels([_sample("UC1", "One", 90), _sample("UC2", "Two", 20)])

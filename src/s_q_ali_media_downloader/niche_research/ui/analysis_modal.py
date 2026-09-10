@@ -94,6 +94,11 @@ def _fmt(n: float | None) -> str:
     return str(int(n))
 
 
+def _selectable(label: QLabel) -> QLabel:
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    return label
+
+
 class AnalysisModal(QDialog):
     def __init__(self, channel_id: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -126,7 +131,7 @@ class AnalysisModal(QDialog):
         panel_layout.setSpacing(12)
 
         header = QHBoxLayout()
-        self._modal_title = QLabel("Loading…")
+        self._modal_title = _selectable(QLabel("Loading…"))
         self._modal_title.setObjectName("modalHeader")
         header.addWidget(self._modal_title, 1)
         close_x = QPushButton("✕")
@@ -416,16 +421,18 @@ class AnalysisModal(QDialog):
         row.addWidget(avatar)
         info = QVBoxLayout()
         info.setSpacing(2)
-        name = QLabel(channel.get("title", ""))
+        name = _selectable(QLabel(channel.get("title", "")))
         name.setObjectName("headerTitle")
         info.addWidget(name)
-        meta = QLabel(
-            f"{channel.get('country') or 'Unknown'} • "
-            f"{(trending or {}).get('categoryName') or 'Unknown Category'}"
+        meta = _selectable(
+            QLabel(
+                f"{channel.get('country') or 'Unknown'} • "
+                f"{(trending or {}).get('categoryName') or 'Unknown Category'}"
+            )
         )
         meta.setObjectName("urlMeta")
         info.addWidget(meta)
-        desc = QLabel(channel.get("description", "") or "No description")
+        desc = _selectable(QLabel(channel.get("description", "") or "No description"))
         desc.setObjectName("smallLabel")
         desc.setWordWrap(True)
         info.addWidget(desc)
@@ -476,14 +483,16 @@ class AnalysisModal(QDialog):
                 video.get("thumbnailUrl") or "", video.get("title") or video.get("videoId", "")
             )
             tile_layout.addWidget(thumb, 0, Qt.AlignmentFlag.AlignHCenter)
-            title = QLabel(video.get("title", "") or video.get("videoId", ""))
+            title = _selectable(QLabel(video.get("title", "") or video.get("videoId", "")))
             title.setObjectName("smallLabel")
             title.setWordWrap(True)
             title.setFixedWidth(128)
             tile_layout.addWidget(title)
-            meta = QLabel(
-                f"{_fmt(video.get('viewCount'))} views"
-                + (f" · {video['publishedAt']}" if video.get("publishedAt") else "")
+            meta = _selectable(
+                QLabel(
+                    f"{_fmt(video.get('viewCount'))} views"
+                    + (f" · {video['publishedAt']}" if video.get("publishedAt") else "")
+                )
             )
             meta.setObjectName("urlMeta")
             tile_layout.addWidget(meta)
@@ -541,13 +550,13 @@ class AnalysisModal(QDialog):
             return wrap
 
         row("Content Types", chips(strategy.get("contentType") or []))
-        row("Posting Schedule", QLabel(strategy.get("postingSchedule") or ""))
-        row("Thumbnail Style", QLabel(strategy.get("thumbnailStyle") or ""))
-        row("Title Formula", QLabel(strategy.get("titleFormula") or ""))
+        row("Posting Schedule", _selectable(QLabel(strategy.get("postingSchedule") or "")))
+        row("Thumbnail Style", _selectable(QLabel(strategy.get("thumbnailStyle") or "")))
+        row("Title Formula", _selectable(QLabel(strategy.get("titleFormula") or "")))
         row("Tag Strategy", chips(strategy.get("tagStrategy") or []))
         usps = strategy.get("uniqueSellingPoints") or []
         if usps:
-            row("Unique Selling Points", QLabel(" • ".join(usps)))
+            row("Unique Selling Points", _selectable(QLabel(" • ".join(usps))))
         layout.addStretch(1)
         self._strategy_layout.addWidget(card)
 
@@ -559,11 +568,11 @@ class AnalysisModal(QDialog):
             layout = QVBoxLayout(card)
             layout.setContentsMargins(14, 12, 14, 12)
             layout.setSpacing(6)
-            title = QLabel(idea.get("title", ""))
+            title = _selectable(QLabel(idea.get("title", "")))
             title.setObjectName("urlTitle")
             title.setWordWrap(True)
             layout.addWidget(title)
-            desc = QLabel(idea.get("description", ""))
+            desc = _selectable(QLabel(idea.get("description", "")))
             desc.setObjectName("smallLabel")
             desc.setWordWrap(True)
             layout.addWidget(desc)
@@ -591,7 +600,7 @@ class AnalysisModal(QDialog):
             layout.setContentsMargins(14, 12, 14, 12)
             layout.setSpacing(8)
             head = QHBoxLayout()
-            title = QLabel(script.get("title", ""))
+            title = _selectable(QLabel(script.get("title", "")))
             title.setObjectName("urlTitle")
             head.addWidget(title, 1)
             dur = QLabel(self._fmt_duration(script.get("estimatedDuration", 600)))
@@ -599,7 +608,9 @@ class AnalysisModal(QDialog):
             head.addWidget(dur)
             layout.addLayout(head)
             for section in ("hook", "intro", "outro"):
-                layout.addLayout(self._script_block(section.capitalize(), script.get(section, "")))
+                layout.addLayout(
+                    self._script_block(section.capitalize(), script.get(section, ""))
+                )
             body = script.get("bodySections") or []
             if body:
                 wrap = QWidget()
@@ -624,7 +635,7 @@ class AnalysisModal(QDialog):
         cap = QLabel(label)
         cap.setObjectName("svgMeta")
         box.addWidget(cap)
-        text = QLabel(body)
+        text = _selectable(QLabel(body))
         text.setObjectName("svgBody")
         text.setWordWrap(True)
         box.addWidget(text)
@@ -655,7 +666,7 @@ class AnalysisModal(QDialog):
         cap.setObjectName("svgMeta")
         box.addWidget(cap)
         for item in items:
-            text = QLabel(f"•  {item}")
+            text = _selectable(QLabel(f"•  {item}"))
             text.setObjectName("svgBody")
             text.setWordWrap(True)
             box.addWidget(text)
@@ -681,9 +692,12 @@ class AnalysisModal(QDialog):
     def _clear_layout(layout) -> None:
         while layout.count():
             item = layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is None:
+                # Spacers and other non-widget items are freed by takeAt.
+                continue
+            widget.setParent(None)
+            widget.deleteLater()
 
     # ------------------------------------------------------------------ #
     # Actions
