@@ -29,6 +29,7 @@ from s_q_ali_media_downloader.agent.schema import (
     SocialStatus,
     TikTokSearchResult,
 )
+from s_q_ali_media_downloader.theme import C
 
 MODE_YOUTUBE = "YouTube → Socials (FB/IG/TikTok)"
 MODE_TIKTOK = "TikTok → YouTube (Creators Without YT)"
@@ -132,7 +133,7 @@ class AgentTabWidget(QWidget):
         row0 = QHBoxLayout()
         row0.setSpacing(10)
         lbl_mode = QLabel("Discovery Mode:")
-        lbl_mode.setStyleSheet("font-weight: bold; color: #9C93AE;")
+        lbl_mode.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK])
         self.mode_combo.setMinimumHeight(34)
@@ -168,7 +169,7 @@ class AgentTabWidget(QWidget):
 
         # Depth
         lbl_depth = QLabel("Depth:")
-        lbl_depth.setStyleSheet("font-weight: bold; color: #9C93AE;")
+        lbl_depth.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
         self.depth_combo = QComboBox()
         self.depth_combo.addItems(["20 channels", "50 channels", "100 channels"])
         self.depth_combo.setCurrentIndex(1)
@@ -178,7 +179,7 @@ class AgentTabWidget(QWidget):
 
         # Min Subs
         self.lbl_subs = QLabel("Min Subs:")
-        self.lbl_subs.setStyleSheet("font-weight: bold; color: #9C93AE;")
+        self.lbl_subs.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
         self.subs_combo = QComboBox()
         self.subs_combo.addItems(["Any", "5K+", "10K+", "50K+", "100K+"])
         self.subs_combo.setCurrentIndex(0)
@@ -210,7 +211,7 @@ class AgentTabWidget(QWidget):
         # Row 3: Optional YouTube API Key
         row3 = QHBoxLayout()
         lbl_key = QLabel("YouTube API Key (Optional):")
-        lbl_key.setStyleSheet("color: #6E667E; font-size: 11px;")
+        lbl_key.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setPlaceholderText(
             "Leave blank for 100% free zero-key scraper mode (yt-dlp)"
@@ -224,7 +225,7 @@ class AgentTabWidget(QWidget):
         # Row 4: TikTok cookies file (optional, TikTok mode only)
         row4 = QHBoxLayout()
         lbl_cookies = QLabel("TikTok cookies.txt (Optional):")
-        lbl_cookies.setStyleSheet("color: #6E667E; font-size: 11px;")
+        lbl_cookies.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
         self.cookies_edit = QLineEdit()
         self.cookies_edit.setPlaceholderText(
             "Paste @handles or profile URLs above, or load a cookies.txt to unlock #tag search"
@@ -248,7 +249,7 @@ class AgentTabWidget(QWidget):
         self.progress_bar.setVisible(False)
 
         self.lbl_status = QLabel("Ready to search channels and verify social presences.")
-        self.lbl_status.setStyleSheet("color: #9C93AE; font-size: 12px; font-weight: 600;")
+        self.lbl_status.setStyleSheet(f"color: {C['muted']}; font-size: 12px; font-weight: 600;")
 
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.lbl_status)
@@ -256,8 +257,11 @@ class AgentTabWidget(QWidget):
         # 3. Results Table (QTableWidget) — columns adapt to the discovery mode
         self.table = QTableWidget()
         self.table.setStyleSheet(
-            "QTableWidget { background: #1A1722; border: 1px solid #332C42; border-radius: 8px; gridline-color: #241F30; }"
-            "QHeaderView::section { background: #241F30; color: #22D3EE; font-weight: 700; padding: 6px; border: none; }"
+            "QTableWidget { background: #1A1722; border: 1px solid #332C42; border-radius: 8px; gridline-color: #241F30; "
+            "alternate-background-color: #1C1926; }"
+            "QTableWidget::item { padding: 6px 8px; border: none; }"
+            "QTableWidget::item:selected { background: #2E2840; color: #EFEAF5; }"
+            "QHeaderView::section { background: #241F30; color: #22D3EE; font-weight: 700; padding: 8px 6px; border: none; }"
         )
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
@@ -353,6 +357,7 @@ class AgentTabWidget(QWidget):
         self.table.clear()
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
+        self.table.verticalHeader().setDefaultSectionSize(34)
         for col, _ in enumerate(headers):
             self.table.horizontalHeader().setSectionResizeMode(
                 col,
@@ -422,16 +427,16 @@ class AgentTabWidget(QWidget):
         item = QTableWidgetItem()
         if status == SocialStatus.VERIFIED:
             item.setText(f"✓ {ok_label}")
-            item.setForeground(QColor("#2DD4BF"))  # Teal / Green
+            item.setForeground(QColor(C["done"]))
         elif status == SocialStatus.NOT_FOUND:
             item.setText("✗ Not Found")
-            item.setForeground(QColor("#F2547D"))  # Pink / Red
+            item.setForeground(QColor(C["failed"]))
         elif status == SocialStatus.INCONCLUSIVE:
             item.setText(unknown_label)
-            item.setForeground(QColor("#FACC15"))  # Yellow
+            item.setForeground(QColor(C["amber"]))
         else:  # UNVERIFIED_HANDLE
             item.setText("~ Unverified")
-            item.setForeground(QColor("#9C93AE"))  # Muted violet
+            item.setForeground(QColor(C["muted"]))
         return item
 
     def _populate_table(self, channels: list[ChannelMetadata]):
@@ -469,11 +474,11 @@ class AgentTabWidget(QWidget):
             # Col 7: Opportunity flag
             flag_item = QTableWidgetItem(ch.opportunity_flag)
             if ch.opportunity_flag == "TARGET_NO_SOCIALS":
-                flag_item.setForeground(QColor("#F2547D"))
+                flag_item.setForeground(QColor(C["failed"]))
             elif ch.opportunity_flag == "PARTIAL_SOCIALS":
-                flag_item.setForeground(QColor("#FACC15"))
+                flag_item.setForeground(QColor(C["amber"]))
             else:
-                flag_item.setForeground(QColor("#2DD4BF"))
+                flag_item.setForeground(QColor(C["done"]))
             self.table.setItem(row_idx, 7, flag_item)
 
             # Col 8: Action Button
@@ -511,11 +516,11 @@ class AgentTabWidget(QWidget):
             # Col 6: Flag
             flag_item = QTableWidgetItem(profile.opportunity_flag)
             if profile.opportunity_flag == "TARGET_NO_YOUTUBE":
-                flag_item.setForeground(QColor("#F2547D"))
+                flag_item.setForeground(QColor(C["failed"]))
             elif profile.opportunity_flag == "NEEDS_REVIEW":
-                flag_item.setForeground(QColor("#FACC15"))
+                flag_item.setForeground(QColor(C["amber"]))
             else:
-                flag_item.setForeground(QColor("#2DD4BF"))
+                flag_item.setForeground(QColor(C["done"]))
             self.table.setItem(row_idx, 6, flag_item)
 
             # Col 7: Action Button — queue the TikTok profile itself
