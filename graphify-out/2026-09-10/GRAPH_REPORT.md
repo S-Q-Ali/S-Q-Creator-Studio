@@ -1,16 +1,16 @@
 # Graph Report - S Q Ali Media Downloader  (2026-09-10)
 
 ## Corpus Check
-- 244 files · ~363,296 words
+- 245 files · ~364,720 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3566 nodes · 4892 edges · 238 communities (201 shown, 30 thin omitted)
-- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 283 edges (avg confidence: 0.93)
+- 3609 nodes · 4972 edges · 241 communities (207 shown, 27 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 291 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f752fe25`
+- Built from commit: `fd83b0a5`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,22 +30,22 @@
 - KeywordResearchPage
 - AgentTabWidget
 - test_niche_youtube_client.py
-- SocialStatus
-- TikTokSearchTool
+- SocialVerifierTool
+- test_tiktok_pipeline.py
 - MCPConnection
 - scorecard_engine.py
 - CompetitorsPage
 - test_niche_trending_engine.py
-- QPushButton
+- ScorecardPage
 - test_niche_ui.py
-- research_style
+- storage/__init__.py
 - keyword_engine.py
-- test_tiktok_pipeline.py
+- SocialStatus
 - YouTubeFetchThread
 - Node/TypeScript MCP Server Implementation Guide
 - fetch_suggestions
 - test_niche_keyword_engine.py
-- test_niche_scorecard_engine.py
+- ChannelInfo
 - Building LLM-Powered Applications with Claude
 - AgentOrchestrator
 - .add_links
@@ -128,20 +128,20 @@
 - MCP Server Evaluation Guide
 - Process
 - Using Agent Skills
-- trending_page.py
+- niches.py
 - Testing Patterns Reference (JavaScript/TypeScript)
 - Tool Use
 - 🚀 High-Level Workflow
 - aggregate_benchmark.py
 - Spec-Driven Development
-- TrendingChannelCard
+- FlowLayout
 - [2.1.0] — 2026-08-28
 - Anthropic Brand Styling
-- Tool Use - PHP
+- Beta Features & Anthropic-Defined Tools
 - Files API - Python
 - Managed Agents - Self-Hosted Sandboxes
 - mcp-builder/SKILL.md
-- ._refresh_grid
+- competitor_engine.py
 - Source-Driven Development
 - Claude API - PHP
 - Streaming - Python
@@ -190,7 +190,7 @@
 - Managed Agents - Overview
 - Migrating to Opus 4.8
 - graphify reference: query, path, explain
-- test_niche_catalog.py
+- .__init__
 - Quick Reference
 - PULL_REQUEST_TEMPLATE.md
 - Breaking Changes by Source Model
@@ -240,23 +240,26 @@
 - Code Execution
 - Code Execution
 - Advanced FastMCP Features
-- Beta Features & Anthropic-Defined Tools
+- ThumbLoader
 - Structured Outputs
 - MCP Tool Conversion Helpers
 - Prompt Caching
 - Quick Reference
 - Cost Optimization Strategies
+- test_niche_thumbnails.py
+- Server-Side Tools: Code Execution
+- User-Defined Tools
 
 ## God Nodes (most connected - your core abstractions)
 1. `MainWindow` - 74 edges
-2. `AnalysisModal` - 48 edges
-3. `ChannelInfo` - 36 edges
+2. `AnalysisModal` - 49 edges
+3. `ChannelInfo` - 39 edges
 4. `TrendingChannelsPage` - 33 edges
 5. `TikTokSearchTool` - 32 edges
 6. `ResearchContainer` - 31 edges
 7. `AgentTabWidget` - 30 edges
-8. `VideoInfo` - 28 edges
-9. `KeywordResearchPage` - 28 edges
+8. `KeywordResearchPage` - 29 edges
+9. `VideoInfo` - 28 edges
 10. `Building LLM-Powered Applications with Claude` - 28 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -264,25 +267,25 @@
   tests/test_tiktok_pipeline.py → src/s_q_ali_media_downloader/agent/orchestrator.py
 - `test_agent_search_result_dump()` --uses--> `AgentSearchResult`  [INFERRED]
   tests/test_agent_schema.py → src/s_q_ali_media_downloader/agent/schema.py
-- `test_api_handles_parses_item_list()` --uses--> `TikTokApiSession`  [INFERRED]
-  tests/test_tiktok_pipeline.py → src/s_q_ali_media_downloader/agent/tools/tiktok_api.py
-- `test_cookie_loader_tolerates_missing_file()` --uses--> `TikTokApiSession`  [INFERRED]
-  tests/test_tiktok_pipeline.py → src/s_q_ali_media_downloader/agent/tools/tiktok_api.py
-- `test_fetch_tag_handles_cleans_and_caps()` --uses--> `TikTokApiSession`  [INFERRED]
-  tests/test_tiktok_pipeline.py → src/s_q_ali_media_downloader/agent/tools/tiktok_api.py
+- `_video()` --uses--> `VideoInfo`  [INFERRED]
+  tests/test_niche_competitor_engine.py → src/s_q_ali_media_downloader/niche_research/tools/youtube_client.py
+- `test_save_video_snapshot_idempotent()` --uses--> `VideoInfo`  [INFERRED]
+  tests/test_niche_scorecard_engine.py → src/s_q_ali_media_downloader/niche_research/tools/youtube_client.py
+- `test_load_channel_analysis_data_recent_videos()` --uses--> `ChannelInfo`  [INFERRED]
+  tests/test_niche_ai_engine.py → src/s_q_ali_media_downloader/niche_research/tools/youtube_client.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (238 total, 30 thin omitted)
+## Communities (241 total, 27 thin omitted)
 
 ### Community 0 - "AnalysisModal"
-Cohesion: 0.09
-Nodes (10): QDialog, QVBoxLayout, AnalysisModal, AnalyzeWorker, ChannelDataWorker, _fmt(), QThread, QWidget (+2 more)
+Cohesion: 0.11
+Nodes (11): QDialog, QPushButton, QVBoxLayout, AnalysisModal, _fmt(), QWidget, _fmt(), QFrame (+3 more)
 
 ### Community 1 - "niche_research/ui/widgets.py"
-Cohesion: 0.05
-Nodes (26): Orientation, QLayout, QRect, QSize, AvatarInitials, AvatarThumbnail, competition_color(), CompetitionBadge (+18 more)
+Cohesion: 0.07
+Nodes (25): AvatarInitials, AvatarThumbnail, _cache_dir(), _cache_key(), competition_color(), CompetitionBadge, get_initials(), make_badge() (+17 more)
 
 ### Community 2 - "MainWindow"
 Cohesion: 0.09
@@ -297,8 +300,8 @@ Cohesion: 0.08
 Nodes (33): LinkParserTool, Tool for extracting Facebook, Instagram, TikTok, and YouTube URLs and handles…, Extracts handle string from a FB/IG/TikTok URL., Strips tracking params but preserves profile.php?id= payloads., Lower = higher priority. Vanity pages first, groups last., Extracts social URLs and handles from channel metadata, descriptions, and link…, Extracts primary (facebook_url, instagram_url, tiktok_url) from raw text and…, MetadataExtractorTool (+25 more)
 
 ### Community 5 - "youtube_client.py"
-Cohesion: 0.11
-Nodes (40): datetime, _base_opts(), ChannelInfo, _chunks(), _extract(), fetch_channel(), fetch_channels(), _fetch_channels_via_api() (+32 more)
+Cohesion: 0.10
+Nodes (40): datetime, Dual-mode YouTube Discovery Engine (YouTube Data API v3 + yt-dlp Zero-Key…, _base_opts(), _channel_avatar(), _chunks(), _extract(), fetch_channels(), _fetch_channels_via_api() (+32 more)
 
 ### Community 6 - "main_window.py"
 Cohesion: 0.13
@@ -309,76 +312,76 @@ Cohesion: 0.15
 Nodes (26): analyze_channel(), asdict_strategy(), build_analysis_prompt(), call_provider(), ChannelAnalysis, ContentIdea, generate_thumbnail(), get_analysis() (+18 more)
 
 ### Community 8 - "test_niche_ai_engine.py"
-Cohesion: 0.08
-Nodes (13): parametrize, _db(), fixture, Tests for the AI analysis + thumbnail engine., _SeqClient, _StatusResponse, test_analyze_channel_runs_and_persists(), test_build_prompt_contains_channel_and_top_videos() (+5 more)
+Cohesion: 0.09
+Nodes (11): parametrize, _db(), fixture, Tests for the AI analysis + thumbnail engine., _SeqClient, _StatusResponse, test_call_provider_no_retry_on_client_error(), test_call_provider_retries_rate_limit() (+3 more)
 
 ### Community 9 - "ResearchContainer"
 Cohesion: 0.10
-Nodes (20): QObject, NichePoller, Hourly background snapshot poller (VPH + growth history)., QFrame, QWidget, Refresh the visible page's data (live scan / re-research / snapshots)., ResearchContainer, _db() (+12 more)
+Nodes (20): NichePoller, QObject, Hourly background snapshot poller (VPH + growth history)., QFrame, QWidget, Refresh the visible page's data (live scan / re-research / snapshots)., ResearchContainer, _db() (+12 more)
 
 ### Community 10 - "trending_engine.py"
-Cohesion: 0.11
-Nodes (33): calculate_growth_rate(), calculate_viral_score(), _channel_created_at(), _dedupe_videos(), detect_ai_generated(), discover_trending_channels(), get_discovery_status(), get_format_niche_counts() (+25 more)
+Cohesion: 0.13
+Nodes (28): calculate_growth_rate(), calculate_viral_score(), _channel_created_at(), _dedupe_videos(), detect_ai_generated(), discover_trending_channels(), get_trending_channel_by_id(), get_trending_channel_count() (+20 more)
 
 ### Community 11 - "YouTubeSearchTool"
-Cohesion: 0.09
-Nodes (22): Agent Orchestrator controller for YouTube discovery and cross-platform social…, YouTube Presence Detector for TikTok Creators (bio links + bidirectional search…, True if the YouTube channel page references the TikTok profile., Checks whether TikTok profiles already run a YouTube channel., Synchronous presence check for one TikTok profile., YouTubeExistenceTool, Dual-mode YouTube Discovery Engine (YouTube Data API v3 + yt-dlp Zero-Key…, Zero-Key channel discovery via the shared yt-dlp client (impersonation +… (+14 more)
+Cohesion: 0.14
+Nodes (15): Zero-Key channel discovery via the shared yt-dlp client (impersonation +…, Maps a shared ChannelInfo into the Agent's ChannelMetadata schema., Discovers YouTube channels by prompt, tag/hashtag, or channel name., Formats integer subscriber count (e.g. 1820000 -> 1.8M)., Entry point: Uses YouTube Data API if key is available, else yt-dlp scraper., Queries YouTube Data API v3 search.list and channels.list., YouTubeSearchTool, Unit tests for YouTubeSearchTool and YouTube channel URL normalization. (+7 more)
 
 ### Community 12 - "KeywordResearchPage"
 Cohesion: 0.09
-Nodes (15): ResearchOutput, _is_tracked(), KeywordResearchPage, KeywordResearchWorker, Any, QThread, QWidget, Re-run research with the last seed (used by the container Update button). (+7 more)
+Nodes (15): ResearchOutput, KeywordResearchPage, KeywordResearchWorker, Any, QThread, QWidget, Re-run research with the last seed (used by the container Update button)., Offscreen tests for the Keyword Research page widgets. (+7 more)
 
 ### Community 13 - "AgentTabWidget"
-Cohesion: 0.14
-Nodes (4): ChannelMetadata, AgentTabWidget, QWidget, Main UI view for AI Channel & Social Presence Discovery Agent.
+Cohesion: 0.10
+Nodes (6): AgentTabWidget, AgentWorkerThread, QThread, QWidget, Main UI view for AI Channel & Social Presence Discovery Agent., Background worker thread for running AgentOrchestrator without blocking Qt main…
 
 ### Community 14 - "test_niche_youtube_client.py"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (4): Network/tooling for the Niche Research suite (yt-dlp client, autocomplete)., _isolated_db(), fixture, Tests for the Niche Research yt-dlp YouTube client.
 
-### Community 15 - "SocialStatus"
-Cohesion: 0.09
-Nodes (30): BaseModel, Enum, Response, Data schemas for YouTube Discovery and Social Presence Agent., SocialPlatform, SocialPresence, SocialStatus, TikTokSearchResult (+22 more)
+### Community 15 - "SocialVerifierTool"
+Cohesion: 0.13
+Nodes (18): Response, SocialPresence, Asynchronous Verification Engine for Facebook, Instagram, and TikTok Profile…, Verifies if a Facebook page exists., Verifies if an Instagram profile exists., Verifies if a TikTok profile exists., Probes Facebook, Instagram, and TikTok in parallel., Probes Facebook, Instagram, and TikTok profile existence asynchronously. (+10 more)
 
-### Community 16 - "TikTokSearchTool"
-Cohesion: 0.12
-Nodes (18): A TikTok creator profile discovered by the TikTok-first search mode., TikTokProfileMetadata, format_followers(), TikTok Creator Discovery Engine (yt-dlp flat extraction + HTML fallback, zero…, Common yt-dlp options: impersonation + optional cookies file., Extracts @handles / profile URLs typed directly into the query., Dedupes handles into profiles and enriches them (best effort)., Flat-extracts a TikTok listing URL, collecting uploader handles. (+10 more)
+### Community 16 - "test_tiktok_pipeline.py"
+Cohesion: 0.08
+Nodes (33): format_followers(), TikTok Creator Discovery Engine (yt-dlp flat extraction + HTML fallback, zero…, Common yt-dlp options: impersonation + optional cookies file., Extracts @handles / profile URLs typed directly into the query., Dedupes handles into profiles and enriches them (best effort)., Flat-extracts a TikTok listing URL, collecting uploader handles., Pulls the creator handle out of a flat TikTok video entry., Cookies-aware harvest of uniqueId / @handle tokens from TikTok HTML. (+25 more)
 
 ### Community 17 - "MCPConnection"
 Cohesion: 0.06
 Nodes (37): ABC, Anthropic, create_connection(), MCPConnection, MCPConnectionHTTP, MCPConnectionSSE, MCPConnectionStdio, Any (+29 more)
 
 ### Community 18 - "scorecard_engine.py"
-Cohesion: 0.13
-Nodes (28): Re-fetch every tracked item and record a fresh snapshot row. Stores a…, refresh_snapshots(), _age_days(), ChannelLookupResult, _clamp(), compute_channel_seo_score(), compute_seo_score(), compute_vph() (+20 more)
+Cohesion: 0.12
+Nodes (30): Re-fetch every tracked item and record a fresh snapshot row. Stores a…, refresh_snapshots(), _age_days(), ChannelLookupResult, _clamp(), compute_channel_seo_score(), compute_seo_score(), compute_vph() (+22 more)
 
 ### Community 19 - "CompetitorsPage"
-Cohesion: 0.10
-Nodes (25): CompetitorsPage, _fmt(), Any, QFrame, QLabel, QThread, QWidget, Competitors page — dashboard of tracked videos / channels / keywords. Ported… (+17 more)
+Cohesion: 0.11
+Nodes (20): CompetitorsPage, Any, QThread, QWidget, RefreshWorker, _db(), _labels(), fixture (+12 more)
 
 ### Community 20 - "test_niche_trending_engine.py"
 Cohesion: 0.12
-Nodes (15): _channel(), _isolated_db(), _make_raw_video(), fixture, Tests for the trending channel engine (ported from the companion research web…, test_detect_ai_faceless_bonus(), test_detect_ai_generated_contributions(), test_discover_duration_filters() (+7 more)
+Nodes (16): _channel(), _isolated_db(), _make_raw_video(), fixture, Tests for the trending channel engine (ported from the companion research web…, test_detect_ai_faceless_bonus(), test_detect_ai_generated_contributions(), test_discover_duration_filters() (+8 more)
 
-### Community 21 - "QPushButton"
-Cohesion: 0.10
-Nodes (20): QPushButton, Research engines for the Niche Research suite (discovery, keywords, etc.)., Persistence layer for the Niche Research suite., _fmt_duration(), _mark_tracked(), QFrame, QThread, QWidget (+12 more)
+### Community 21 - "ScorecardPage"
+Cohesion: 0.12
+Nodes (16): _fmt_duration(), _mark_tracked(), QFrame, QThread, QWidget, ScorecardPage, ScorecardWorker, _SeoPanel (+8 more)
 
 ### Community 22 - "test_niche_ui.py"
-Cohesion: 0.12
-Nodes (11): _FakeMessageBox, Offscreen tests for the Niche Research UI (theme, widgets, trending page)., _sample(), test_discovery_start_forces_refresh(), test_discovery_worker_passes_force(), test_research_style_renders_unified_dark_theme(), test_start_discovery_full_scan_asks_confirmation(), test_trending_page_empty_state() (+3 more)
+Cohesion: 0.09
+Nodes (20): Research engines for the Niche Research suite (discovery, keywords, etc.)., AnalysisModal — AI channel strategy, ideas, scripts, blueprint + thumbnail.…, Niche Research UI package (app-style widgets and pages)., QFrame, QWidget, Trending channel card in the app's visual style (ported from…, _stat_block(), TrendingCardData (+12 more)
 
-### Community 23 - "research_style"
-Cohesion: 0.12
-Nodes (17): AnalysisModal — AI channel strategy, ideas, scripts, blueprint + thumbnail.…, Niche Research UI package (app-style widgets and pages)., Keyword Research page — autocomplete expansion + scored results table + detail.…, ResearchContainer — sidebar + stacked research pages for the main nav. Ported…, QWidget, Settings page — API keys for the AI analysis / thumbnail providers., SettingsPage, _build_qss() (+9 more)
+### Community 23 - "storage/__init__.py"
+Cohesion: 0.13
+Nodes (18): Persistence layer for the Niche Research suite., Competitors page — dashboard of tracked videos / channels / keywords. Ported…, Keyword Research page — autocomplete expansion + scored results table + detail.…, ResearchContainer — sidebar + stacked research pages for the main nav. Ported…, Scorecard page — paste a video/channel URL and get a vidIQ-style SEO score.…, Settings page — API keys for the AI analysis / thumbnail providers., _build_qss(), Unified dark ink-plum stylesheet for the research UI. The research suite used… (+10 more)
 
 ### Community 24 - "keyword_engine.py"
-Cohesion: 0.12
-Nodes (30): CompetitionLabel, get_competitor_dashboard(), get_tracked_channels(), get_tracked_keywords(), get_tracked_videos(), Any, Competitor dashboard: tracked videos / channels / keywords + snapshot refresh.…, Score history + latest rankings for tracked keywords. (+22 more)
+Cohesion: 0.16
+Nodes (20): CompetitionLabel, competition_from_views(), competition_label(), compute_demand(), _fetch_suggestions_safe(), KeywordResult, overall_score(), rank_keyword() (+12 more)
 
-### Community 25 - "test_tiktok_pipeline.py"
-Cohesion: 0.09
-Nodes (31): name_similarity(), Normalized similarity in [0, 1] between two creator names/handles., _profile(), Unit tests for the TikTok discovery pipeline (offline, faked responses)., test_api_handles_parses_item_list(), test_bidirectional_backlink_confirms_verified(), test_cookie_loader_parses_netscape(), test_cookie_loader_tolerates_missing_file() (+23 more)
+### Community 25 - "SocialStatus"
+Cohesion: 0.11
+Nodes (25): Enum, Data schemas for YouTube Discovery and Social Presence Agent., SocialPlatform, SocialStatus, name_similarity(), YouTube Presence Detector for TikTok Creators (bio links + bidirectional search…, True if the YouTube channel page references the TikTok profile., Normalized similarity in [0, 1] between two creator names/handles. (+17 more)
 
 ### Community 26 - "YouTubeFetchThread"
 Cohesion: 0.12
@@ -396,21 +399,25 @@ Nodes (15): _add_dedup(), AutocompleteError, expand_seed(), fetch_suggestions(),
 Cohesion: 0.12
 Nodes (3): Tests for the keyword engine (ported from the companion research web tool's…, test_get_ranked_videos_joins_videos(), _video()
 
-### Community 30 - "test_niche_scorecard_engine.py"
+### Community 30 - "ChannelInfo"
 Cohesion: 0.11
-Nodes (6): Tests for the scorecard + VPH engine (ported from scorecard.ts / vphEngine.ts)., test_channel_seo_score(), test_lookup_channel_flow(), test_lookup_channel_handle_url_passthrough(), test_lookup_video_flow(), test_save_video_snapshot_idempotent()
+Nodes (11): ChannelInfo, test_analyze_channel_runs_and_persists(), test_build_prompt_contains_channel_and_top_videos(), Tests for the scorecard + VPH engine (ported from scorecard.ts / vphEngine.ts)., test_channel_seo_score(), test_lookup_channel_flow(), test_lookup_channel_handle_url_passthrough(), test_lookup_video_flow() (+3 more)
 
 ### Community 31 - "Building LLM-Powered Applications with Claude"
 Cohesion: 0.05
 Nodes (36): Amazon Bedrock, Architecture, Authentication (Quick Reference), Before You Start, Building an Agent: Four Approaches, Building LLM-Powered Applications with Claude, Claude Fable 5.1 (`claude-fable-5-1`) - most capable widely released model, Common Pitfalls (+28 more)
 
 ### Community 32 - "AgentOrchestrator"
-Cohesion: 0.13
-Nodes (13): AgentOrchestrator, Runs async verification probes for list of channels., TikTok-first mode: find creators, flag those WITHOUT a YouTube channel., Orchestrates multi-tool execution DAG for channel discovery & social presence…, Executes full autonomous agent pipeline., AgentSearchResult, AgentWorkerThread, QThread (+5 more)
+Cohesion: 0.16
+Nodes (17): BaseModel, AgentOrchestrator, Agent Orchestrator controller for YouTube discovery and cross-platform social…, Runs async verification probes for list of channels., TikTok-first mode: find creators, flag those WITHOUT a YouTube channel., Orchestrates multi-tool execution DAG for channel discovery & social presence…, Executes full autonomous agent pipeline., AgentSearchResult (+9 more)
 
 ### Community 33 - ".add_links"
 Cohesion: 0.15
 Nodes (16): is_profile_url(), is_tiktok_url(), is_youtube_channel_url(), is_youtube_playlist_url(), normalize_youtube_channel_url(), platform_of(), Ensures youtube.com/UC... shorthand URLs are normalized to…, URL classification and account normalisation. (+8 more)
+
+### Community 34 - "TrendingChannelsPage"
+Cohesion: 0.15
+Nodes (5): QThread, QWidget, TrendingChannelsPage, TrendingDiscoveryWorker, test_discovery_worker_passes_force()
 
 ### Community 35 - "Python MCP Server Implementation Guide"
 Cohesion: 0.11
@@ -425,8 +432,8 @@ Cohesion: 0.10
 Nodes (31): generate_html(), main(), Generate HTML report from loop output data. If auto_refresh is True, adds a…, Generate an HTML report from run_loop.py output. Takes the JSON output from…, _call_claude(), improve_description(), main(), Path (+23 more)
 
 ### Community 38 - "TikTokApiSession"
-Cohesion: 0.13
-Nodes (13): setter, _clean_handles(), _double_md5(), generate_xbogus(), _md5_user_agent(), Client, TikTok listing data via customer-authorized requests (web API + HTML). TikTok…, Best-effort TikTok listing client backed by a Netscape cookies.txt. (+5 more)
+Cohesion: 0.11
+Nodes (16): setter, _clean_handles(), _double_md5(), generate_xbogus(), _md5_user_agent(), Client, TikTok listing data via customer-authorized requests (web API + HTML). TikTok…, Best-effort TikTok listing client backed by a Netscape cookies.txt. (+8 more)
 
 ### Community 39 - "Skill Creator"
 Cohesion: 0.06
@@ -438,7 +445,7 @@ Nodes (33): 1. Use Prompt Caching for Repeated Context, 2. Choose the Right Mode
 
 ### Community 41 - "db.py"
 Cohesion: 0.15
-Nodes (21): Connection, Cursor, configure(), _connect(), _DATA_BLOB, db_path(), _dpapi_protect(), exec_many() (+13 more)
+Nodes (22): Connection, Cursor, get_keyword(), configure(), _connect(), _DATA_BLOB, db_path(), _dpapi_protect() (+14 more)
 
 ### Community 42 - "Worked example: Agent Teams for competing-hypothesis debugging"
 Cohesion: 0.06
@@ -465,8 +472,8 @@ Cohesion: 0.07
 Nodes (29): Browser Testing with DevTools, Common Rationalizations, DAMP Over DRY in Tests, Decision Guide, Discover the Stack First, Name Tests Descriptively, One Assertion Per Concept, Overview (+21 more)
 
 ### Community 49 - "Tool Use Concepts"
-Cohesion: 0.06
-Nodes (35): Agent Skills (Messages API), Bash tool declaration, Client-Side Tools: Bash and Text Editor, Client-Side Tools: Computer Use, Client-Side Tools: Memory, Container Reuse, Context Editing, Dynamic Filtering (Claude Opus 5 / Fable 5 / Opus 4.8 / Opus 4.7 / Opus 4.6 / Sonnet 5 / Sonnet 4.6) (+27 more)
+Cohesion: 0.09
+Nodes (23): Agent Skills (Messages API), Bash tool declaration, Client-Side Tools: Bash and Text Editor, Client-Side Tools: Computer Use, Client-Side Tools: Memory, Context Editing, Dynamic Filtering (Claude Opus 5 / Fable 5 / Opus 4.8 / Opus 4.7 / Opus 4.6 / Sonnet 5 / Sonnet 4.6), Important Notes (+15 more)
 
 ### Community 50 - "Context Engineering"
 Cohesion: 0.07
@@ -669,8 +676,8 @@ Cohesion: 0.12
 Nodes (15): 1. Define "working" before instrumenting, 2. Pick the right signal for each question, 3. Structured logging, 4. Metrics, 5. Distributed tracing, 6. Alerting, 7. Verify the telemetry itself, Common Rationalizations (+7 more)
 
 ### Community 105 - "test_niche_analysis_ui.py"
-Cohesion: 0.20
-Nodes (15): _db(), fixture, Offscreen tests for the Settings page + Analysis modal., _sample_data(), test_modal_content_is_scrollable(), test_modal_minimum_size_and_resize(), test_modal_renders_analyzed_tabs(), test_modal_renders_not_analyzed() (+7 more)
+Cohesion: 0.13
+Nodes (21): QWidget, SettingsPage, _db(), fixture, Offscreen tests for the Settings page + Analysis modal., _sample_data(), _stats_map(), test_modal_content_is_scrollable() (+13 more)
 
 ### Community 106 - "Claude API - Java"
 Cohesion: 0.13
@@ -700,8 +707,8 @@ Nodes (14): Blind Comparator Agent, Field Descriptions, Guidelines, Inputs, Outp
 Cohesion: 0.13
 Nodes (14): 1. Surface Assumptions, 2. Manage Confusion Actively, 3. Push Back When Warranted, 4. Enforce Simplicity, 5. Maintain Scope Discipline, 6. Verify, Don't Assume, Core Operating Behaviors, Failure Modes to Avoid (+6 more)
 
-### Community 113 - "trending_page.py"
-Cohesion: 0.27
+### Community 113 - "niches.py"
+Cohesion: 0.15
 Nodes (10): format_name(), get_niche(), get_niches(), Niche, Niche catalog — ported from the companion research web tool's lib/niches.ts., Return niches, optionally filtered by format id ('longform' | 'shortform')., Rpm, VideoFormat (+2 more)
 
 ### Community 114 - "Testing Patterns Reference (JavaScript/TypeScript)"
@@ -724,9 +731,9 @@ Nodes (13): aggregate_results(), calculate_stats(), generate_benchmark(), genera
 Cohesion: 0.14
 Nodes (13): Common Rationalizations, Keeping the Spec Alive, Overview, Phase 0: Scope Check, Phase 1: Specify, Phase 2: Plan, Phase 3: Tasks, Phase 4: Implement (+5 more)
 
-### Community 119 - "TrendingChannelCard"
-Cohesion: 0.33
-Nodes (7): QFrame, QWidget, Trending channel card in the app's visual style (ported from…, _stat_block(), TrendingCardData, TrendingChannelCard, test_trending_card_emits_analyze()
+### Community 119 - "FlowLayout"
+Cohesion: 0.15
+Nodes (6): Orientation, QLayout, QRect, QSize, FlowLayout, Left-aligned grid that wraps (used for the trending card grid).
 
 ### Community 120 - "[2.1.0] — 2026-08-28"
 Cohesion: 0.13
@@ -736,9 +743,9 @@ Nodes (14): [2.0.0] — 2026-08-06, [2.1.0] — 2026-08-28, [2.2.0] — 2026-09-
 Cohesion: 0.15
 Nodes (12): Anthropic Brand Styling, Brand Guidelines, Color Application, Colors, Features, Font Management, Overview, Shape and Accent Colors (+4 more)
 
-### Community 122 - "Tool Use - PHP"
-Cohesion: 0.25
-Nodes (7): Manual Loop, Raw Schema, Structured Outputs, Tool Runner (Beta), Tool Use, Tool Use - PHP, Using StructuredOutputModel (Recommended)
+### Community 122 - "Beta Features & Anthropic-Defined Tools"
+Cohesion: 0.15
+Nodes (12): Beta Features & Anthropic-Defined Tools, Cache diagnostics, Manual Loop, Memory tool (non-beta, client-executed), Raw Schema, Structured Outputs, Task budgets, Tool Runner (Beta) (+4 more)
 
 ### Community 123 - "Files API - Python"
 Cohesion: 0.15
@@ -751,6 +758,10 @@ Nodes (12): Container orchestration (mid-level), Create the environment, Credent
 ### Community 125 - "mcp-builder/SKILL.md"
 Cohesion: 0.17
 Nodes (8): Core MCP Documentation (Load First), 📚 Documentation Library, Evaluation Guide (Load During Phase 4), Language-Specific Implementation Guides (Load During Phase 2), MCP Server Development Guide, Overview, Reference Files, SDK Documentation (Load During Phase 1/2)
+
+### Community 126 - "competitor_engine.py"
+Cohesion: 0.21
+Nodes (15): get_competitor_dashboard(), get_tracked_channels(), get_tracked_keywords(), get_tracked_videos(), Any, Competitor dashboard: tracked videos / channels / keywords + snapshot refresh.…, Score history + latest rankings for tracked keywords., Latest stats + VPH series for every tracked 'video' item. (+7 more)
 
 ### Community 127 - "Source-Driven Development"
 Cohesion: 0.15
@@ -944,6 +955,10 @@ Nodes (6): Behavioral shifts (prompt-tunable), Capability improvements, Migratin
 Cohesion: 0.33
 Nodes (5): For /graphify explain, For /graphify path, graphify reference: query, path, explain, Step 0 — Constrained query expansion (REQUIRED before traversal), Step 1 — Traversal
 
+### Community 176 - ".__init__"
+Cohesion: 0.17
+Nodes (4): AnalyzeWorker, ChannelDataWorker, QThread, ThumbnailWorker
+
 ### Community 177 - "Quick Reference"
 Cohesion: 0.33
 Nodes (6): Pagination, Quick Reference, Response Formats, Server Naming, Tool Naming, Transport
@@ -1056,9 +1071,9 @@ Nodes (6): Basic Usage, Code Execution, Container Reuse, Reading Local Files (ES
 Cohesion: 0.33
 Nodes (6): Advanced FastMCP Features, Context Parameter Injection, Lifespan Management, Resource Registration, Structured Output Types, Transport Options
 
-### Community 231 - "Beta Features & Anthropic-Defined Tools"
-Cohesion: 0.40
-Nodes (5): Beta Features & Anthropic-Defined Tools, Cache diagnostics, Memory tool (non-beta, client-executed), Task budgets, Tool search (non-beta, server-side)
+### Community 231 - "ThumbLoader"
+Cohesion: 0.20
+Nodes (7): _fetch_image_bytes(), QObject, Progressively lower-quality variants for a video URL., Background download with cheap fallback chain. Returns raw bytes or None., Fetches thumbnail bytes off the GUI thread and delivers them on it. A single…, ThumbLoader, _url_candidates()
 
 ### Community 232 - "Structured Outputs"
 Cohesion: 0.40
@@ -1080,25 +1095,37 @@ Nodes (4): Key Imports, Quick Reference, Server Initialization, Tool Registratio
 Cohesion: 0.67
 Nodes (3): 1. Use Prompt Caching for Repeated Context, 2. Use Token Counting Before Requests, Cost Optimization Strategies
 
+### Community 238 - "test_niche_thumbnails.py"
+Cohesion: 0.33
+Nodes (6): _png_bytes(), Tests for async thumbnail loading (never blocks the GUI thread)., test_avatar_uses_cached_image_without_network(), test_loader_delivers_bytes_async(), test_video_thumb_accepts_async_image(), test_video_thumb_ignores_image_for_other_url()
+
+### Community 239 - "Server-Side Tools: Code Execution"
+Cohesion: 0.29
+Nodes (7): Container Reuse, Key Facts, Pre-installed Python Libraries, Response Structure, Server-Side Tools: Code Execution, Supported File Types for Upload, Tool Definition
+
+### Community 240 - "User-Defined Tools"
+Cohesion: 0.40
+Nodes (5): Handling Tool Results, Tool Choice Options, Tool Definition Structure, Tool Runner vs Manual Loop, User-Defined Tools
+
 ## Knowledge Gaps
 - **1682 isolated node(s):** `$schema`, `plugin`, `idea-refine.sh script`, `bundle-artifact.sh script`, `init-artifact.sh script` (+1677 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2243 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2255 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **27 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `MainWindow` connect `MainWindow` to `.add_links`, `engine.py`, `main_window.py`, `ResearchContainer`, `AgentTabWidget`, `app.py`, `YouTubeFetchThread`?**
   _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `AgentTabWidget` connect `AgentTabWidget` to `AgentOrchestrator`, `MainWindow`, `main_window.py`, `SocialStatus`, `QPushButton`?**
+- **Why does `ResearchContainer` connect `ResearchContainer` to `AnalysisModal`, `TrendingChannelsPage`, `MainWindow`, `main_window.py`, `test_niche_analysis_ui.py`, `KeywordResearchPage`, `CompetitorsPage`, `ScorecardPage`, `storage/__init__.py`?**
   _High betweenness centrality (0.011) - this node is a cross-community bridge._
-- **Why does `ResearchContainer` connect `ResearchContainer` to `AnalysisModal`, `TrendingChannelsPage`, `MainWindow`, `main_window.py`, `KeywordResearchPage`, `CompetitorsPage`, `QPushButton`, `research_style`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `AgentTabWidget` connect `AgentTabWidget` to `AgentOrchestrator`, `AnalysisModal`, `MainWindow`, `main_window.py`, `SocialStatus`?**
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Are the 15 inferred relationships involving `MainWindow` (e.g. with `AccountFetchThread` and `DownloadThread`) actually correct?**
   _`MainWindow` has 15 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 10 inferred relationships involving `AnalysisModal` (e.g. with `ResearchContainer` and `test_modal_content_is_scrollable()`) actually correct?**
-  _`AnalysisModal` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 11 inferred relationships involving `AnalysisModal` (e.g. with `ResearchContainer` and `test_modal_content_is_scrollable()`) actually correct?**
+  _`AnalysisModal` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 29 inferred relationships involving `QVBoxLayout` (e.g. with `._build()` and `._make_channel_card()`) actually correct?**
   _`QVBoxLayout` has 29 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 25 inferred relationships involving `ChannelInfo` (e.g. with `YouTubeSearchTool` and `build_analysis_prompt()`) actually correct?**
-  _`ChannelInfo` has 25 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 28 inferred relationships involving `ChannelInfo` (e.g. with `YouTubeSearchTool` and `build_analysis_prompt()`) actually correct?**
+  _`ChannelInfo` has 28 INFERRED edges - model-reasoned connections that need verification._

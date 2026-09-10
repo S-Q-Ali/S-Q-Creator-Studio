@@ -3,6 +3,44 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.0] — 2026-09-10
+
+### Added
+- **AI thumbnail generation in Niche Research** — channel analyses can now
+  generate a thumbnail from any AI provider with an auto fallback chain
+  (aihubmix → Google AI → OpenRouter). A clear "No AI image provider
+  configured" error guides you to Settings instead of silently failing.
+  The **Google AI key** now actually reaches channel analysis (Settings key
+  `google_ai_api_key` was being read under the wrong name).
+- **Paste a TikTok profile URL and it auto-expands** into its videos in the
+  downloader — profile links are routed into the expand queue via the
+  account-based fetch thread.
+- **Clickable verified badges & channel links** in the AI Channel Finder
+  results (channel titles, verified FB/IG/TikTok badges, TikTok YouTube
+  channel + URL cells) — one click opens the link.
+- **Selectable text everywhere in Niche Research** — channel names, stats,
+  strategy rows, ideas, scripts, and trending card values can be copied,
+  and long trend-card titles now word-wrap instead of getting clipped.
+- A single analysis modal per session (no stacking when clicking
+  "Create Similar Channel" repeatedly).
+
+### Fixed
+- **Trending card crash on re-render** — the Analyze → reload path crashed
+  when `_clear_layout` hit the trailing stretch spacer; the rebuild no longer
+  dies on non-widget layout items.
+- **Empty / blocked profile pictures** no longer break avatar thumbnails —
+  they fall back to the clean initials treatment.
+- **Stacked confirm dialogs** in the AI Channel Finder replaced with inline
+  status messages (send-to-queue, copy FB/IG/TikTok links, CSV/JSON export);
+  only genuine errors still pop a dialog.
+
+### Changed
+- **UI tightness pass**: trending cards are a uniform 300px with wrapped
+  titles; the agent results table is read-only with no grid lines, hidden
+  row numbers, and extended row selection; the research dashboard spacing
+  is tightened (no more floating gap between the intro card and the
+  quick-start hints).
+
 ## [2.3.0] — 2026-09-10
 
 ### Fixed
