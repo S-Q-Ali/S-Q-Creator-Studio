@@ -1,11 +1,11 @@
-; S-Q-Ali Media Downloader — Inno Setup script (v2.1.0)
+; S-Q Creator Studio — Inno Setup script (v2.2.0)
 ; Per-user install (no admin), bundles ffmpeg.exe for merging.
 
-#define MyAppName "S-Q-Ali Media Downloader"
-#define MyAppVersion "2.1.0"
+#define MyAppName "S-Q Creator Studio"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "S-Q-Ali"
 #define MyAppURL "https://github.com/S-Q-Ali/Bulk-Video-Downloader"
-#define MyAppExeName "S-Q-Ali Media Downloader.exe"
+#define MyAppExeName "S-Q Creator Studio.exe"
 
 [Setup]
 AppId={{03d871b7-5dd8-4e41-849b-47a0b7c08c87}
@@ -15,14 +15,14 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={localappdata}\Programs\S-Q-Ali Media Downloader
-DefaultGroupName=S-Q-Ali Media Downloader
+DefaultDirName={localappdata}\Programs\S-Q Creator Studio
+DefaultGroupName=S-Q Creator Studio
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=.
-OutputBaseFilename=S-Q-Ali-Media-Downloader-Setup-2.1.0
+OutputBaseFilename=S-Q-Creator-Studio-Setup-2.2.0
 SetupIconFile=..\src\s_q_ali_media_downloader\resources\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
@@ -41,7 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "portable\S-Q-Ali Media Downloader.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "portable\S-Q Creator Studio.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "portable\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "staging\bin\ffmpeg.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 

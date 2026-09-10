@@ -85,7 +85,7 @@ class ResearchContainer(QWidget):
         lay.setContentsMargins(12, 18, 12, 12)
         lay.setSpacing(6)
 
-        brand = QLabel("Niche Research")
+        brand = QLabel("S-Q CREATOR STUDIO")
         brand.setObjectName("researchBrand")
         lay.addWidget(brand)
         sub = QLabel("Content discovery toolkit")

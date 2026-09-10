@@ -1,4 +1,4 @@
-"""Download engine for S-Q-Ali Media Downloader.
+"""Download engine for S-Q Creator Studio.
 
 Work is handed to a small pool of worker threads — two by default, one
 when there is only a single link. Each worker pulls the next link off a
@@ -36,6 +36,7 @@ except ImportError:
     ImpersonateTarget = None
 
 APP_NAME = "S-Q-Ali Media Downloader"
+APP_TITLE = "S-Q Creator Studio"
 MAX_FILENAME_LENGTH = 150
 TEMP_PREFIX = "__amd_"
 

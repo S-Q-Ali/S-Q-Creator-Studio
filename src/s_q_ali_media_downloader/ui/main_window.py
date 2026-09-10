@@ -1,4 +1,4 @@
-"""Main window for S-Q-Ali Media Downloader."""
+"""Main window for S-Q Creator Studio."""
 
 import json
 import os
@@ -29,6 +29,7 @@ from s_q_ali_media_downloader import __version__
 from s_q_ali_media_downloader.engine import (
     ACCOUNT_LIMITS,
     APP_NAME,
+    APP_TITLE,
     DEFAULT_DELAY,
     DEFAULT_PARALLEL,
     DEFAULT_PASSES,
@@ -94,7 +95,7 @@ def queue_file():
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{APP_NAME}  ·  {VERSION}")
+        self.setWindowTitle(f"{APP_TITLE}  ·  {VERSION}")
         self.resize(1240, 840)
         self.setMinimumSize(1060, 720)
 
@@ -157,7 +158,7 @@ class MainWindow(QMainWindow):
         names.setSpacing(2)
         mark = QLabel("S-Q-Ali")
         mark.setObjectName("Wordmark")
-        sub = QLabel("MEDIA DOWNLOADER")
+        sub = QLabel("CREATOR STUDIO")
         sub.setObjectName("WordmarkSub")
         names.addWidget(mark)
         names.addWidget(sub)
@@ -788,7 +789,7 @@ class MainWindow(QMainWindow):
             else:
                 os.system(f'xdg-open "{folder}"')
         except OSError as exc:
-            QMessageBox.warning(self, APP_NAME, f"Could not open the folder.\n{exc}")
+            QMessageBox.warning(self, APP_TITLE, f"Could not open the folder.\n{exc}")
 
     def fetch_account(self):
         if self.fetching():
@@ -1009,7 +1010,7 @@ class MainWindow(QMainWindow):
         try:
             os.makedirs(folder, exist_ok=True)
         except OSError as exc:
-            QMessageBox.warning(self, APP_NAME, f"That folder can't be used.\n{exc}")
+            QMessageBox.warning(self, APP_TITLE, f"That folder can't be used.\n{exc}")
             return
 
         self._save_settings()
@@ -1182,7 +1183,7 @@ class MainWindow(QMainWindow):
         if self.running():
             answer = QMessageBox.question(
                 self,
-                APP_NAME,
+                APP_TITLE,
                 "A download is still running. Close anyway?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,

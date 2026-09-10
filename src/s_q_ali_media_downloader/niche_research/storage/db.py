@@ -5,7 +5,8 @@ sqlite3 module. Thread-safe: a single shared connection guarded by a lock.
 
 Override the database location with the ``NICHE_DB_PATH`` environment variable
 (used heavily by tests); otherwise it lives next to the app's own storage
-folder under ``LOCALAPPDATA\\S-Q-Ali Media Downloader\\storage``.
+folder under ``LOCALAPPDATA\\S-Q-Ali Media Downloader\\storage`` (the legacy
+folder name, kept so existing research data survives the rename to S-Q Creator Studio).
 """
 
 from __future__ import annotations

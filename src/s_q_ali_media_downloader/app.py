@@ -1,4 +1,4 @@
-"""Application entry point for S-Q-Ali Media Downloader."""
+"""Application entry point for S-Q Creator Studio."""
 
 import logging
 import os

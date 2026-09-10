@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 rem ============================================================
-rem  S-Q-Ali Media Downloader — Canonical Release Build Script
+rem  S-Q Creator Studio — Canonical Release Build Script
 rem  Produces a one-directory build in build\out\, then copies
 rem  it to release\portable\ ready for the Inno Setup installer.
 rem ============================================================
@@ -14,7 +14,7 @@ set "ENTRY=src\s_q_ali_media_downloader\__main__.py"
 set "ICON=src\s_q_ali_media_downloader\resources\icon.ico"
 set "WORKPATH=build\pkg"
 set "DISTPATH=build\out"
-set "APP_NAME=S-Q-Ali Media Downloader"
+set "APP_NAME=S-Q Creator Studio"
 set "PORTABLE=release\portable"
 
 echo.
@@ -115,7 +115,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
-echo Installer built: release\S-Q-Ali-Media-Downloader-Setup-2.1.0.exe
+echo Installer built: release\S-Q-Creator-Studio-Setup-2.2.0.exe
 
 :done
 echo.
@@ -123,7 +123,7 @@ echo ============================================================
 echo  BUILD COMPLETE
 echo ============================================================
 echo  Portable:  %PORTABLE%\%APP_NAME%.exe
-echo  Installer: release\S-Q-Ali-Media-Downloader-Setup-2.1.0.exe (if built)
+echo  Installer: release\S-Q-Creator-Studio-Setup-2.2.0.exe (if built)
 echo ============================================================
 echo.
 endlocal

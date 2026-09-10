@@ -1,3 +1,4 @@
-"""S-Q-Ali Media Downloader — bulk TikTok and YouTube downloader."""
+"""S-Q Creator Studio — a creator suite: bulk downloading, AI channel
+finding, and niche research in one desktop app."""
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"

@@ -1,4 +1,4 @@
-"""Video/channel SEO scorecard + VPH engine — ported from S-Q-Ali Media Downloader.
+"""Video/channel SEO scorecard + VPH engine — ported from S-Q Creator Studio.
 
 - ``compute_seo_score``: vidIQ-style score, 50% "actionable" (title/description/
   tags/keyword placement) + 50% "performance" (engagement + growth velocity).

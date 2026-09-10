@@ -1,4 +1,4 @@
-"""Visual identity for S-Q-Ali Media Downloader.
+"""Visual identity for S-Q Creator Studio.
 
 Palette: ink-plum base with a cool cyan accent. Status colours are
 carried on a vertical spine at the left edge of every queue card, which

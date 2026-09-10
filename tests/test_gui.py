@@ -12,12 +12,12 @@ from s_q_ali_media_downloader.ui.widgets import Job
 def test_main_window_smoke(qapp, isolated_appdata):
     window = MainWindow()
     title = window.windowTitle()
-    assert "S-Q-Ali Media Downloader" in title
+    assert "S-Q Creator Studio" in title
     assert __version__ in title
 
     labels = [label.text() for label in window.findChildren(QLabel)]
     assert "S-Q-Ali" in labels
-    assert "MEDIA DOWNLOADER" in labels
+    assert "CREATOR STUDIO" in labels
 
     buttons = [button.text() for button in window.findChildren(QPushButton)]
     assert any("GitHub" in text for text in buttons)

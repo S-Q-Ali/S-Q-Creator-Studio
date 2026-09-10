@@ -39,7 +39,7 @@ def test_no_duplicate_niche_ids_within_format():
 
 
 def test_format_shared_ids_are_reused_like_source():
-    # S-Q-Ali Media Downloader reuses the same id across formats (e.g. faceless, tech_ai).
+    # S-Q Creator Studio reuses the same id across formats (e.g. faceless, tech_ai).
     assert NICHES["longform"]["faceless"].name == "Faceless YouTube"
     assert NICHES["shortform"]["faceless"].name == "Faceless Shorts"
 
