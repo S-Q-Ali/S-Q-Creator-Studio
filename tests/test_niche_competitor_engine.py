@@ -364,6 +364,27 @@ def test_snapshot_interval_setting(isolated_appdata):
     assert ce.snapshot_interval_minutes() == 180
 
 
+# --------------------------------------------------------------------------- #
+# The canonical tracked-items helpers
+# --------------------------------------------------------------------------- #
+def test_track_item_reports_whether_it_was_new(isolated_appdata):
+    assert ce.track_item("video", "vid1", "A Video") is True
+    assert ce.is_tracked("video", "vid1") is True
+    # Tracking it again is a no-op, but the helper says so.
+    assert ce.track_item("video", "vid1", "A Video") is False
+
+
+def test_untrack_item_removes_the_item(isolated_appdata):
+    ce.track_item("channel", "chan1", "A Channel")
+    ce.untrack_item("channel", "chan1")
+    assert ce.is_tracked("channel", "chan1") is False
+
+
+def test_track_item_ignores_an_empty_ref_id(isolated_appdata):
+    assert ce.track_item("video", "", "Nothing") is False
+    assert ce.is_tracked("video", "") is False
+
+
 def _video(video_id: str):
     from s_q_ali_media_downloader.niche_research.tools.youtube_client import VideoInfo
 

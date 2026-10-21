@@ -8,7 +8,10 @@ fires hourly snapshot refreshes on the Competitors page.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+import logging
+
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -29,6 +32,8 @@ from s_q_ali_media_downloader.niche_research.ui.scorecard_page import ScorecardP
 from s_q_ali_media_downloader.niche_research.ui.settings_page import SettingsPage
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 from s_q_ali_media_downloader.niche_research.ui.trending_page import TrendingChannelsPage
+
+logger = logging.getLogger(__name__)
 
 SIDEBAR = (
     ("dashboard", "📊  Dashboard"),
@@ -95,9 +100,14 @@ class ResearchContainer(QWidget):
         )
         self.trending_page.tracked.connect(self._on_channel_tracked)
         self.scorecard_page.analyze_requested.connect(self._open_analysis)
+        self.scorecard_page.queue_urls_requested.connect(self.send_to_queue_requested)
+        self.scorecard_page.open_browser_requested.connect(self._open_in_browser)
         self.competitors_page.scorecard_requested.connect(self._open_scorecard)
         self.competitors_page.analyze_requested.connect(self._open_analysis)
         self.competitors_page.keyword_requested.connect(self._open_keyword)
+        self.competitors_page.queue_urls_requested.connect(self.send_to_queue_requested)
+        self.keyword_page.scorecard_requested.connect(self._open_keyword_scorecard)
+        self.settings_page.snapshot_interval_saved.connect(self._on_snapshot_interval_saved)
         self._sync_update_btn()
         self.refresh_dashboard()
 
@@ -356,17 +366,41 @@ class ResearchContainer(QWidget):
                 f"https://www.youtube.com/channel/{cid}", "channel"
             )
         )
+        modal.queue_urls_requested.connect(self.send_to_queue_requested)
+        modal.track_channel_requested.connect(self._track_channel)
         modal.finished.connect(lambda *args: setattr(self, "_analysis_modal", None))
         modal.exec()
 
-    def _open_scorecard(self, url: str, mode: str = "video") -> None:
+    def _track_channel(self, channel_id: str) -> None:
+        """Track a channel from the analysis modal (AI Analysis -> Competitors)."""
+        if not channel_id:
+            return
+        competitor_engine.track_item("channel", channel_id, channel_id)
+        self.competitors_page.refresh_dashboard()
+
+    def _open_scorecard(self, url: str, mode: str = "video", focus_keyword: str = "") -> None:
         """Open the Scorecard on a URL, with the input prefilled."""
         if not url:
             return
         page = self.scorecard_page
         page.set_mode(mode)
-        page.prefill(url)
+        page.prefill(url, focus_keyword)
         self.show_page("scorecard")
+
+    def _open_keyword_scorecard(self, url: str, focus_keyword: str) -> None:
+        """Keyword Research -> Scorecard: score a ranked video for a keyword."""
+        self._open_scorecard(url, "video", focus_keyword)
+
+    def _open_in_browser(self, url: str) -> None:
+        """Open an https URL in the default browser — nothing else."""
+        if not url or not url.lower().startswith("https://"):
+            logger.warning("Refusing to open a non-https URL: %r", url)
+            return
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _on_snapshot_interval_saved(self, minutes: int) -> None:
+        """A new snapshot interval must reach the running poller."""
+        self._poller.set_interval_minutes(minutes)
 
     def _open_keyword(self, term: str) -> None:
         """Open a tracked keyword's detail view."""

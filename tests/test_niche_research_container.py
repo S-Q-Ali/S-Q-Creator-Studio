@@ -10,6 +10,74 @@ from s_q_ali_media_downloader.niche_research.ui.competitors_page import NichePol
 from s_q_ali_media_downloader.niche_research.ui.research_container import SIDEBAR, ResearchContainer
 
 
+def _find_button(page, text: str) -> QPushButton | None:
+    """The first button with this exact label (None when there is none)."""
+    for button in page.findChildren(QPushButton):
+        if button.text() == text:
+            return button
+    return None
+
+
+def _video_result(video_id: str = "vidQ"):
+    """A minimal scored-video result (no network involved)."""
+    from s_q_ali_media_downloader.niche_research.research import scorecard_engine as se
+
+    return se.VideoLookupResult(
+        video={
+            "video_id": video_id,
+            "channel_id": "UCc1",
+            "channel_title": "Chan",
+            "title": "A Video",
+            "description": "",
+            "published_at": "2026-09-01T00:00:00Z",
+            "duration_seconds": 60,
+            "thumbnail_url": "",
+            "tags": [],
+            "view_count": 100,
+            "like_count": 1,
+            "comment_count": 1,
+        },
+        channel={
+            "channel_id": "UCc1",
+            "title": "Chan",
+            "thumbnail_url": "",
+            "subscriber_count": 5,
+        },
+        seo=se.compute_seo_score({"title": "A Video", "description": "", "tags": []}),
+        vph=se.VphResult(vph=None, window_hours=0, error="Need two snapshots"),
+        tracked=False,
+    )
+
+
+def _seed_tracked_video(video_id: str = "vidQ") -> None:
+    db.run(
+        "INSERT INTO tracked_items (kind, ref_id, label, added_at) VALUES (?, ?, ?, ?)",
+        ("video", video_id, "A Video", db.now()),
+    )
+    db.run(
+        "INSERT INTO videos (video_id, title, thumbnail_url, channel_id, published_at, "
+        "view_count, like_count, comment_count, last_fetched) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (video_id, "A Video", "", "UCc1", "2026-01-01T00:00:00Z", 1000, 1, 1, db.now()),
+    )
+
+
+def _seed_keyword_with_ranking() -> None:
+    db.run(
+        "INSERT INTO keywords (term, display_term, score, demand_score, competition_score, "
+        "competition_label, source, first_seen, last_checked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("ai tools", "AI Tools", 82, 90, 25, "Low", "search", db.now(), db.now()),
+    )
+    db.run(
+        "INSERT INTO rankings (term, video_id, position, ts) VALUES (?, ?, ?, ?)",
+        ("ai tools", "vidR", 1, db.now()),
+    )
+    db.run(
+        "INSERT INTO videos (video_id, title, view_count, last_fetched) VALUES (?, ?, ?, ?)",
+        ("vidR", "Ranked video", 5000, db.now()),
+    )
+
+
 @pytest.fixture(autouse=True)
 def _db(isolated_appdata):
     db.configure(None)
@@ -237,6 +305,8 @@ def test_container_analysis_modal_not_stacked(qapp, monkeypatch):
             self.channel_id = channel_id
             self.finished = _FakeSignal()
             self.open_scorecard_requested = _FakeSignal()
+            self.queue_urls_requested = _FakeSignal()
+            self.track_channel_requested = _FakeSignal()
 
         def exec(self):
             calls.append(self.channel_id)
@@ -286,3 +356,200 @@ def container_module_analysis():
     import s_q_ali_media_downloader.niche_research.ui.research_container as rc
 
     return rc
+
+
+# --------------------------------------------------------------------------- #
+# Handoffs (SPEC-handoffs.md): the missing half of the matrix
+# --------------------------------------------------------------------------- #
+def test_scorecard_queue_hands_the_video_to_the_download_queue(qapp):
+    """Scorecard -> Download queue: the scored video must reach the queue
+    through the one shared bridge, never through a second path."""
+    container = ResearchContainer()
+    got: list = []
+    container.send_to_queue_requested.connect(got.append)
+
+    container.scorecard_page._on_done(_video_result("vidQ"))
+    qapp.processEvents()
+
+    button = _find_button(container.scorecard_page, "Queue")
+    assert button is not None, "the scorecard has no Queue button"
+    assert button.isEnabled() is True
+    button.click()
+
+    assert got == [["https://www.youtube.com/watch?v=vidQ"]]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_scorecard_open_on_youtube_opens_the_browser(qapp, monkeypatch):
+    """Scorecard -> YouTube: the scored video opens in the default browser."""
+    import s_q_ali_media_downloader.niche_research.ui.research_container as rc
+
+    opened: list[str] = []
+
+    class _FakeDesktopServices:
+        @staticmethod
+        def openUrl(url):
+            opened.append(url.toString())
+            return True
+
+    monkeypatch.setattr(rc, "QDesktopServices", _FakeDesktopServices)
+
+    container = ResearchContainer()
+    container.scorecard_page._on_done(_video_result("vidO"))
+    qapp.processEvents()
+
+    button = _find_button(container.scorecard_page, "Open on YouTube")
+    assert button is not None, "the scorecard has no Open on YouTube button"
+    button.click()
+
+    assert opened == ["https://www.youtube.com/watch?v=vidO"]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_competitors_queue_hands_the_video_to_the_download_queue(qapp):
+    """Competitors -> Download queue: a tracked video can be queued."""
+    _seed_tracked_video("vidQ")
+    container = ResearchContainer()
+    got: list = []
+    container.send_to_queue_requested.connect(got.append)
+    container.competitors_page.refresh_dashboard()
+    qapp.processEvents()
+
+    button = _find_button(container.competitors_page, "Queue")
+    assert button is not None, "the competitors page has no Queue button"
+    button.click()
+
+    assert got == [["https://www.youtube.com/watch?v=vidQ"]]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_keyword_detail_analyze_opens_the_scorecard(qapp):
+    """Keyword Research -> Scorecard: a ranked video is scored on the
+    Scorecard page, with the keyword as the focus keyword."""
+    _seed_keyword_with_ranking()
+    container = ResearchContainer()
+    container.keyword_page.show_detail("ai tools")
+    qapp.processEvents()
+
+    button = _find_button(container.keyword_page, "Analyze")
+    assert button is not None, "the keyword detail has no Analyze button"
+    button.click()
+
+    assert container.current_page() == "scorecard"
+    assert "vidR" in container.scorecard_page._url_edit.text()
+    assert container.scorecard_page._keyword_edit.text() == "ai tools"
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_keyword_detail_analyze_keyword_button_scores_the_top_video(qapp):
+    """The keyword-level button scores the top-ranked video."""
+    _seed_keyword_with_ranking()
+    container = ResearchContainer()
+    container.keyword_page.show_detail("ai tools")
+    qapp.processEvents()
+
+    button = _find_button(container.keyword_page, "Analyze keyword")
+    assert button is not None, "the keyword detail has no Analyze keyword button"
+    button.click()
+
+    assert container.current_page() == "scorecard"
+    assert "vidR" in container.scorecard_page._url_edit.text()
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_keyword_track_button_uses_the_canonical_helper(qapp, monkeypatch):
+    """The UI layer must not write tracked_items with its own SQL."""
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
+
+    calls: list = []
+    monkeypatch.setattr(
+        ce, "track_item", lambda kind, ref, label="": calls.append((kind, ref, label))
+    )
+    monkeypatch.setattr(ce, "is_tracked", lambda kind, ref: False)
+
+    _seed_keyword_with_ranking()
+    container = ResearchContainer()
+    container.keyword_page.show_detail("ai tools")
+    qapp.processEvents()
+    container.keyword_page._on_track()
+
+    assert calls == [("keyword", "ai tools", "ai tools")]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_snapshot_interval_change_takes_effect_without_a_restart(qapp):
+    """The poller read the interval once, so a new setting only took effect
+    after a restart."""
+    container = ResearchContainer()
+    assert container._poller._timer.interval() == 60 * 60 * 1000
+
+    combo = container.settings_page._interval_combo
+    combo.setCurrentIndex(combo.findData(30))
+    container.settings_page._save()
+
+    assert container._poller._timer.interval() == 30 * 60 * 1000
+    container.stop_poller()
+    container.deleteLater()
+
+
+# --------------------------------------------------------------------------- #
+# AI Analysis handoffs: the modal is owned elsewhere, the wiring is here
+# --------------------------------------------------------------------------- #
+def _fake_modal(monkeypatch) -> None:
+    """Replace the analysis modal with a signal-only stand-in."""
+    from PySide6.QtCore import QObject, Signal
+
+    import s_q_ali_media_downloader.niche_research.ui.research_container as rc
+
+    class _FakeModal(QObject):
+        finished = Signal()
+        open_scorecard_requested = Signal(str)
+        queue_urls_requested = Signal(list)
+        track_channel_requested = Signal(str)
+
+        def __init__(self, channel_id, parent=None):
+            super().__init__(parent)
+            self.channel_id = channel_id
+
+        def exec(self):
+            return None
+
+    monkeypatch.setattr(rc, "AnalysisModal", _FakeModal)
+
+
+def test_analysis_modal_queue_handoff_uses_the_shared_bridge(qapp, monkeypatch):
+    """AI Analysis -> Download queue: the modal's queue signal must reach the
+    one shared queue bridge."""
+    _fake_modal(monkeypatch)
+    container = ResearchContainer()
+    got: list = []
+    container.send_to_queue_requested.connect(got.append)
+
+    container._open_analysis("UC1")
+    container._analysis_modal.queue_urls_requested.emit(
+        ["https://www.youtube.com/watch?v=v1"]
+    )
+
+    assert got == [["https://www.youtube.com/watch?v=v1"]]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_analysis_modal_track_handoff_tracks_the_channel(qapp, monkeypatch):
+    """AI Analysis -> Competitors: the analysed channel is tracked."""
+    _fake_modal(monkeypatch)
+    container = ResearchContainer()
+
+    container._open_analysis("UC1")
+    container._analysis_modal.track_channel_requested.emit("UC9")
+
+    row = db.get("SELECT * FROM tracked_items WHERE kind='channel' AND ref_id='UC9'")
+    assert row is not None
+    container.stop_poller()
+    container.deleteLater()

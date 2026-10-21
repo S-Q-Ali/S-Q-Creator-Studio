@@ -279,3 +279,52 @@ def test_poller_emits():
     assert poller is not None
     poller.stop()
     assert not fired
+
+
+# --------------------------------------------------------------------------- #
+# Handoffs (SPEC-handoffs.md) + the canonical tracked-items helper
+# --------------------------------------------------------------------------- #
+def test_tracked_video_can_be_queued(isolated_appdata, qapp):
+    """Competitors -> Download queue."""
+    from PySide6.QtWidgets import QPushButton
+
+    _seed_video()
+    page = CompetitorsPage()
+    page.show()
+    got: list = []
+    page.queue_urls_requested.connect(got.append)
+
+    button = next(b for b in page.findChildren(QPushButton) if b.text() == "Queue")
+    button.click()
+
+    assert got == [["https://www.youtube.com/watch?v=vidA"]]
+    page.deleteLater()
+
+
+def test_untrack_goes_through_the_engine_helper(qapp, monkeypatch):
+    """The UI layer must not delete from tracked_items with its own SQL."""
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
+
+    _seed_video()
+    page = CompetitorsPage()
+    calls: list = []
+    monkeypatch.setattr(ce, "untrack_item", lambda kind, ref: calls.append((kind, ref)))
+
+    page._untrack("video", "vidA")
+
+    assert calls == [("video", "vidA")]
+    page.deleteLater()
+
+
+def test_poller_interval_can_be_changed_while_running(qapp):
+    """The snapshot interval setting must reach the running poller."""
+    from s_q_ali_media_downloader.niche_research.ui.competitors_page import NichePoller
+
+    poller = NichePoller(interval_ms=60 * 60 * 1000)
+    assert poller.interval_minutes == 60
+
+    poller.set_interval_minutes(30)
+
+    assert poller._timer.interval() == 30 * 60 * 1000
+    assert poller.interval_minutes == 30
+    poller.stop()

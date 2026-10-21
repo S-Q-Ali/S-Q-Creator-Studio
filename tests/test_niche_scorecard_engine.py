@@ -452,3 +452,50 @@ def test_lookup_channel_rejects_a_url_that_merely_contains_youtube_com(monkeypat
 
     with pytest.raises(ValueError):
         se.lookup_channel("https://attacker.tld/?youtube.com")
+
+
+# --------------------------------------------------------------------------- #
+# The canonical tracked-items helper
+# --------------------------------------------------------------------------- #
+def test_the_engine_has_no_private_tracked_helper():
+    """The engine kept its own copy of the tracked-items query; the canonical
+    helpers in competitor_engine are the only implementation."""
+    assert not hasattr(se, "_is_tracked")
+
+
+def test_tracked_state_comes_from_the_canonical_helper(isolated_appdata, monkeypatch):
+    """The tracked flag must come from competitor_engine.is_tracked."""
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
+
+    db.configure(None)
+
+    def fake_parse_video_id(url):
+        return "vid123"
+
+    def fake_fetch_video(video_id, cookiefile=None):
+        return VideoInfo(
+            video_id="vid123",
+            channel_id="UCchan",
+            channel_title="Chan",
+            title="Great Video",
+            description="d",
+            published_at="2026-08-20T10:00:00Z",
+            duration_seconds=60,
+            thumbnail_url="",
+            view_count=10,
+            like_count=1,
+            comment_count=1,
+        )
+
+    def fake_fetch_channel(channel_id, cookiefile=None, **kwargs):
+        return ChannelInfo(channel_id="UCchan", title="Chan", thumbnail_url="")
+
+    monkeypatch.setattr(se, "parse_video_id", fake_parse_video_id)
+    monkeypatch.setattr(se, "fetch_video", fake_fetch_video)
+    monkeypatch.setattr(se, "fetch_channel", fake_fetch_channel)
+    monkeypatch.setattr(ce, "is_tracked", lambda kind, ref: kind == "video")
+
+    result = se.lookup_video("https://youtube.com/watch?v=vid123")
+
+    assert result.tracked is True
+    db.close_db()

@@ -604,19 +604,14 @@ def json_dumps(value: list) -> str:
 # --------------------------------------------------------------------------- #
 # Lookups
 # --------------------------------------------------------------------------- #
-def _is_tracked(kind: str, ref_id: str) -> bool:
-    return (
-        db.get(
-            "SELECT 1 FROM tracked_items WHERE kind=? AND ref_id=?",
-            (kind, ref_id),
-        )
-        is not None
-    )
-
-
 def lookup_video(
     url: str, *, cookiefile: str | None = None, focus_keyword: str = ""
 ) -> VideoLookupResult:
+    # Imported here, not at module level: competitor_engine imports this
+    # module, so a module-level import would be circular. The tracked-items
+    # helpers live in competitor_engine — this module keeps no copy of them.
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine
+
     video_id = parse_video_id(url)
     if not video_id:
         raise ValueError("Could not parse a YouTube video ID from that input")
@@ -668,13 +663,17 @@ def lookup_video(
         channel=channel,
         seo=seo,
         vph=vph,
-        tracked=_is_tracked("video", video_id),
+        tracked=competitor_engine.is_tracked("video", video_id),
     )
 
 
 def lookup_channel(
     url: str, *, cookiefile: str | None = None, focus_keyword: str = ""
 ) -> ChannelLookupResult:
+    # Imported here, not at module level: competitor_engine imports this
+    # module, so a module-level import would be circular.
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine
+
     channel_id = parse_channel_id(url)
     if not channel_id and (url.strip().startswith("@") or is_youtube_url(url)):
         # Bare id not found but this is a channel reference (handle URL etc.)
@@ -710,7 +709,7 @@ def lookup_channel(
         },
         seo=seo,
         recent_videos=recent_videos,
-        tracked=_is_tracked("channel", channel_id),
+        tracked=competitor_engine.is_tracked("channel", channel_id),
     )
 
 

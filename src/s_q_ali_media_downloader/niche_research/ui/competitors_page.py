@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
 )
 
 from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
-from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
 from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
@@ -74,6 +73,24 @@ class NichePoller(QObject):
         self._timer.timeout.connect(self.snapshot_requested)
         self._timer.start()
 
+    @property
+    def interval_minutes(self) -> int:
+        """The snapshot interval the poller currently runs with."""
+        return max(1, round(self._timer.interval() / 60_000))
+
+    def set_interval_minutes(self, minutes: int) -> None:
+        """Apply a new snapshot interval to the running poller.
+
+        The timer is restarted so the new interval counts from now on — the
+        Settings page must not need an app restart to take effect. A stopped
+        poller stays stopped.
+        """
+        interval_ms = max(1, int(minutes)) * 60 * 1000
+        was_active = self._timer.isActive()
+        self._timer.setInterval(interval_ms)
+        if was_active:
+            self._timer.start()
+
     def stop(self) -> None:
         self._timer.stop()
 
@@ -96,6 +113,7 @@ class CompetitorsPage(QWidget):
     scorecard_requested = Signal(str, str)
     analyze_requested = Signal(str)
     keyword_requested = Signal(str)
+    queue_urls_requested = Signal(list)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -289,6 +307,21 @@ class CompetitorsPage(QWidget):
             )
         )
         meta.addWidget(scorecard)
+        queue = QPushButton("Queue")
+        queue.setProperty("variant", "ghost")
+        video_id = v.get("videoId") or ""
+        queue.setEnabled(bool(video_id))
+        queue.setToolTip(
+            "Add this video to the download queue"
+            if video_id
+            else "No video id available — this item cannot be queued"
+        )
+        queue.clicked.connect(
+            lambda _=False, vid=video_id: self.queue_urls_requested.emit(
+                [f"https://www.youtube.com/watch?v={vid}"]
+            )
+        )
+        meta.addWidget(queue)
         untrack = QPushButton("Untrack")
         untrack.setProperty("variant", "ghost")
         untrack.setToolTip("Remove from tracking")
@@ -437,7 +470,8 @@ class CompetitorsPage(QWidget):
     # Untrack
     # ------------------------------------------------------------------ #
     def _untrack(self, kind: str, ref_id: str) -> None:
-        db.run("DELETE FROM tracked_items WHERE kind = ? AND ref_id = ?", (kind, ref_id))
+        """Stop tracking an item (the engine owns the tracked-items table)."""
+        ce.untrack_item(kind, ref_id)
         self.refresh_dashboard()
 
     # ------------------------------------------------------------------ #

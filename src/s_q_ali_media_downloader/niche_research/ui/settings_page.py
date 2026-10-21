@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -22,6 +23,14 @@ from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
 
 class SettingsPage(QWidget):
+    """Research settings.
+
+    ``snapshot_interval_saved`` carries the new snapshot interval so the
+    running poller can pick it up — the setting must not need a restart.
+    """
+
+    snapshot_interval_saved = Signal(int)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("researchPage")
@@ -136,6 +145,7 @@ class SettingsPage(QWidget):
         interval_layout.addRow("Snapshot interval", self._interval_combo)
         interval_hint = QLabel(
             "How often the background poller records a snapshot of your tracked items. "
+            "A new interval applies immediately — no restart needed. "
             "VPH and 7-day growth need at least two snapshots."
         )
         interval_hint.setObjectName("formHint")
@@ -213,15 +223,13 @@ class SettingsPage(QWidget):
         self._status.setText("Cookie file cleared.")
 
     def _save(self) -> None:
+        minutes = int(self._interval_combo.currentData() or 60)
         try:
             for key, edit in self._keys.items():
                 db.set_setting(key, edit.text().strip())
             db.set_setting("ai_primary_provider", self._default_provider.currentData() or "aihubmix")
             db.set_setting("youtube_cookies_file", self._cookies_edit.text().strip())
-            db.set_setting(
-                "snapshot_interval_minutes",
-                str(self._interval_combo.currentData() or 60),
-            )
+            db.set_setting("snapshot_interval_minutes", str(minutes))
         except OSError as exc:
             # Windows refused to encrypt the key: nothing was stored, and the
             # user has to know why their key did not stick.
@@ -231,6 +239,9 @@ class SettingsPage(QWidget):
             return
         self.reload()
         self._set_status("Settings saved.")
+        # The running poller has to know — otherwise a new interval would
+        # only take effect after an app restart.
+        self.snapshot_interval_saved.emit(minutes)
 
     def _set_status(self, text: str, *, error: bool = False) -> None:
         self._status.setText(text)

@@ -250,3 +250,86 @@ def test_focus_keyword_reaches_the_lookup(isolated_appdata, qapp, monkeypatch):
     assert seen["keyword"] == "tech"
     db.close_db()
 
+
+# --------------------------------------------------------------------------- #
+# Handoffs (SPEC-handoffs.md) + the canonical tracked-items helper
+# --------------------------------------------------------------------------- #
+def test_scorecard_queue_button_emits_the_video_url(isolated_appdata, qapp):
+    """Scorecard -> Download queue."""
+    db.configure(None)
+    page = ScorecardPage()
+    page.show()
+    got: list = []
+    page.queue_urls_requested.connect(got.append)
+    page._on_done(_video_result())
+    qapp.processEvents()
+
+    button = next(b for b in page._content.findChildren(QPushButton) if b.text() == "Queue")
+    button.click()
+
+    assert got == [["https://www.youtube.com/watch?v=vid1"]]
+    db.close_db()
+
+
+def test_scorecard_open_on_youtube_button_emits_the_url(isolated_appdata, qapp):
+    """Scorecard -> YouTube."""
+    db.configure(None)
+    page = ScorecardPage()
+    page.show()
+    got: list = []
+    page.open_browser_requested.connect(got.append)
+    page._on_done(_video_result())
+    qapp.processEvents()
+
+    button = next(
+        b for b in page._content.findChildren(QPushButton) if b.text() == "Open on YouTube"
+    )
+    button.click()
+
+    assert got == ["https://www.youtube.com/watch?v=vid1"]
+    db.close_db()
+
+
+def test_scorecard_buttons_are_disabled_with_a_reason(isolated_appdata, qapp):
+    """A button that cannot run is disabled and says why."""
+    db.configure(None)
+    result = _video_result()
+    result.video.pop("video_id")
+    page = ScorecardPage()
+    page.show()
+    page._on_done(result)
+    qapp.processEvents()
+
+    buttons = {
+        b.text(): b
+        for b in page._content.findChildren(QPushButton)
+        if b.text() in ("Queue", "Open on YouTube", "Track video")
+    }
+    assert set(buttons) == {"Queue", "Open on YouTube", "Track video"}
+    for button in buttons.values():
+        assert button.isEnabled() is False
+        assert button.toolTip(), "a disabled button must explain why"
+    db.close_db()
+
+
+def test_scorecard_track_button_uses_the_canonical_helper(isolated_appdata, qapp, monkeypatch):
+    """The UI layer must not insert into tracked_items with its own SQL."""
+    from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
+
+    db.configure(None)
+    calls: list = []
+    monkeypatch.setattr(
+        ce, "track_item", lambda kind, ref, label="": calls.append((kind, ref, label))
+    )
+
+    page = ScorecardPage()
+    page.show()
+    page._on_done(_video_result())
+    qapp.processEvents()
+
+    track = next(b for b in page._content.findChildren(QPushButton) if b.text() == "Track video")
+    track.click()
+
+    assert calls == [("video", "vid1", "Amazing Tech Video")]
+    db.close_db()
+

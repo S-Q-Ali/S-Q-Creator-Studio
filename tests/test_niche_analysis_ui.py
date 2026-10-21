@@ -155,6 +155,55 @@ def test_the_modal_can_cancel_a_running_analysis(qapp, monkeypatch):
     assert modal._analysis_worker.isInterruptionRequested() is True
 
 
+def test_the_modal_can_queue_the_channel_uploads(qapp):
+    """AI Analysis -> download queue: the newest uploads of the analysed
+    channel can be queued without leaving the modal."""
+    modal = AnalysisModal("UCabc")
+    queued: list[list[str]] = []
+    modal.queue_urls_requested.connect(queued.append)
+
+    modal._on_channel_data(_sample_data(True))
+
+    button = next(
+        (
+            b
+            for b in modal._channel_row.findChildren(QPushButton)
+            if "Queue" in b.text()
+        ),
+        None,
+    )
+    assert button is not None, "the analysis modal has no Queue button"
+    assert button.isEnabled() is True
+
+    button.click()
+
+    assert queued and "watch?v=v1" in queued[0][0]
+
+
+def test_the_modal_can_track_the_analysed_channel(qapp):
+    """AI Analysis -> Competitors: the analysed channel can be tracked."""
+    modal = AnalysisModal("UCabc")
+    tracked: list[str] = []
+    modal.track_channel_requested.connect(tracked.append)
+
+    modal._on_channel_data(_sample_data(True))
+
+    button = next(
+        (
+            b
+            for b in modal._channel_row.findChildren(QPushButton)
+            if "Track" in b.text()
+        ),
+        None,
+    )
+    assert button is not None, "the analysis modal has no Track button"
+    assert button.isEnabled() is True
+
+    button.click()
+
+    assert tracked == ["UCabc"]
+
+
 def test_is_analyzed_is_false_for_a_fresh_channel(isolated_appdata):
     assert ai.is_analyzed("UCnothing") is False
 

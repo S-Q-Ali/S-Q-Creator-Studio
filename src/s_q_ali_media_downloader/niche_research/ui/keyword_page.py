@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
 from s_q_ali_media_downloader.niche_research.research import keyword_engine as ke
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
 from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
@@ -50,6 +51,14 @@ class KeywordResearchWorker(QThread):
 
 
 class KeywordResearchPage(QWidget):
+    """Keyword research + detail view.
+
+    ``scorecard_requested`` carries the video URL and the focus keyword, so
+    the Scorecard page can score a ranked video for this term.
+    """
+
+    scorecard_requested = Signal(str, str)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("researchPage")
@@ -241,6 +250,12 @@ class KeywordResearchPage(QWidget):
         self._track_btn.clicked.connect(self._on_track)
         layout.addWidget(self._track_btn)
 
+        # Keyword -> Scorecard: score the top-ranked video for this term.
+        self._analyze_btn = QPushButton("Analyze keyword")
+        self._analyze_btn.setProperty("variant", "outline")
+        self._analyze_btn.clicked.connect(self._on_analyze)
+        layout.addWidget(self._analyze_btn)
+
         self._detail_term: str | None = None
         self._detail_page = page
         return page
@@ -415,8 +430,15 @@ class KeywordResearchPage(QWidget):
             self._ranked_list.addWidget(self._make_ranked_row(r))
         self._ranked_list.addStretch(1)
 
-        self._track_btn.setText("Tracking" if _is_tracked(term) else "Track this keyword")
-        self._track_btn.setEnabled(not _is_tracked(term))
+        tracked = ce.is_tracked("keyword", term)
+        self._track_btn.setText("Tracking" if tracked else "Track this keyword")
+        self._track_btn.setEnabled(not tracked)
+        self._analyze_btn.setEnabled(bool(ranked))
+        self._analyze_btn.setToolTip(
+            "Score the top-ranked video for this keyword on the Scorecard page"
+            if ranked
+            else "No ranked videos yet — run research to score this term."
+        )
         self._stack.setCurrentWidget(self._detail_page)
 
     def _make_ranked_row(self, r: dict[str, Any]) -> QWidget:
@@ -434,12 +456,41 @@ class KeywordResearchPage(QWidget):
         views = QLabel(w.format_number(r["view_count"]))
         views.setObjectName("growthPositive")
         layout.addWidget(views)
+        video_id = r.get("video_id") or ""
+        analyze = QPushButton("Analyze")
+        analyze.setProperty("variant", "ghost")
+        analyze.setEnabled(bool(video_id))
+        analyze.setToolTip(
+            "Score this ranked video on the Scorecard page"
+            if video_id
+            else "No video id available — this video cannot be scored"
+        )
+        analyze.clicked.connect(lambda _=False, v=video_id: self._analyze_video(v))
+        layout.addWidget(analyze)
         return row
+
+    def _on_analyze(self) -> None:
+        """Score the top-ranked video for this keyword."""
+        if not self._detail_term:
+            return
+        ranked = ke.get_ranked_videos(self._detail_term)
+        if not ranked:
+            return
+        self._analyze_video(ranked[0].get("video_id") or "")
+
+    def _analyze_video(self, video_id: str) -> None:
+        """Hand a ranked video to the Scorecard page."""
+        if not video_id:
+            return
+        self.scorecard_requested.emit(
+            f"https://www.youtube.com/watch?v={video_id}",
+            self._detail_term or "",
+        )
 
     def _on_track(self) -> None:
         if not self._detail_term:
             return
-        _set_tracked(self._detail_term)
+        ce.track_item("keyword", self._detail_term, self._detail_term)
         self._track_btn.setText("Tracking")
         self._track_btn.setEnabled(False)
 
@@ -453,23 +504,3 @@ class KeywordResearchPage(QWidget):
         """Stop and join the research worker (called when the app closes)."""
         w.stop_worker(self._worker)
         self._worker = None
-
-
-# --------------------------------------------------------------------------- #
-# Tracked-items helpers (uses the shared tracked_items table)
-# --------------------------------------------------------------------------- #
-def _is_tracked(term: str) -> bool:
-    from s_q_ali_media_downloader.niche_research.storage import db
-
-    return (
-        db.get("SELECT 1 FROM tracked_items WHERE kind='keyword' AND ref_id=?", (term,)) is not None
-    )
-
-
-def _set_tracked(term: str) -> None:
-    from s_q_ali_media_downloader.niche_research.storage import db
-
-    db.run(
-        "INSERT OR IGNORE INTO tracked_items (kind, ref_id, label, added_at) VALUES (?, ?, ?, ?)",
-        ("keyword", term, term, db.now()),
-    )

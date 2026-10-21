@@ -125,6 +125,8 @@ class SimilarChannelsWorker(QThread):
 
 class AnalysisModal(QDialog):
     open_scorecard_requested = Signal(str)
+    queue_urls_requested = Signal(list)
+    track_channel_requested = Signal(str)
 
     def __init__(self, channel_id: str, parent: QWidget | None = None):
         super().__init__(parent)
@@ -518,6 +520,45 @@ class AnalysisModal(QDialog):
         info.addWidget(desc)
         row.addLayout(info, 1)
         channel_box.addLayout(row)
+
+        # Action row: the analysed channel has to be usable without leaving
+        # the modal — queue its newest uploads, or track the channel.
+        upload_ids = [
+            str(v.get("videoId") or "")
+            for v in (data.get("recentVideos") or [])
+            if v.get("videoId")
+        ]
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        queue = QPushButton("Queue uploads")
+        queue.setProperty("variant", "outline")
+        queue.setEnabled(bool(upload_ids))
+        queue.setToolTip(
+            f"Queue the {len(upload_ids)} newest uploads for download"
+            if upload_ids
+            else "No uploads available to queue"
+        )
+        queue.clicked.connect(
+            lambda _=False, ids=upload_ids: self.queue_urls_requested.emit(
+                [f"https://www.youtube.com/watch?v={vid}" for vid in ids]
+            )
+        )
+        actions.addWidget(queue)
+        channel_id = str(channel.get("channelId") or "")
+        track = QPushButton("Track channel")
+        track.setProperty("variant", "outline")
+        track.setEnabled(bool(channel_id))
+        track.setToolTip(
+            "Track this channel on the Competitors page"
+            if channel_id
+            else "No channel id available — this channel cannot be tracked"
+        )
+        track.clicked.connect(
+            lambda _=False, cid=channel_id: self.track_channel_requested.emit(cid)
+        )
+        actions.addWidget(track)
+        actions.addStretch(1)
+        channel_box.addLayout(actions)
 
         # Stats
         self._clear_layout(self._stats_row)

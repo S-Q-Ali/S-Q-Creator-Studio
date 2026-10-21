@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
 from s_q_ali_media_downloader.niche_research.research import scorecard_engine as se
-from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
 from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
@@ -63,6 +63,8 @@ class ScorecardWorker(QThread):
 
 class ScorecardPage(QWidget):
     analyze_requested = Signal(str)
+    queue_urls_requested = Signal(list)
+    open_browser_requested = Signal(str)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -207,9 +209,11 @@ class ScorecardPage(QWidget):
         """Public mode switch (used by the discovery -> scorecard handoff)."""
         self._set_mode(mode)
 
-    def prefill(self, url: str) -> None:
-        """Put a URL in the input without running the lookup."""
+    def prefill(self, url: str, focus_keyword: str = "") -> None:
+        """Put a URL (and optionally a focus keyword) in the inputs."""
         self._url_edit.setText(url or "")
+        if focus_keyword:
+            self._keyword_edit.setText(focus_keyword)
 
     # ------------------------------------------------------------------ #
     # Lookup
@@ -316,19 +320,52 @@ class ScorecardPage(QWidget):
         meta.setObjectName("urlMeta")
         info.addWidget(meta)
 
+        video_id = result.video.get("video_id") or ""
         track = QPushButton()
         track.setProperty("variant", "outline")
         if result.tracked:
             track.setText("Tracking")
             track.setEnabled(False)
+        elif not video_id:
+            track.setText("Track video")
+            track.setEnabled(False)
+            track.setToolTip("No video id available — this video cannot be tracked")
         else:
             track.setText("Track video")
             track.clicked.connect(
                 lambda: _mark_tracked(
-                    "video", result.video["video_id"], result.video["title"], track
+                    "video", video_id, result.video.get("title", ""), track
                 )
             )
         info.addWidget(track)
+
+        # Action row: the scored video must be usable without leaving the
+        # page — queue it for download or open it on YouTube.
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        video_url = f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+        queue = QPushButton("Queue")
+        queue.setProperty("variant", "outline")
+        queue.setEnabled(bool(video_url))
+        queue.setToolTip(
+            "Add this video to the download queue"
+            if video_url
+            else "No video id available — this video cannot be queued"
+        )
+        queue.clicked.connect(lambda _=False: self.queue_urls_requested.emit([video_url]))
+        actions.addWidget(queue)
+        open_btn = QPushButton("Open on YouTube")
+        open_btn.setProperty("variant", "outline")
+        open_btn.setEnabled(bool(video_url))
+        open_btn.setToolTip(
+            "Open this video on YouTube in your browser"
+            if video_url
+            else "No video id available — this video cannot be opened"
+        )
+        open_btn.clicked.connect(lambda _=False: self.open_browser_requested.emit(video_url))
+        actions.addWidget(open_btn)
+        actions.addStretch(1)
+        info.addLayout(actions)
         info.addStretch(1)
         row.addLayout(info, 1)
         row.addStretch(0)
@@ -388,26 +425,34 @@ class ScorecardPage(QWidget):
         cid.setObjectName("urlMeta")
         info.addWidget(cid)
 
+        channel_id = result.channel.get("channel_id") or ""
         track = QPushButton()
         track.setProperty("variant", "outline")
         if result.tracked:
             track.setText("Tracking")
             track.setEnabled(False)
+        elif not channel_id:
+            track.setText("Track channel")
+            track.setEnabled(False)
+            track.setToolTip("No channel id available — this channel cannot be tracked")
         else:
             track.setText("Track channel")
             track.clicked.connect(
                 lambda: _mark_tracked(
-                    "channel", result.channel["channel_id"], result.channel["title"], track
+                    "channel", channel_id, result.channel.get("title", ""), track
                 )
             )
         info.addWidget(track)
 
         analyze = QPushButton("Analyze channel")
         analyze.setProperty("variant", "outline")
-        analyze.setToolTip("Run the AI channel analysis for this channel")
-        analyze.clicked.connect(
-            lambda: self.analyze_requested.emit(result.channel.get("channel_id", ""))
+        analyze.setToolTip(
+            "Run the AI channel analysis for this channel"
+            if channel_id
+            else "No channel id available — this channel cannot be analysed"
         )
+        analyze.setEnabled(bool(channel_id))
+        analyze.clicked.connect(lambda: self.analyze_requested.emit(channel_id))
         info.addWidget(analyze)
         info.addStretch(1)
         row.addLayout(info, 1)
@@ -546,9 +591,7 @@ def _fmt_duration(seconds: int) -> str:
 
 
 def _mark_tracked(kind: str, ref_id: str, label: str, button: QPushButton) -> None:
-    db.run(
-        "INSERT OR IGNORE INTO tracked_items (kind, ref_id, label, added_at) VALUES (?, ?, ?, ?)",
-        (kind, ref_id, label, db.now()),
-    )
+    """Track an item (the engine owns the tracked-items table)."""
+    ce.track_item(kind, ref_id, label)
     button.setText("Tracking")
     button.setEnabled(False)
