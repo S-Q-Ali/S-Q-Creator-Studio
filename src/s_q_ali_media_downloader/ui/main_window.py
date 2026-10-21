@@ -5,7 +5,7 @@ import os
 import sys
 
 from PySide6.QtCore import QSettings, Qt, QUrl
-from PySide6.QtGui import QColor, QDesktopServices
+from PySide6.QtGui import QColor, QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -51,13 +51,7 @@ from s_q_ali_media_downloader.engine import (
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
-from s_q_ali_media_downloader.ui.widgets import (
-    Chip,
-    ElidedLabel,
-    Job,
-    JobCard,
-    shield_pixmap,
-)
+from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, shield_pixmap
 
 ORG = "S-Q-Ali"
 VERSION = __version__
@@ -208,9 +202,9 @@ class MainWindow(QMainWindow):
 
         # Where the downloads land. One line, and it opens the folder - the
         # rest of the download settings live in the Settings page, where
-        # there is room to edit them. The path is shortened to fit, not
-        # cut off: a long path used to spill past the rail.
-        self.folder_label = ElidedLabel("")
+        # there is room to edit them. A long path is shortened to fit
+        # rather than cut off: the whole path stays in the tooltip.
+        self.folder_label = QLabel("")
         self.folder_label.setProperty("role", "hint")
         self.folder_label.setToolTip("Click to open the download folder")
         self.folder_label.setCursor(Qt.PointingHandCursor)
@@ -586,15 +580,25 @@ class MainWindow(QMainWindow):
         self.settings_page.save()
 
     def _update_folder_label(self):
-        """Show where the downloads land, and keep it in step with the setting."""
+        """Show where the downloads land, and keep it in step with the setting.
+
+        The path is shortened to what the rail has room for. A plain label
+        would cut it in the middle of a word, and a long path used to spill
+        past the rail.
+        """
         folder = self.output_dir()
-        self.folder_label.setText(f"Saving to {folder}" if folder else "No folder chosen")
+        text = f"Saving to {folder}" if folder else "No folder chosen"
+        self.folder_label.setToolTip(text)
+        metrics = QFontMetrics(self.folder_label.font())
+        room = max(60, self.rail.width() - 44)
+        self.folder_label.setText(metrics.elidedText(text, Qt.ElideMiddle, room))
 
     def _apply_density(self):
         """Pick the layout density and tell the widgets about it."""
         from s_q_ali_media_downloader.theme import apply_density
 
         apply_density(self, self.settings_page.compact_check.isChecked())
+        self._update_folder_label()
 
     def _save_queue(self):
         try:

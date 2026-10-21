@@ -101,7 +101,6 @@ def _real_fonts(qapp):
         return
 
     folder = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
-    loaded = []
     for name in (
         "segoeui.ttf",
         "segoeuib.ttf",
@@ -112,14 +111,9 @@ def _real_fonts(qapp):
     ):
         path = os.path.join(folder, name)
         if os.path.isfile(path):
-            font_id = QFontDatabase.addApplicationFont(path)
-            if font_id >= 0:
-                loaded.append(font_id)
+            QFontDatabase.addApplicationFont(path)
 
     yield
-
-    for font_id in loaded:
-        QFontDatabase.removeApplicationFont(font_id)
 
 
 @pytest.fixture(scope="session", autouse=True)
