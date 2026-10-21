@@ -57,6 +57,19 @@ YOUTUBE_KEY = "youtube_api_key"
 COOKIES_FILE_KEY = "youtube_cookies_file"
 
 
+def make_settings() -> QSettings:
+    """The app's preferences.
+
+    On Windows these live in the registry. ``SQ_SETTINGS_FILE`` points them
+    at an ini file instead, which is how the tests keep out of the user's
+    own preferences without changing the format for the whole process.
+    """
+    override = os.environ.get("SQ_SETTINGS_FILE")
+    if override:
+        return QSettings(override, QSettings.Format.IniFormat)
+    return QSettings(ORG, APP_NAME)
+
+
 class SettingsPage(QWidget):
     """Every setting of the app, in three cards."""
 
@@ -65,7 +78,7 @@ class SettingsPage(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("SettingsPage")
-        self.settings = QSettings(ORG, APP_NAME)
+        self.settings = make_settings()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)

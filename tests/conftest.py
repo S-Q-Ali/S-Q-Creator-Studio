@@ -68,21 +68,17 @@ def _isolated_settings(qapp):
 
     On Windows the preferences live in the registry. Every test that opened
     the window and closed it again wrote the test's own paths over the
-    user's real preferences - the download folder included. The settings
-    are pointed at a temporary folder instead, in a format that is not the
-    registry.
+    user's real preferences - the download folder included. The app reads
+    ``SQ_SETTINGS_FILE`` and points its preferences at a file in a
+    temporary folder instead.
 
     The folder is made with ``mkdtemp`` and not with pytest's own factory:
     pytest removes its folders when the session ends, and a settings file
     that is flushed after its folder is gone takes the process down with
     it.
     """
-    from PySide6.QtCore import QSettings
-
     folder = tempfile.mkdtemp(prefix="sqali_settings_")
-    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
-    for scope in (QSettings.Scope.UserScope, QSettings.Scope.SystemScope):
-        QSettings.setPath(QSettings.Format.IniFormat, scope, folder)
+    os.environ["SQ_SETTINGS_FILE"] = os.path.join(folder, "settings.ini")
 
 
 @pytest.fixture(scope="session", autouse=True)
