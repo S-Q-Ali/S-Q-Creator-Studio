@@ -67,10 +67,28 @@ def test_youtube_playlist_and_channel():
     assert not is_youtube_channel_url("https://www.youtube.com/watch?v=x")
 
 
+def test_a_shorts_link_is_a_single_video_not_a_channel_or_playlist():
+    """A Shorts link has to reach the download queue as one video. If it were
+    read as a channel or a playlist, the app would try to expand it and the
+    Short would never download.
+
+    Verified live on 2026-10-21: a 59-second Short downloaded through
+    DownloadThread._download_one as a 2.6 MB mp4 with its audio.
+    """
+    shorts = "https://www.youtube.com/shorts/6t-6ha1EVyA"
+
+    assert is_youtube_url(shorts)
+    assert not is_youtube_playlist_url(shorts)
+    assert not is_youtube_channel_url(shorts)
+    assert not is_profile_url(shorts)
+    assert platform_of(shorts) == "YouTube"
+
+
 def test_platform_of():
     assert platform_of("https://www.tiktok.com/@u/video/1") == "TikTok"
     assert platform_of("https://youtu.be/x") == "YouTube"
     assert platform_of("https://www.youtube.com/watch?v=x") == "YouTube"
+    assert platform_of("https://www.youtube.com/shorts/x") == "YouTube"
     assert platform_of("https://example.com") is None
 
 
