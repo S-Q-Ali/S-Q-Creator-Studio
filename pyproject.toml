@@ -15,11 +15,11 @@ dependencies = [
     # PySide6 6.12 aborts during teardown in some conditions (a native access
     # violation that takes the whole test run with it). Stay on the verified
     # 6.11.x line until that is fixed upstream.
-    "PySide6>=6.11,<6.12",
+    "PySide6>=6.11,<6.13",
     "yt-dlp>=2026.8.19",
     # 0.16 and newer break yt-dlp's request-handler registration, which
     # silently disables the TLS impersonation the TikTok fetches need.
-    "curl_cffi>=0.15,<0.16",
+    "curl_cffi>=0.15,<0.17",
     "httpx>=0.27.0",
     "pydantic>=2.0.0",
     "beautifulsoup4>=4.12.0",
