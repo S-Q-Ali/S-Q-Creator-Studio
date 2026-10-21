@@ -8,8 +8,11 @@ rem ============================================================
 
 set "ROOT=%~dp0"
 set "VENV=%ROOT%source\venv"
-set "PYINSTALLER=%VENV%\Scripts\python.exe"
-set "PYTHON=%VENV%\Scripts\python.exe"
+rem The build uses the project's virtualenv when there is one. A build
+rem machine (CI) has no source\venv - it installs the dependencies into
+rem its own Python - so fall back to the Python on the PATH.
+set "PYTHON_EXE=%VENV%\Scripts\python.exe"
+if not exist "%PYTHON_EXE%" set "PYTHON_EXE=python"
 set "ENTRY=src\s_q_ali_media_downloader\__main__.py"
 set "ICON=src\s_q_ali_media_downloader\resources\icon.ico"
 set "WORKPATH=build\pkg"
@@ -21,7 +24,7 @@ rem Read the app version from src/__init__.py so the setup name and
 rem installer metadata never drift from the packaged app (single source).
 set "VERFILE=%TEMP%\sq_creator_ver.tmp"
 if exist "%VERFILE%" del /q "%VERFILE%"
-"%PYTHON%" -c "import io,sys; sys.path.insert(0, r'%~dp0src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
+"%PYTHON_EXE%" -c "import io,sys; sys.path.insert(0, r'%~dp0src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
 set /p APP_VERSION=<"%VERFILE%"
 del /q "%VERFILE%" 2>nul
 if not defined APP_VERSION set "APP_VERSION=2.5.1"
@@ -32,7 +35,7 @@ echo  Building release %APP_VERSION% with PyInstaller (one-directory)
 echo ============================================================
 echo.
 
-"%PYINSTALLER%" -m PyInstaller ^
+"%PYTHON_EXE%" -m PyInstaller ^
     --noconfirm ^
     --clean ^
     --onedir ^
