@@ -60,6 +60,22 @@ _LINK_JS = """els => els.map(e => [
              + 'ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer'))
 ])"""
 
+#: The page's own description of itself. A rendered profile page carries the
+#: account's name, its handle and its follower count here, which is far more
+#: reliable than scraping the text.
+_META_JS = """() => {
+  const get = (sel) => {
+    const el = document.querySelector(sel);
+    return el ? (el.getAttribute('content') || '').trim() : '';
+  };
+  return {
+    ogTitle: get('meta[property="og:title"]'),
+    ogDescription: get('meta[property="og:description"]'),
+    ogUrl: get('meta[property="og:url"]'),
+    description: get('meta[name="description"]'),
+  };
+}"""
+
 
 class BrowserError(RuntimeError):
     """Base class for everything this module raises."""
@@ -87,6 +103,7 @@ class Page:
     text: str = ""
     links: list[str] = field(default_factory=list)
     own_links: list[str] = field(default_factory=list)
+    meta: dict[str, str] = field(default_factory=dict)
 
     def contains(self, needle: str) -> bool:
         """Case-insensitive search in the rendered text."""
@@ -294,10 +311,20 @@ class BrowserSession:
                     own_links.append(href)
         except Exception:
             links = []
+        meta: dict[str, str] = {}
+        try:
+            meta = {
+                str(key): str(value)
+                for key, value in (page.evaluate(_META_JS) or {}).items()
+                if value
+            }
+        except Exception:
+            meta = {}
         return Page(
             url=url,
             title=title or "",
             text=text or "",
             links=links,
             own_links=own_links,
+            meta=meta,
         )

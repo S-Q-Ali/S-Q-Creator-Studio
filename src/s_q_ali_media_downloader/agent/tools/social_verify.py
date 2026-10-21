@@ -64,9 +64,41 @@ _IG_TITLE_RE = re.compile(r"^(?P<name>.+?)\s*\(@(?P<handle>[A-Za-z0-9_.]+)\)")
 #: The Facebook title: "MrBeast | Facebook".
 _FB_TITLE_RE = re.compile(r"^(?P<name>.+?)\s*\|\s*Facebook\s*$", re.IGNORECASE)
 
-#: The TikTok profile line: "MrBeast mrbeast 346 Following 144.6M Followers".
-_TT_PROFILE_RE = re.compile(
-    r"^(?P<name>.+?)\s+(?P<handle>[A-Za-z0-9_.]+)\s+[\d.,]+\s+Following", re.MULTILINE
+#: The TikTok profile line: "Veritasium veritasium 66 Following 1.8M Followers".
+_TT_HANDLE_RE = re.compile(
+    r"(?P<handle>[A-Za-z0-9_.]{2,30})\s+[\d.,]+\s*Following", re.IGNORECASE
+)
+
+#: The navigation words that sit in front of a profile line.
+_NAV_WORDS = frozenset(
+    {
+        "log",
+        "in",
+        "search",
+        "for",
+        "you",
+        "explore",
+        "following",
+        "short",
+        "dramas",
+        "live",
+        "upload",
+        "profile",
+        "more",
+        "company",
+        "program",
+        "terms",
+        "policies",
+        "tiktok",
+        "and",
+        "or",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "©",
+    }
 )
 
 
@@ -127,52 +159,84 @@ def _handle_from_url(url: str) -> str:
     return match.group(1) if match else ""
 
 
+def _meta(page: Page, key: str) -> str:
+    return (page.meta or {}).get(key, "") or ""
+
+
+def _name_before(text: str, handle: str) -> str:
+    """The display name in front of the handle, without the navigation."""
+    position = text.lower().find(handle.lower())
+    if position < 0:
+        return ""
+    words = [
+        word
+        for word in text[:position].split()
+        if word.lower().strip(".,·•") not in _NAV_WORDS
+    ]
+    return " ".join(words[-3:]).strip(" .,·•")
+
+
 def _instagram_profile(page: Page) -> tuple[bool, str, str, str]:
     """(exists, display name, handle, detail)"""
-    title = page.title or ""
-    if any(sig in title.lower() for sig in NOT_FOUND_SIGNATURES):
-        return False, "", "", "the page says the profile is not available"
-    if "instagram photos and videos" in title.lower() or _FOLLOWERS_RE.search(page.text or ""):
-        match = _IG_TITLE_RE.match(title)
-        name = match.group("name").strip() if match else ""
+    og_title = _meta(page, "ogTitle")
+    og_desc = _meta(page, "ogDescription")
+    if og_title:
+        match = _IG_TITLE_RE.match(og_title)
+        name = match.group("name").strip() if match else og_title.split("•")[0].strip()
         handle = match.group("handle") if match else _handle_from_url(page.url)
-        return True, name, handle, "the profile page shows the account"
+        return True, name, handle, "the profile page describes the account"
+    if any(sig in (page.title or "").lower() for sig in NOT_FOUND_SIGNATURES):
+        return False, "", "", "the page says the profile is not available"
+    if _FOLLOWERS_RE.search(og_desc or ""):
+        return True, "", _handle_from_url(page.url), "the page shows a follower count"
     if any(sig in (page.text or "").lower() for sig in LOGIN_WALL_SIGNATURES):
         return True, "", "", "the page is behind a login wall"
-    return False, "", "", "the page says nothing about an account"
+    return True, "", "", "the page shows nothing about an account"
 
 
 def _facebook_profile(page: Page) -> tuple[bool, str, str, str]:
     """(exists, display name, handle, detail)"""
-    title = (page.title or "").strip()
-    text = page.text or ""
-    if any(sig in text.lower() for sig in NOT_FOUND_SIGNATURES):
+    og_title = _meta(page, "ogTitle")
+    og_desc = _meta(page, "ogDescription")
+    if og_title:
+        name = og_title.strip()
+        handle = _handle_from_url(_meta(page, "ogUrl") or page.url)
+        return True, name, handle, "the page describes the account"
+    if any(sig in (page.text or "").lower() for sig in NOT_FOUND_SIGNATURES):
         return False, "", "", "the page says the account is not available"
-    match = _FB_TITLE_RE.match(title)
-    if match:
-        name = match.group("name").strip()
-        return True, name, _handle_from_url(page.url), "the page shows its name and follower count"
+    title = (page.title or "").strip()
     if title.lower() in ("facebook", "log in", ""):
         # The generic wall: the same answer for a page that does not exist
         # and for a page that is gated. That is unknown, not "not found".
         return True, "", "", "the page shows only the login wall"
-    if _FOLLOWERS_RE.search(text):
+    if _FOLLOWERS_RE.search(og_desc or page.text or ""):
         return True, title, _handle_from_url(page.url), "the page shows a follower count"
     return True, "", "", "the page shows nothing about an account"
 
 
 def _tiktok_profile(page: Page) -> tuple[bool, str, str, str]:
     """(exists, display name, handle, detail)"""
-    text = page.text or ""
-    if any(sig in text.lower() for sig in NOT_FOUND_SIGNATURES):
+    og_title = _meta(page, "ogTitle")
+    if "couldn't find this account" in og_title.lower() or "couldn’t find this account" in (
+        page.title or ""
+    ).lower():
         return False, "", "", "the page says the account could not be found"
-    match = _TT_PROFILE_RE.search(text)
+    text = page.text or ""
+    match = _TT_HANDLE_RE.search(text)
     if match:
+        handle = match.group("handle")
         return (
             True,
-            match.group("name").strip(),
-            match.group("handle"),
+            _name_before(text, handle),
+            handle,
             "the profile page shows the account",
+        )
+    if og_title:
+        return (
+            True,
+            og_title.strip(),
+            _handle_from_url(page.url),
+            "the page describes the account",
         )
     return True, "", "", "the page shows nothing about an account"
 
@@ -265,7 +329,11 @@ def verify_page(page: Page, platform: str, creator: CreatorRef) -> CheckResult:
 
 
 def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> CheckResult:
-    """Open one account and decide what it is."""
+    """Open one account and decide what it is.
+
+    A profile that renders late is read once more before it is called
+    unknown — TikTok paints its profile in after the first paint.
+    """
     try:
         page = session.open(url)
     except PageUnavailable as exc:
@@ -275,7 +343,19 @@ def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> C
             url=url,
             detail=f"the page could not be read: {exc}",
         )
-    return verify_page(page, platform, creator)
+    result = verify_page(page, platform, creator)
+    if result.verdict is Verdict.UNKNOWN and "nothing about an account" in result.detail:
+        try:
+            page = session.open(url, wait_ms=5000)
+        except PageUnavailable as exc:
+            return CheckResult(
+                platform=platform,
+                verdict=Verdict.UNKNOWN,
+                url=url,
+                detail=f"the page could not be read: {exc}",
+            )
+        result = verify_page(page, platform, creator)
+    return result
 
 
 def verify_candidates(

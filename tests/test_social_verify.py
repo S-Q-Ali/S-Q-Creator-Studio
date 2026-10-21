@@ -26,6 +26,7 @@ def _page(name: str) -> Page:
         title=data["title"],
         text=data["text"],
         links=data["links"],
+        meta=data.get("meta", {}),
     )
 
 
@@ -76,6 +77,13 @@ def test_a_made_up_tiktok_profile_is_not_found():
     assert result.verdict is sv.Verdict.NOT_FOUND
 
 
+def test_a_facebook_page_that_does_not_exist_is_not_found():
+    """Facebook says it plainly when the page is not there."""
+    result = sv.verify_page(_page("facebook_fake"), "facebook", CREATOR)
+
+    assert result.verdict is sv.Verdict.NOT_FOUND
+
+
 def test_a_facebook_page_of_somebody_else_is_not_this_creator():
     """The page exists — it is just not his."""
     result = sv.verify_page(_page("facebook_other"), "facebook", CREATOR)
@@ -84,9 +92,15 @@ def test_a_facebook_page_of_somebody_else_is_not_this_creator():
 
 
 def test_a_facebook_page_behind_a_login_wall_is_unknown():
-    """Facebook shows the same wall for a page that does not exist and for a
-    page that is gated, so this is unknown — never "not found"."""
-    result = sv.verify_page(_page("facebook_fake"), "facebook", CREATOR)
+    """Facebook shows the same wall for a page that does not exist and for
+    a page that is gated, so a wall is unknown — never "not found"."""
+    wall = Page(
+        url="https://www.facebook.com/someone",
+        title="Facebook",
+        text="Explore the things you love. Log in to Facebook Email address or mobile number",
+    )
+
+    result = sv.verify_page(wall, "facebook", CREATOR)
 
     assert result.verdict is sv.Verdict.UNKNOWN
 
@@ -99,7 +113,9 @@ def test_a_page_that_cannot_be_opened_is_unknown():
         def open(self, url, **kwargs):
             raise sv.PageUnavailable("boom")
 
-    result = sv.verify_candidate(BrokenSession(), "https://www.instagram.com/x", "instagram", CREATOR)
+    result = sv.verify_candidate(
+        BrokenSession(), "https://www.instagram.com/x", "instagram", CREATOR
+    )
 
     assert result.verdict is sv.Verdict.UNKNOWN
 
@@ -154,7 +170,7 @@ def test_the_verifier_picks_the_candidate_that_matches():
 
 def test_a_candidate_that_does_not_exist_is_dropped():
     session = _FakeSession(
-        {"https://www.instagram.com/mrbeast": _page("instagram_real")}
+        {"https://www.instagram.com/mrbeast/": _page("instagram_real")}
     )
 
     results = sv.verify_candidates(
@@ -163,7 +179,7 @@ def test_a_candidate_that_does_not_exist_is_dropped():
         {
             "instagram": [
                 "https://www.instagram.com/mrbeast_fan_99x",
-                "https://www.instagram.com/mrbeast",
+                "https://www.instagram.com/mrbeast/",
             ]
         },
     )
