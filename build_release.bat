@@ -164,20 +164,19 @@ echo.
 
 rem Inno Setup: a per-user install, or the machine-wide one. The paths are
 rem checked with GOTO rather than a chain of IFs, because "%ProgramFiles(x86)%"
-rem expands to a path with a bracket in it, which a batch IF cannot parse.
+rem expands to a path with a bracket in it - and a bracket inside a
+rem parenthesised block ends the block early, which broke the build.
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if exist "%ISCC%" goto :have_iscc
 set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if exist "%ISCC%" goto :have_iscc
 set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if exist "%ISCC%" goto :have_iscc
+echo [WARNING] Inno Setup was not found on this machine.
+echo           Skipping the installer. The portable build is complete.
+goto :done
 :have_iscc
 set "STAGING=release\staging\bin"
-
-if not exist "%ISCC%" (
-    echo Inno Setup not found at: %ISCC%
-    echo Skipping installer build. Portable build is complete.
-    goto :done
-)
 
 echo Staging ffmpeg.exe for installer...
 if not exist "%STAGING%" mkdir "%STAGING%"
