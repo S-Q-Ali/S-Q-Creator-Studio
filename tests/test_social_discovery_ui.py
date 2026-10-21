@@ -12,13 +12,13 @@ from s_q_ali_media_downloader.ui.social_discovery_page import SocialDiscoveryPag
 
 
 def _result(**kwargs) -> DiscoveryResult:
-    base = dict(
-        query="@MrBeast",
-        title="MrBeast",
-        handle="MrBeast",
-        url="https://www.youtube.com/@MrBeast",
-        subscribers=522_000_000,
-    )
+    base = {
+        "query": "@MrBeast",
+        "title": "MrBeast",
+        "handle": "MrBeast",
+        "url": "https://www.youtube.com/@MrBeast",
+        "subscribers": 522_000_000,
+    }
     base.update(kwargs)
     return DiscoveryResult(**base)
 
