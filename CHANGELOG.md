@@ -3,6 +3,70 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.6.0] — 2026-10-22
+
+### Removed
+
+- **Niche Research left the desktop app.** It was ported from the web tool
+  and brought a second design system, a second navigation and a second
+  brand lockup into an app with one job. The research package (9,352 lines)
+  and its eighteen test files are gone from the repository.
+
+  It could not simply be deleted: the Social Discovery feature reads the
+  Groq key from the research database, resolves channels through the
+  research YouTube client and exports through the research exporter. Those
+  three modules moved up into `core/` instead. The database file, the
+  table and the key names are unchanged, so a key entered before the move
+  still reads back — the sealing entropy must never change.
+
+### Added
+
+- **A Settings tab.** Every setting of the app is in one place now: the
+  Groq key, the YouTube key, the cookies file, the download preferences and
+  the layout preference. The desktop app had nowhere to enter the Groq key
+  once the research module left it.
+
+- **A compact layout.** The interface tightens itself below 1500×850, and
+  the Settings page lets the choice be made by hand. The same rules are
+  rendered from one token set, so the two densities cannot drift apart.
+
+### Fixed
+
+- **The interface was clipped on a small laptop.** At 1366×768 the AI
+  Finder cut its own controls in half ("50 chann", "Facebook Pag") and the
+  cookies row fell off the panel; at 1280×720 it was worse. The cause was
+  measured, not guessed: the window's minimum width was 1479px, so a 1366px
+  screen could not show the window at all and the layout was squeezed
+  instead. Seven controls in one row were the reason. The filters, the API
+  key and the cookies file now sit behind an Options disclosure, each group
+  on its own row, and the minimum width is 1110px.
+
+- **The active workspace tab was invisible.** Dark text on a dark
+  background, 1.02 to 1: the frame around the tabs set a bare
+  `background:` rule that reached the buttons and overrode their checked
+  background, while their checked text colour stayed dark. The user could
+  not tell which of the workspaces they were in.
+
+- **The left rail carried twelve controls** and a quarter of the width on a
+  small screen. It carries the input and one action now; the rest moved to
+  the Settings tab.
+
+- **Three rows of chrome became one.** The notice, the status line and the
+  footer were separate rows; they share one row now, and the social buttons
+  moved into the rail.
+
+- **Both result tables showed seven hundred pixels of nothing.** They show
+  an empty state now, with the action that fills them.
+
+- **The secondary text failed contrast.** `#5A5370` on the panel is 2.44
+  to 1; the muted tone is used for the text now.
+
+### Tests
+
+- `tests/test_ui_layout.py` renders the window at 1280×720, 1366×768,
+  1440×900 and 1680×1000 and fails if anything is clipped, if a control is
+  smaller than 24px, or if a stylesheet cascades onto the tabs.
+
 ## [2.5.1] — 2026-10-21
 
 ### Fixed

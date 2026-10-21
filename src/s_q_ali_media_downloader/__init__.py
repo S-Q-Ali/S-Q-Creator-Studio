@@ -1,4 +1,4 @@
-"""S-Q Creator Studio — a creator suite: bulk downloading, AI channel
-finding, and niche research in one desktop app."""
+"""S-Q Creator Studio — a creator suite: bulk downloading and finding a
+creator's accounts across the social platforms, in one desktop app."""
 
-__version__ = "2.5.1"
+__version__ = "2.6.0"
