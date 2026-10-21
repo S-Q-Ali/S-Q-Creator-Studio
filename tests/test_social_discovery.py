@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from s_q_ali_media_downloader.agent import social_discovery as sd
 from s_q_ali_media_downloader.agent.tools import social_judge as judge
 from s_q_ali_media_downloader.agent.tools import social_resolve as sr
@@ -80,7 +82,7 @@ def test_an_empty_bio_asks_the_agent(monkeypatch):
     )
 
     class FakeProposal:
-        candidates = {"facebook": ["MrBeast"]}
+        candidates: ClassVar[dict] = {"facebook": ["MrBeast"]}
         reason = "the model knows this creator"
 
     monkeypatch.setattr(
