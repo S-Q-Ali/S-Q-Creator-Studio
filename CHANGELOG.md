@@ -80,7 +80,10 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
   activity feed and working quick actions (it was a static intro card).
 - **Export** on every data page: CSV (Excel-ready), JSON (full data) and
   Markdown (report) for Niche Discovery, Scorecard, Competitors, Keyword
-  Research and AI Analysis.
+  Research and AI Analysis. Every group of a page survives the export — the
+  Competitors CSV and JSON used to keep one group of three. A cell whose
+  value starts with `=`, `+`, `-` or `@` is neutralised, so a channel title
+  cannot execute a formula when the export is opened in a spreadsheet.
 - **A cookies.txt setting** (Settings → YouTube cookies.txt). YouTube's bot
   check blocked the research pages; this is the escape hatch, and it now
   reaches every engine.
@@ -93,7 +96,11 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
   discovered channels with a 0-100 similarity score. It used to compare the
   channel with itself and report 100.
 - **An "AI only" filter** in Niche Discovery (the engine supported it, nothing
-  could switch it on) and the niche **competition / difficulty** badges.
+  could switch it on) and the niche **competition / difficulty** badges. The
+  filter now applies to the count as well, so the header does not claim more
+  channels than the grid shows.
+- The **niche filter** is usable at startup: with "All Formats" selected it
+  offers every niche instead of only "All Niches".
 - **Analysis progress** — the modal shows which provider is being tried, and
   a **Cancel** button stops the run before the next provider is called.
 - **The full analysis is stored, not just the strategy** — `analysis_json`
