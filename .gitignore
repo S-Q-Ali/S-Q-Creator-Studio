@@ -35,6 +35,11 @@ SESSION_NOTES.md
 new-session---*.json
 opencode.json
 
+# Local secrets — never commit an API key
+.env
+.env.*
+!.env.example
+
 # graphify knowledge graph (local-only artifacts)
 graphify-out/cost.json
 graphify-out/cache/
