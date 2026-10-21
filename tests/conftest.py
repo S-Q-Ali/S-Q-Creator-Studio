@@ -82,6 +82,25 @@ def _isolated_settings(qapp):
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _collect_while_the_app_is_alive(qapp):
+    """Collect the leftovers before the application is torn down.
+
+    The windows the tests opened are Python objects whose C++ side is
+    already gone. When the garbage collector reaches them after the
+    application has been destroyed, their destructors run against a dead
+    application and take the process down with a heap corruption - the run
+    would end with every test passed and a failure code, with no summary.
+
+    This fixture asks for ``qapp``, so it is finished before the
+    application is.
+    """
+    yield
+    import gc
+
+    gc.collect()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _real_fonts(qapp):
     """Give the offscreen platform a font database.
 
