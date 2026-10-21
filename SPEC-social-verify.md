@@ -19,6 +19,13 @@ same 590 KB shell, TikTok with the same 1.4 KB script shell, Facebook with
 | **Matches** | the page's display name, handle, follower count, and the links it lists (a Facebook page lists its website — often the YouTube channel) | the account belongs to this creator |
 | **Blocked** | a login wall, a CAPTCHA, a rate limit | we could not tell |
 
+The account's own page is the only reliable ownership signal. The channel
+page cannot help: on MrBeast's About page his own accounts and his
+sponsors' accounts sit in the same description element (verified
+2026-10-21). Rendered, they are unmistakable — Facebook shows the page
+name and its follower count, Instagram puts the handle in the title, and a
+profile that does not exist says so.
+
 ## Outcomes
 
 | Outcome | When | Shown as |

@@ -27,21 +27,28 @@ class ResolvedChannel:
     handle: str              # without the @, e.g. "mkbhd"
     url: str
     description: str         # the channel's own description, trimmed
-    bio_links: list[str]     # the URLs from the About page's links section
+    bio_links: list[str]     # the social links the page shows — candidates
     subscribers: int
     source: str              # "url" | "handle" | "search"
 ```
 
+**The page cannot say whose links they are.** On MrBeast's About page his own
+accounts (`facebook.com/MrBeast`, `instagram.com/mrbeast`) sit in the same
+description element as the sponsors he mentions (`johnpeelfitness`, a car
+dealership) — verified 2026-10-21. So every social link the page shows is a
+**candidate**; whether it belongs to the creator is the verifier's question,
+and it is answered by opening the account.
+
 ## Acceptance criteria
 
 1. A URL or handle resolves to a record with a non-empty `title` and `handle`.
-2. `bio_links` contains the About page's outbound links (the links section),
-   and the record's `description` matches what the page shows.
+2. `bio_links` holds the social links the About page shows, unwrapped from
+   YouTube's redirect and normalised to https.
 3. A name that matches several channels does not silently pick one: the user
    is shown the candidates and picks.
 4. A channel that cannot be opened produces a clear error, not an empty record.
-5. The rendered page is used, not the HTML shell: the test asserts the links
-   section is read, not just the `<title>`.
+5. The rendered page is used, not the HTML shell: the test asserts the
+   channel's name and handle are read from the rendered page.
 
 ## Boundaries
 
