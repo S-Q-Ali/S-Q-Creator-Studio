@@ -63,6 +63,24 @@ def _stop_workers_after_each_test():
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _isolated_settings(qapp, tmp_path_factory):
+    """Keep the tests out of the user's own settings.
+
+    On Windows the preferences live in the registry. Every test that opened
+    the window and closed it again wrote the test's own paths over the
+    user's real preferences - the download folder included. The settings
+    are pointed at a temporary folder instead, in a format that is not the
+    registry.
+    """
+    from PySide6.QtCore import QSettings
+
+    folder = str(tmp_path_factory.mktemp("settings"))
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    for scope in (QSettings.Scope.UserScope, QSettings.Scope.SystemScope):
+        QSettings.setPath(QSettings.Format.IniFormat, scope, folder)
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _real_fonts(qapp):
     """Give the offscreen platform a font database.
 

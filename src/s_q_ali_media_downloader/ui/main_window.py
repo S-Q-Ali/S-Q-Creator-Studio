@@ -51,7 +51,13 @@ from s_q_ali_media_downloader.engine import (
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
-from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, shield_pixmap
+from s_q_ali_media_downloader.ui.widgets import (
+    Chip,
+    ElidedLabel,
+    Job,
+    JobCard,
+    shield_pixmap,
+)
 
 ORG = "S-Q-Ali"
 VERSION = __version__
@@ -202,8 +208,9 @@ class MainWindow(QMainWindow):
 
         # Where the downloads land. One line, and it opens the folder - the
         # rest of the download settings live in the Settings page, where
-        # there is room to edit them.
-        self.folder_label = QLabel("")
+        # there is room to edit them. The path is shortened to fit, not
+        # cut off: a long path used to spill past the rail.
+        self.folder_label = ElidedLabel("")
         self.folder_label.setProperty("role", "hint")
         self.folder_label.setToolTip("Click to open the download folder")
         self.folder_label.setCursor(Qt.PointingHandCursor)

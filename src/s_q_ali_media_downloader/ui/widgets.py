@@ -1,7 +1,7 @@
 """Reusable widgets: queue cards, chips and small drawing helpers."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -15,6 +15,41 @@ from PySide6.QtWidgets import (
 
 from s_q_ali_media_downloader.engine import is_youtube_url
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
+
+
+class ElidedLabel(QLabel):
+    """A label that shortens its text instead of being cut off.
+
+    A file path in a narrow column does not fit: the label either clipped
+    it in the middle of a word or pushed the layout wider. This one
+    shortens the text to what fits and keeps the whole thing in the
+    tooltip.
+    """
+
+    def __init__(self, text: str = "", mode=Qt.TextElideMode.ElideMiddle, parent=None):
+        super().__init__(parent)
+        self._mode = mode
+        self._full = text
+        self.setMinimumWidth(40)
+        self.setToolTip(text)
+        self._elide()
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt's name
+        self._full = text or ""
+        self.setToolTip(self._full)
+        self._elide()
+
+    def fullText(self) -> str:  # noqa: N802 - Qt's name
+        return self._full
+
+    def resizeEvent(self, event):  # noqa: N802 - Qt's name
+        super().resizeEvent(event)
+        self._elide()
+
+    def _elide(self) -> None:
+        metrics = QFontMetrics(self.font())
+        width = max(40, self.width())
+        super().setText(metrics.elidedText(self._full, self._mode, width))
 
 
 def shorten(text, limit=95):
