@@ -36,6 +36,40 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
 - Closing the app left the research poller and its workers running.
 - The Niche Discovery niche filter was empty until the format filter was
   touched.
+- Two worker threads reaching the database at the same time both opened a
+  connection and ran the migrations twice — "duplicate column name" and
+  "database is locked". The connection is now opened under the lock.
+
+**Security**
+- **The YouTube cookie jar could be sent to any host the user pasted in.**
+  The research client attached the configured `cookies.txt` to every yt-dlp
+  request, and the channel lookup accepted any input *containing* the text
+  `youtube.com` — so `https://attacker.tld/?youtube.com` produced an outbound
+  request from the user's machine with their logged-in YouTube session
+  attached. The host is now matched exactly, and a non-YouTube target is
+  refused before any request is made.
+- **The Data API key was written to the log file in cleartext.** It travelled
+  as `?key=` in the query string, and httpx logs every request URL at INFO
+  into the rotating `app.log` that sits next to the user's data. The key now
+  travels in a header, the httpx logger is quietened, and a filter scrubs
+  key/token patterns from every log record.
+- **A key that could not be encrypted was stored in plain text** — and the
+  fallback could never run anyway, because `ctypes.WinError` is a function on
+  Python 3.14, so `except (OSError, ctypes.WinError)` raised `TypeError`
+  instead of catching. Sealing now fails closed: if Windows refuses to
+  protect the key, nothing is stored and the user is told.
+- **A database copied to another Windows account could not start the app.**
+  DPAPI is user-scoped, and the Settings page reads every key while the
+  window is being built; the unseal call was unguarded, so that one case
+  made the app fail to start with nothing but a traceback. The key is now
+  reported as "needs re-entering" instead.
+- **One click could buy several paid AI analyses.** The "Analyze this
+  channel" button was a local variable, so it was never disabled: every
+  click started another provider call while the first was still running.
+  The button is now disabled while the analysis runs, a second click is
+  ignored, and a **Cancel** button stops it — the analysis checks the flag
+  between providers, so a cancelled analysis never falls through to the next
+  paid call.
 
 **Added**
 - **Cross-page handoffs:** Niche Discovery → queue / Scorecard / Track / Open,
@@ -60,7 +94,15 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
   channel with itself and report 100.
 - **An "AI only" filter** in Niche Discovery (the engine supported it, nothing
   could switch it on) and the niche **competition / difficulty** badges.
-- **Analysis progress** — the modal shows which provider is being tried.
+- **Analysis progress** — the modal shows which provider is being tried, and
+  a **Cancel** button stops the run before the next provider is called.
+- **The full analysis is stored, not just the strategy** — `analysis_json`
+  now holds the strategy, the ideas, the scripts and the blueprint (rows
+  written by the previous release still read back correctly), and each script
+  is linked to the content idea it came from.
+- **The Data API path carries the same data as the yt-dlp path** — a tracked
+  video shows the channel title instead of the channel id, and a channel
+  lookup includes the newest uploads with their real view counts.
 
 **Polish**
 - The Competitors sparklines were flat lines for every series above 100

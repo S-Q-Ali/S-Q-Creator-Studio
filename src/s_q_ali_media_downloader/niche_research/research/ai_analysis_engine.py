@@ -443,17 +443,6 @@ def save_analysis(channel_id: str, analysis: ChannelAnalysis) -> None:
     )
 
 
-def asdict_strategy(strategy: Strategy) -> dict:
-    return {
-        "contentType": strategy.contentType,
-        "postingSchedule": strategy.postingSchedule,
-        "thumbnailStyle": strategy.thumbnailStyle,
-        "titleFormula": strategy.titleFormula,
-        "tagStrategy": strategy.tagStrategy,
-        "uniqueSellingPoints": strategy.uniqueSellingPoints,
-    }
-
-
 def get_analysis(channel_id: str) -> dict[str, Any]:
     strategy_row = db.get(
         "SELECT analysis_json FROM similar_channel_analysis "
