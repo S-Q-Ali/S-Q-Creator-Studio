@@ -148,9 +148,10 @@ class SocialDiscoveryPage(QWidget):
         self.btn_json.setMinimumHeight(40)
         self.btn_json.setEnabled(False)
         self.btn_json.clicked.connect(lambda: self._export("json"))
-        buttons.addWidget(self.btn_find, 1)
+        buttons.addWidget(self.btn_find, 0)
         buttons.addWidget(self.btn_cancel)
         buttons.addWidget(self.btn_export)
+        buttons.addStretch(1)
         buttons.addWidget(self.btn_json)
         layout.addLayout(buttons)
 

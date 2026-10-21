@@ -46,9 +46,10 @@ from s_q_ali_media_downloader.engine import (
 
 ORG = "S-Q-Ali"
 
-# The version of the stored preferences. Bumping it resets the preferences
-# to their defaults - used when the meaning of a stored value changes.
-SETTINGS_VERSION = "3"
+# The version of the stored preferences. It is bumped only when the meaning
+# of a stored value changes - the settings moved to this page, but the keys
+# and the values did not, so an existing user's choices are still there.
+SETTINGS_VERSION = "2.1"
 
 # The keys the app keeps in the sealed store rather than in QSettings.
 GROQ_KEY = "groq_api_key"
