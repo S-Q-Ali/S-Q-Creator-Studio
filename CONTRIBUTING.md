@@ -5,8 +5,8 @@ Thanks for helping out! This project is small but open to everyone. Here's how t
 ## Setup
 
 ```powershell
-git clone https://github.com/S-Q-Ali/Bulk-Video-Downloader.git
-cd Bulk-Video-Downloader
+git clone https://github.com/S-Q-Ali/S-Q-Creator-Studio.git
+cd S-Q-Creator-Studio
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements-dev.txt

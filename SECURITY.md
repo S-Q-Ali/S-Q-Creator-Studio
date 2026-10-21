@@ -6,7 +6,7 @@ Please report security issues privately instead of opening a public issue.
 
 Use GitHub's **private vulnerability reporting**:
 
-1. Go to https://github.com/S-Q-Ali/Bulk-Video-Downloader/security/advisories
+1. Go to https://github.com/S-Q-Ali/S-Q-Creator-Studio/security/advisories
 2. Click **New draft security advisory**
 3. Describe the issue, the affected version, and a minimal reproduction.
 

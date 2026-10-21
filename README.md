@@ -2,9 +2,9 @@
 
 Bulk-download **TikTok** and **YouTube** videos, discover cross-platform creators, and research niches — one queue-based desktop studio. Open source, free, and no activation keys — ever.
 
-[![Release](https://img.shields.io/github/v/release/S-Q-Ali/Bulk-Video-Downloader)](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases)
+[![Release](https://img.shields.io/github/v/release/S-Q-Ali/S-Q-Creator-Studio)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/S-Q-Ali/Bulk-Video-Downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/S-Q-Ali/Bulk-Video-Downloader/actions)
+[![CI](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions)
 
 ---
 
@@ -28,7 +28,7 @@ Bulk-download **TikTok** and **YouTube** videos, discover cross-platform creator
 
 ### Installer (recommended)
 
-Download `S-Q-Creator-Studio-Setup-2.4.2.exe` from the [latest release](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases).
+Download `S-Q-Creator-Studio-Setup-2.4.2.exe` from the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases).
 
 - Per-user install — **no administrator rights needed**.
 - Bundles `ffmpeg.exe`, so audio-only extraction and format merging work out of the box.
@@ -43,8 +43,8 @@ The release also ships a portable folder — just unzip and run `S-Q Creator Stu
 Requires Python 3.10+.
 
 ```powershell
-git clone https://github.com/S-Q-Ali/Bulk-Video-Downloader.git
-cd Bulk-Video-Downloader
+git clone https://github.com/S-Q-Ali/S-Q-Creator-Studio.git
+cd S-Q-Creator-Studio
 
 python -m venv .venv
 .\.venv\Scripts\activate
@@ -90,7 +90,7 @@ YouTube and TikTok links are handled separately: TikTok uses Chrome impersonatio
 
 - GitHub: https://github.com/S-Q-Ali
 - LinkedIn: https://linkedin.com/in/s-qasim-ali
-- Report a bug or request a feature: [Issues](https://github.com/S-Q-Ali/Bulk-Video-Downloader/issues)
+- Report a bug or request a feature: [Issues](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues)
 
 ## License
 
