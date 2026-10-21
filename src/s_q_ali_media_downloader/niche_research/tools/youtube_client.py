@@ -17,6 +17,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import yt_dlp
@@ -115,6 +116,34 @@ def parse_channel_id(url_or_id: str) -> str | None:
     return match.group(1) if match else None
 
 
+YOUTUBE_HOSTS = frozenset(
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+    }
+)
+
+
+def is_youtube_url(url: str) -> bool:
+    """True for a YouTube URL or a yt-dlp search pseudo-URL.
+
+    The host is compared exactly. A substring check would accept
+    ``https://attacker.tld/?youtube.com`` — and the request carries the
+    user's YouTube cookie jar.
+    """
+    text = (url or "").strip()
+    if text.lower().startswith("ytsearch"):
+        return True
+    try:
+        host = (urlparse(text).hostname or "").lower()
+    except ValueError:
+        return False
+    return host in YOUTUBE_HOSTS
+
+
 def _seconds_since(seconds: int) -> datetime:
     return datetime.now(timezone.utc) - timedelta(seconds=seconds)
 
@@ -143,7 +172,14 @@ def _base_opts(cookiefile: str | None = None, extra: dict | None = None) -> dict
 
 
 def _extract(url: str, opts: dict, attempts: int = 2) -> dict:
-    """Run yt-dlp extraction with retry and error normalization."""
+    """Run yt-dlp extraction with retry and error normalization.
+
+    Only YouTube URLs are extracted. ``opts`` may carry the user's
+    ``cookies.txt``, and that jar must never be handed to a host the user
+    typed in.
+    """
+    if not is_youtube_url(url):
+        raise ValueError(f"Refusing to fetch a non-YouTube URL: {url}")
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
@@ -613,6 +649,8 @@ def fetch_channel(
     ``uploads_with_stats=True`` to extract the newest ``stats_limit`` uploads
     with their real numbers.
     """
+    if channel_id.startswith("http") and not is_youtube_url(channel_id):
+        raise ValueError(f"Not a YouTube URL: {channel_id}")
     key = api_key or get_api_key()
     if key:
         with httpx.Client(timeout=20.0) as client:

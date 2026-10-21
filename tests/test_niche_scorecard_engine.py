@@ -435,3 +435,20 @@ def test_save_video_snapshot_idempotent(isolated_appdata):
     rows = db.all("SELECT * FROM video_snapshots WHERE video_id='vidX'")
     assert len(rows) == 2  # one snapshot per call, timestamp differs
     db.close_db()
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): a URL that merely mentions youtube.com is not YouTube
+# --------------------------------------------------------------------------- #
+def test_lookup_channel_rejects_a_url_that_merely_contains_youtube_com(monkeypatch):
+    """The channel lookup matched 'youtube.com' as a substring, so any pasted
+    host was fetched — with the user's cookie jar attached."""
+    from s_q_ali_media_downloader.niche_research.tools import youtube_client as yc
+
+    def boom(*args, **kwargs):  # pragma: no cover - must never run
+        raise AssertionError("yt-dlp was called for a non-YouTube URL")
+
+    monkeypatch.setattr(yc.yt_dlp, "YoutubeDL", boom)
+
+    with pytest.raises(ValueError):
+        se.lookup_channel("https://attacker.tld/?youtube.com")

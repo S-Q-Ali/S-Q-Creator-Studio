@@ -449,3 +449,47 @@ def test_base_opts_enable_js_runtimes():
     runtime is enabled (yt-dlp 2026.x defaults to deno-only)."""
     runtimes = yc._base_opts()["js_runtimes"]
     assert {"deno", "node", "bun", "quickjs"} <= set(runtimes)
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the cookie jar must never travel to a foreign host
+# --------------------------------------------------------------------------- #
+def test_is_youtube_url_matches_the_host_not_the_text():
+    """A substring check on 'youtube.com' accepts any host that mentions it."""
+    assert yc.is_youtube_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ") is True
+    assert yc.is_youtube_url("https://youtu.be/dQw4w9WgXcQ") is True
+    assert yc.is_youtube_url("https://www.youtube.com/@handle") is True
+    assert yc.is_youtube_url("ytsearch10:python") is True
+
+    assert yc.is_youtube_url("https://youtube.com.attacker.tld/watch?v=x") is False
+    assert yc.is_youtube_url("https://attacker.tld/?youtube.com") is False
+    assert yc.is_youtube_url("https://www.youtube.com.evil.tld/x") is False
+    assert yc.is_youtube_url("not a url") is False
+
+
+def test_extract_refuses_a_non_youtube_url_before_any_request(
+    isolated_appdata, tmp_path, monkeypatch
+):
+    """The configured cookies.txt holds a logged-in YouTube session — it must
+    never be sent to a host the user pasted in."""
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    db.set_setting("youtube_cookies_file", str(cookies))
+
+    def boom(*args, **kwargs):  # pragma: no cover - must never run
+        raise AssertionError("yt-dlp was called for a non-YouTube URL")
+
+    monkeypatch.setattr(yc.yt_dlp, "YoutubeDL", boom)
+
+    with pytest.raises(ValueError):
+        yc._extract("https://attacker.tld/?youtube.com", yc._base_opts())
+
+
+def test_fetch_channel_rejects_a_non_youtube_reference(monkeypatch):
+    def boom(*args, **kwargs):  # pragma: no cover - must never run
+        raise AssertionError("yt-dlp was called for a non-YouTube URL")
+
+    monkeypatch.setattr(yc.yt_dlp, "YoutubeDL", boom)
+
+    with pytest.raises(ValueError):
+        yc.fetch_channel("https://attacker.tld/?youtube.com")

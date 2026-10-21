@@ -20,6 +20,7 @@ from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
     VideoInfo,
     fetch_channel,
     fetch_video,
+    is_youtube_url,
     parse_channel_id,
     parse_video_id,
 )
@@ -675,8 +676,8 @@ def lookup_channel(
     url: str, *, cookiefile: str | None = None, focus_keyword: str = ""
 ) -> ChannelLookupResult:
     channel_id = parse_channel_id(url)
-    if not channel_id and (url.strip().startswith("@") or "youtube.com" in url.lower()):
-        # Bare id not found but this looks like a channel reference (handle URL etc.)
+    if not channel_id and (url.strip().startswith("@") or is_youtube_url(url)):
+        # Bare id not found but this is a channel reference (handle URL etc.)
         channel_id = url
     if not channel_id:
         raise ValueError("Could not parse a YouTube channel ID from that input")
