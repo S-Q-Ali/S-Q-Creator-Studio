@@ -1,5 +1,7 @@
 """Tests for the Niche Research SQLite persistence layer."""
 
+import sys
+
 import pytest
 
 from s_q_ali_media_downloader.niche_research.storage import db
@@ -42,6 +44,51 @@ def test_schema_creates_all_tables():
 def test_settings_roundtrip():
     db.set_setting("youtube_api_key", "AIzaSyABC")
     assert db.get_setting("youtube_api_key") == "AIzaSyABC"
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): a sealed key must never take the app down
+# --------------------------------------------------------------------------- #
+def test_get_setting_returns_none_when_a_sealed_key_cannot_be_decrypted(monkeypatch):
+    """DPAPI is user-scoped: a database copied to another account cannot be
+    decrypted. The Settings page reads every key while the window is being
+    built, so an unhandled error here stopped the app from starting."""
+    db.set_setting("groq_api_key", "gsk-secret")
+
+    def boom(value):
+        raise OSError("The data is invalid")
+
+    monkeypatch.setattr(db, "_unseal", boom)
+
+    assert db.get_setting("groq_api_key") is None
+
+
+def test_set_setting_refuses_to_store_a_secret_it_cannot_protect(monkeypatch):
+    """Falling back to plaintext would defeat the sealing, silently."""
+    if sys.platform != "win32":
+        pytest.skip("DPAPI is Windows-only")
+
+    def boom(data, protect):
+        raise OSError("The data is invalid")
+
+    monkeypatch.setattr(db, "_dpapi_protect", boom)
+
+    with pytest.raises(OSError):
+        db.set_setting("groq_api_key", "gsk-secret")
+
+    assert db.get("SELECT value FROM settings WHERE key = 'groq_api_key'") is None
+
+
+def test_secret_is_unreadable_reports_a_key_from_another_account(monkeypatch):
+    db.set_setting("groq_api_key", "gsk-secret")
+
+    def boom(value):
+        raise OSError("The data is invalid")
+
+    monkeypatch.setattr(db, "_unseal", boom)
+
+    assert db.secret_is_unreadable("groq_api_key") is True
+    assert db.secret_is_unreadable("openrouter_api_key") is False
 
 
 def test_settings_upsert():

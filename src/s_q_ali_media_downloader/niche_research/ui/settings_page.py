@@ -213,16 +213,35 @@ class SettingsPage(QWidget):
         self._status.setText("Cookie file cleared.")
 
     def _save(self) -> None:
-        for key, edit in self._keys.items():
-            db.set_setting(key, edit.text().strip())
-        db.set_setting("ai_primary_provider", self._default_provider.currentData() or "aihubmix")
-        db.set_setting("youtube_cookies_file", self._cookies_edit.text().strip())
-        db.set_setting(
-            "snapshot_interval_minutes",
-            str(self._interval_combo.currentData() or 60),
-        )
-        self._status.setText("Settings saved.")
+        try:
+            for key, edit in self._keys.items():
+                db.set_setting(key, edit.text().strip())
+            db.set_setting("ai_primary_provider", self._default_provider.currentData() or "aihubmix")
+            db.set_setting("youtube_cookies_file", self._cookies_edit.text().strip())
+            db.set_setting(
+                "snapshot_interval_minutes",
+                str(self._interval_combo.currentData() or 60),
+            )
+        except OSError as exc:
+            # Windows refused to encrypt the key: nothing was stored, and the
+            # user has to know why their key did not stick.
+            self._set_status(
+                f"Could not protect the API key on this machine: {exc}", error=True
+            )
+            return
         self.reload()
+        self._set_status("Settings saved.")
+
+    def _set_status(self, text: str, *, error: bool = False) -> None:
+        self._status.setText(text)
+        self._status.setObjectName("statusError" if error else "statusOk")
+        self._status.style().unpolish(self._status)
+        self._status.style().polish(self._status)
 
     def reload(self) -> None:
         self._status.clear()
+        if any(db.secret_is_unreadable(key) for key in self._keys):
+            self._set_status(
+                "Stored API keys cannot be decrypted on this account — please re-enter them.",
+                error=True,
+            )

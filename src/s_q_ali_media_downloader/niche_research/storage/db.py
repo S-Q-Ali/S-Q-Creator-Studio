@@ -48,7 +48,8 @@ def _dpapi_protect(data: bytes, protect: bool) -> bytes:
         len(_SEAL_ENTROPY), ctypes.cast(ent, ctypes.POINTER(ctypes.c_char))
     )
     out = _DATA_BLOB()
-    crypt32 = ctypes.windll.crypt32
+    # use_last_error: the error code has to come from the call that failed.
+    crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
     fn = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
     # CRYPTPROTECT_UI_FORBIDDEN (0x1): never prompt the user
     ok = fn(ctypes.byref(blob), None, ctypes.byref(entropy), None, None, 0x1, ctypes.byref(out))
@@ -63,9 +64,15 @@ def _seal(value: str) -> str:
     if sys.platform == "win32":
         try:
             sealed = _dpapi_protect(value.encode("utf-8"), protect=True)
-            return SEAL_PREFIX + base64.b64encode(sealed).decode("ascii")
-        except (OSError, ctypes.WinError):
-            return value
+        except OSError:
+            # Fail closed: storing the secret in plain text would defeat the
+            # sealing, and doing it silently would tell the user nothing.
+            logger.error(
+                "Windows refused to protect a secret setting — it was not stored. "
+                "The user profile may be damaged."
+            )
+            raise
+        return SEAL_PREFIX + base64.b64encode(sealed).decode("ascii")
     return value
 
 
@@ -385,8 +392,37 @@ def get_setting(key: str) -> str | None:
             except Exception:
                 logger.warning("Failed to seal legacy setting %s", key, exc_info=True)
             return value
-        return _unseal(value)
+        try:
+            return _unseal(value)
+        except Exception as exc:
+            # DPAPI is user-scoped: a database copied from another account
+            # cannot be decrypted. Returning None asks the user to re-enter
+            # the key; raising here would stop the app from starting.
+            logger.error("Stored secret %s cannot be decrypted on this account", key)
+            logger.debug("Decrypt failure for %s: %s", key, exc)
+            return None
     return value
+
+
+def secret_is_unreadable(key: str) -> bool:
+    """True when a sealed secret exists but cannot be decrypted on this account.
+
+    The Settings page uses this to ask for the key again instead of showing
+    an empty field with no explanation.
+    """
+    if not _is_secret_key(key):
+        return False
+    row = get("SELECT value FROM settings WHERE key = ?", (key,))
+    if row is None:
+        return False
+    value = row["value"]
+    if not value.startswith(SEAL_PREFIX):
+        return False
+    try:
+        _unseal(value)
+    except Exception:
+        return True
+    return False
 
 
 def now() -> int:
