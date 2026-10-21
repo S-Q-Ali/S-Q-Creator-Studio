@@ -73,14 +73,15 @@ echo.
 
 if exist "%PORTABLE%" (
     echo Removing old portable build...
-    rmdir /s /q "%PORTABLE%"
-    rem A running copy of the app - or a virus scanner - can still hold a lock
-    rem on the old DLLs. Retry a few times before giving up, and never let the
-    rem copy step prompt: a build that waits for an answer is a hung build.
-    for /l %%i in (1,1,5) do (
+    rem Read-only attributes make rmdir fail with "Access is denied", and a
+    rem running copy of the app - or a virus scanner - can hold a lock on the
+    rem old DLLs. Clear both, retry for a while, and never let the copy step
+    prompt: a build that waits for an answer is a hung build.
+    for /l %%i in (1,1,10) do (
         if exist "%PORTABLE%" (
-            ping -n 3 127.0.0.1 >nul
-            rmdir /s /q "%PORTABLE%" 2>nul
+            attrib -R "%PORTABLE%\*" /S /D >nul 2>nul
+            rmdir /s /q "%PORTABLE%" >nul 2>nul
+            if exist "%PORTABLE%" ping -n 3 127.0.0.1 >nul
         )
     )
     if exist "%PORTABLE%" (
