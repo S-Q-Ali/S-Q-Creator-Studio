@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -13,6 +14,31 @@ from PySide6.QtWidgets import QApplication
 from s_q_ali_media_downloader.engine import APP_NAME
 from s_q_ali_media_downloader.theme import STYLESHEET
 from s_q_ali_media_downloader.ui.main_window import ORG, MainWindow, resource
+
+_SECRET_RE = re.compile(
+    r"(?i)\b(api[_-]?key|key|token|access[_-]?token|secret|password)=([^&\s\"']+)"
+)
+
+
+class RedactSecrets(logging.Filter):
+    """Strip API keys and tokens out of log messages.
+
+    The log file sits next to the user's data and is what people attach to
+    bug reports, so a credential must never reach it — not even inside a
+    request URL that a third-party library logged on our behalf.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = _SECRET_RE.sub(r"\1=***", record.msg)
+        if isinstance(record.args, tuple):
+            record.args = tuple(
+                _SECRET_RE.sub(r"\1=***", arg) if isinstance(arg, str) else arg
+                for arg in record.args
+            )
+        elif isinstance(record.args, str):
+            record.args = _SECRET_RE.sub(r"\1=***", record.args)
+        return True
 
 
 def setup_logging() -> None:
@@ -31,12 +57,17 @@ def setup_logging() -> None:
         file_handler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
         )
+        file_handler.addFilter(RedactSecrets())
         root = logging.getLogger()
         root.setLevel(logging.INFO)
         root.addHandler(file_handler)
+        # httpx logs every request URL at INFO — that is where a key in a
+        # query string would have ended up on disk.
+        logging.getLogger("httpx").setLevel(logging.WARNING)
         if not getattr(sys, "frozen", False):
             console = logging.StreamHandler()
             console.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+            console.addFilter(RedactSecrets())
             root.addHandler(console)
     except OSError:
         pass  # logging must never take the app down

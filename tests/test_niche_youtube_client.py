@@ -493,3 +493,43 @@ def test_fetch_channel_rejects_a_non_youtube_reference(monkeypatch):
 
     with pytest.raises(ValueError):
         yc.fetch_channel("https://attacker.tld/?youtube.com")
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the API key must not ride in the query string
+# --------------------------------------------------------------------------- #
+def test_api_key_travels_in_a_header_not_the_query_string(monkeypatch):
+    """httpx logs every request URL at INFO and the app log is a rotating file
+    next to the user's data — a key in ?key= ended up in cleartext there."""
+    calls: list[dict] = []
+
+    class FakeResponse:
+        status_code = 200
+        text = "{}"
+
+        def json(self):
+            return {"items": []}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def get(self, url, params=None, headers=None):
+            calls.append({"url": url, "params": params or {}, "headers": headers or {}})
+            return FakeResponse()
+
+    monkeypatch.setattr(yc.httpx, "Client", FakeClient)
+
+    yc._search_via_api("cats", 5, None, api_key="AIzaSECRET")
+
+    assert calls, "no API request was made"
+    for call in calls:
+        assert "AIzaSECRET" not in call["url"]
+        assert "key" not in call["params"]
+        assert call["headers"].get("X-Goog-Api-Key") == "AIzaSECRET"

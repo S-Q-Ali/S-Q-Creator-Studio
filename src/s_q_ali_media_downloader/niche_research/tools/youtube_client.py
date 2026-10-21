@@ -29,6 +29,16 @@ from s_q_ali_media_downloader.niche_research.storage import db
 logger = logging.getLogger(__name__)
 
 YT_BASE = "https://www.googleapis.com/youtube/v3"
+
+
+def _api_headers(key: str) -> dict[str, str]:
+    """Send the YouTube Data API key in a header.
+
+    A key in the query string is part of the request URL: it shows up in
+    every proxy log and in the httpx request log, which this app writes to
+    disk next to the user's data.
+    """
+    return {"X-Goog-Api-Key": key}
 VIDEO_ID_RE = re.compile(r"(?:v=|/shorts/|/v/|/embed/|youtu\.be/)([A-Za-z0-9_-]{11})")
 CHANNEL_ID_RE = re.compile(r"(?:/channel/|channel_id=)(UC[A-Za-z0-9_-]{22})")
 
@@ -395,7 +405,6 @@ def _search_via_api(
         _seconds_since(days_recent * 86400).strftime("%Y-%m-%dT%H:%M:%SZ") if days_recent else None
     )
     params: dict[str, Any] = {
-        "key": key,
         "part": "snippet",
         "type": "video",
         "q": query,
@@ -406,7 +415,7 @@ def _search_via_api(
         params["publishedAfter"] = published_after
     search_results = []
     with httpx.Client(timeout=20.0) as client:
-        resp = client.get(f"{YT_BASE}/search", params=params)
+        resp = client.get(f"{YT_BASE}/search", params=params, headers=_api_headers(key))
         if resp.status_code in (403, 429):
             raise RateLimitError(resp.json().get("error", {}).get("message", resp.text))
         if resp.status_code != 200:
@@ -437,10 +446,10 @@ def _fetch_videos_via_api(client: httpx.Client, video_ids: list[str], key: str) 
         resp = client.get(
             f"{YT_BASE}/videos",
             params={
-                "key": key,
                 "part": "snippet,contentDetails,statistics",
                 "id": ",".join(chunk),
             },
+            headers=_api_headers(key),
         )
         if resp.status_code != 200:
             continue
@@ -477,10 +486,10 @@ def _fetch_channels_via_api(
         resp = client.get(
             f"{YT_BASE}/channels",
             params={
-                "key": key,
                 "part": "snippet,statistics",
                 "id": ",".join(chunk),
             },
+            headers=_api_headers(key),
         )
         if resp.status_code != 200:
             continue
