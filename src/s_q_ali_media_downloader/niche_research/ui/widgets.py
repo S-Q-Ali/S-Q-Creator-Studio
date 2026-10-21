@@ -128,9 +128,12 @@ class ThumbLoader(QObject):
 
     A single daemon thread consumes a small request queue and drops results into
     a results queue; a QTimer on the GUI thread drains that queue and emits
-    ``finished`` — every Qt object is only ever touched on the GUI thread, so the
-    loader is safe to abandon at interpreter shutdown (no cross-thread signals,
-    no owned QThreads).
+    ``finished`` — every Qt object is only ever touched on the GUI thread.
+
+    The thread has to be stopped before the process goes away: a daemon
+    thread that is inside a socket read when the interpreter tears the
+    modules down crashes the process with a native access violation. Call
+    ``shutdown()`` when the app closes.
     """
 
     finished = Signal(str, object)  # url -> bytes | None
@@ -139,27 +142,50 @@ class ThumbLoader(QObject):
         super().__init__(parent)
         self._requests: queue.Queue = queue.Queue()
         self._results: queue.Queue = queue.Queue()
+        self._stop = threading.Event()
         self._timer = QTimer(self)
         self._timer.setInterval(150)
         self._timer.timeout.connect(self._drain)
         self._timer.start()
-        worker = threading.Thread(target=self._run, daemon=True)
-        worker.start()
+        self._worker = threading.Thread(target=self._run, daemon=True)
+        self._worker.start()
 
     def start(self, url: str) -> None:
-        if url:
+        if url and not self._stop.is_set():
             self._requests.put(url)
 
     def _run(self) -> None:
-        while True:
-            url = self._requests.get()
+        while not self._stop.is_set():
+            try:
+                url = self._requests.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if url is None:  # shutdown sentinel
+                break
+            if self._stop.is_set():
+                break
             data = _fetch_image_bytes(url)
+            if self._stop.is_set():
+                break
             self._results.put((url, data))
 
     def _drain(self) -> None:
         while not self._results.empty():
             url, data = self._results.get_nowait()
             self.finished.emit(url, data)
+
+    def shutdown(self, timeout: float = 10.0) -> None:
+        """Stop the fetch thread and wait for it to leave the request.
+
+        The join is bounded by the request timeout, so the app never hangs
+        on a slow thumbnail host.
+        """
+        if self._stop.is_set():
+            return
+        self._stop.set()
+        self._requests.put(None)
+        self._timer.stop()
+        self._worker.join(timeout=timeout)
 
 
 _loader_singleton: ThumbLoader | None = None
@@ -170,6 +196,16 @@ def thumb_loader() -> ThumbLoader:
     if _loader_singleton is None:
         _loader_singleton = ThumbLoader()
     return _loader_singleton
+
+
+def shutdown_thumb_loader(timeout: float = 10.0) -> None:
+    """Stop the thumbnail loader, if one was ever created."""
+    global _loader_singleton
+    if _loader_singleton is not None:
+        try:
+            _loader_singleton.shutdown(timeout=timeout)
+        finally:
+            _loader_singleton = None
 
 
 # --------------------------------------------------------------------------- #

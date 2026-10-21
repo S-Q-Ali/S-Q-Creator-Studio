@@ -98,3 +98,32 @@ def test_loader_delivers_bytes_async(qapp, monkeypatch, isolated_appdata):
 
     assert received.get("url") == PNG_URL
     assert received.get("data") is not None
+    loader.shutdown()
+
+
+def test_the_loader_can_be_stopped(qapp):
+    """Regression: the loader fetches in a daemon thread. A request that is
+    still in flight when the interpreter tears the modules down crashes the
+    process with a native access violation in the SSL layer — so the loader
+    has to be stoppable and the app has to stop it when it closes."""
+    loader = w.ThumbLoader()
+    loader.start(PNG_URL)
+
+    loader.shutdown(timeout=5.0)
+
+    assert loader._stop.is_set()
+    assert not loader._worker.is_alive()
+
+
+def test_the_shared_loader_is_released_on_shutdown(qapp):
+    """shutdown_thumb_loader() drops the singleton, so a later call builds a
+    fresh loader instead of handing out a stopped one."""
+    loader = w.thumb_loader()
+    assert loader is w.thumb_loader()
+
+    w.shutdown_thumb_loader(timeout=5.0)
+
+    assert w._loader_singleton is None
+    fresh = w.thumb_loader()
+    assert fresh is not loader
+    w.shutdown_thumb_loader(timeout=5.0)

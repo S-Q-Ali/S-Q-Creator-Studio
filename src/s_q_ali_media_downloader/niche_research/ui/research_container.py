@@ -420,7 +420,8 @@ class ResearchContainer(QWidget):
         """Stop the poller and every page worker.
 
         Called when the app closes: a QThread that is destroyed while it is
-        still running aborts the whole process.
+        still running aborts the whole process, and so does the thumbnail
+        loader's fetch thread if it is still inside a request.
         """
         self.stop_poller()
         for page in (
@@ -434,3 +435,4 @@ class ResearchContainer(QWidget):
                 stop()
         if self._analysis_modal is not None:
             self._analysis_modal.reject()
+        w.shutdown_thumb_loader()
