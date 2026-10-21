@@ -31,9 +31,11 @@ from s_q_ali_media_downloader.agent.schema import (
     TikTokSearchResult,
 )
 from s_q_ali_media_downloader.theme import C
+from s_q_ali_media_downloader.ui.social_discovery_page import SocialDiscoveryPage
 
 MODE_YOUTUBE = "YouTube → Socials (FB/IG/TikTok)"
 MODE_TIKTOK = "TikTok → YouTube (Creators Without YT)"
+MODE_SOCIAL = "🔎 Social Discovery (URL / @handle / name)"
 
 
 class AgentWorkerThread(QThread):
@@ -137,12 +139,21 @@ class AgentTabWidget(QWidget):
         lbl_mode = QLabel("Discovery Mode:")
         lbl_mode.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK])
+        self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK, MODE_SOCIAL])
         self.mode_combo.setMinimumHeight(34)
         self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
         row0.addWidget(lbl_mode)
         row0.addWidget(self.mode_combo, 1)
         controls_layout.addLayout(row0)
+
+        # The search controls live in their own panel: the Social Discovery
+        # mode has its own input, and the mode combo has to stay visible so
+        # the user can switch back.
+        self.search_panel = QWidget()
+        search_layout = QVBoxLayout(self.search_panel)
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(12)
+        controls_layout.addWidget(self.search_panel)
 
         # Row 1: Query Input + Search Button
         row1 = QHBoxLayout()
@@ -163,7 +174,7 @@ class AgentTabWidget(QWidget):
 
         row1.addWidget(self.query_edit, 4)
         row1.addWidget(self.btn_search, 1)
-        controls_layout.addLayout(row1)
+        search_layout.addLayout(row1)
 
         # Row 2: Filters & Options
         row2 = QHBoxLayout()
@@ -208,7 +219,7 @@ class AgentTabWidget(QWidget):
         row2.addWidget(self.chk_no_youtube)
 
         row2.addStretch()
-        controls_layout.addLayout(row2)
+        search_layout.addLayout(row2)
 
         # Row 3: Optional YouTube API Key
         row3 = QHBoxLayout()
@@ -222,7 +233,7 @@ class AgentTabWidget(QWidget):
 
         row3.addWidget(lbl_key)
         row3.addWidget(self.api_key_edit)
-        controls_layout.addLayout(row3)
+        search_layout.addLayout(row3)
 
         # Row 4: TikTok cookies file (optional, TikTok mode only)
         row4 = QHBoxLayout()
@@ -240,7 +251,7 @@ class AgentTabWidget(QWidget):
         # YouTube mode is the default — cookies row only shows in TikTok mode.
         self.cookies_edit.setVisible(False)
         self.btn_browse_cookies.setVisible(False)
-        controls_layout.addLayout(row4)
+        search_layout.addLayout(row4)
 
         main_layout.addWidget(controls_frame)
 
@@ -277,6 +288,11 @@ class AgentTabWidget(QWidget):
 
         main_layout.addWidget(self.table, 1)
 
+        # 3b. The Social Discovery page — its own mode, its own controls.
+        self.social_page = SocialDiscoveryPage()
+        self.social_page.setVisible(False)
+        main_layout.addWidget(self.social_page, 1)
+
         # 4. Footer Actions Bar
         footer_layout = QHBoxLayout()
         footer_layout.setSpacing(10)
@@ -307,7 +323,36 @@ class AgentTabWidget(QWidget):
 
         main_layout.addLayout(footer_layout)
 
+        # The footer's buttons are put away in the Social Discovery mode.
+        self._footer_buttons = [
+            self.btn_copy_fb,
+            self.btn_copy_ig,
+            self.btn_copy_tiktok,
+            self.btn_export_csv,
+            self.btn_export_json,
+            self.btn_send_queue,
+        ]
+
     def _on_mode_changed(self, mode: str):
+        if mode == MODE_SOCIAL:
+            # Social Discovery has its own input, its own table and its own
+            # export. Everything the other two modes use is put away.
+            self.search_panel.setVisible(False)
+            self.table.setVisible(False)
+            self.progress_bar.setVisible(False)
+            self.lbl_status.setVisible(False)
+            for button in self._footer_buttons:
+                button.setVisible(False)
+            self.social_page.setVisible(True)
+            return
+
+        self.social_page.setVisible(False)
+        self.search_panel.setVisible(True)
+        self.table.setVisible(True)
+        self.lbl_status.setVisible(True)
+        for button in self._footer_buttons:
+            button.setVisible(True)
+
         self._setup_table_columns(mode)
         is_tiktok_mode = mode == MODE_TIKTOK
         self.chk_no_socials.setVisible(not is_tiktok_mode)
