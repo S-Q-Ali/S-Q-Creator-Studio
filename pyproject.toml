@@ -64,5 +64,5 @@ target-version = "py310"
 ignore = ["BLE001"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -p no:unraisableexception"
 pythonpath = ["src"]

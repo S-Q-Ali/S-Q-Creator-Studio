@@ -9,6 +9,31 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
+@pytest.fixture(autouse=True)
+def _delete_the_leftovers(qapp):
+    """Delete the widgets a test left behind, while they are still whole.
+
+    A widget that is deleted with ``deleteLater`` has its C++ object gone
+    before its Python wrapper is collected. The wrapper then frees it a
+    second time, and the heap is corrupted - the run ends with every test
+    passed, a failure code and no summary.
+
+    Deleting them here, while the wrappers are still alive, keeps the two
+    in step.
+    """
+    yield
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    for widget in app.topLevelWidgets():
+        widget.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+
 def _running_qthreads() -> list:
     """The QThread objects that are still running.
 
@@ -79,25 +104,6 @@ def _isolated_settings(qapp):
     """
     folder = tempfile.mkdtemp(prefix="sqali_settings_")
     os.environ["SQ_SETTINGS_FILE"] = os.path.join(folder, "settings.ini")
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _collect_while_the_app_is_alive(qapp):
-    """Collect the leftovers before the application is torn down.
-
-    The windows the tests opened are Python objects whose C++ side is
-    already gone. When the garbage collector reaches them after the
-    application has been destroyed, their destructors run against a dead
-    application and take the process down with a heap corruption - the run
-    would end with every test passed and a failure code, with no summary.
-
-    This fixture asks for ``qapp``, so it is finished before the
-    application is.
-    """
-    yield
-    import gc
-
-    gc.collect()
 
 
 @pytest.fixture(scope="session", autouse=True)
