@@ -13,7 +13,7 @@ import json
 import logging
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import httpx
@@ -73,6 +73,7 @@ class ContentIdea:
 @dataclass
 class Script:
     title: str = ""
+    ideaTitle: str = ""
     hook: str = ""
     intro: str = ""
     bodySections: list[str] = field(default_factory=list)
@@ -162,7 +163,7 @@ def _strip_thinking(content: str) -> str:
     return content
 
 
-JSON_TEMPLATE = """{"strategy":{"contentType":["types"],"postingSchedule":"freq","thumbnailStyle":"style","titleFormula":"formula","tagStrategy":["tags"],"uniqueSellingPoints":["points"]},"contentIdeas":[{"title":"title","description":"desc","contentType":"video","estimatedViews":"high","difficulty":"medium"}],"scripts":[{"title":"title","hook":"hook","intro":"intro","bodySections":["s1"],"outro":"outro","estimatedDuration":600}],"growthBlueprint":{"30day":{"goals":["g"],"actions":["a"],"metrics":["m"]},"60day":{"goals":["g"],"actions":["a"],"metrics":["m"]},"90day":{"goals":["g"],"actions":["a"],"metrics":["m"]}}}"""
+JSON_TEMPLATE = """{"strategy":{"contentType":["types"],"postingSchedule":"freq","thumbnailStyle":"style","titleFormula":"formula","tagStrategy":["tags"],"uniqueSellingPoints":["points"]},"contentIdeas":[{"title":"title","description":"desc","contentType":"video","estimatedViews":"high","difficulty":"medium"}],"scripts":[{"title":"title","ideaTitle":"the content idea this script belongs to","hook":"hook","intro":"intro","bodySections":["s1"],"outro":"outro","estimatedDuration":600}],"growthBlueprint":{"30day":{"goals":["g"],"actions":["a"],"metrics":["m"]},"60day":{"goals":["g"],"actions":["a"],"metrics":["m"]},"90day":{"goals":["g"],"actions":["a"],"metrics":["m"]}}}"""
 
 
 def build_analysis_prompt(channel: ChannelInfo, videos: list[VideoInfo]) -> str:
@@ -297,6 +298,7 @@ def parse_analysis_response(text: str) -> ChannelAnalysis:
         scripts.append(
             Script(
                 title=str(script.get("title") or "Untitled Script"),
+                ideaTitle=str(script.get("ideaTitle") or ""),
                 hook=str(script.get("hook") or ""),
                 intro=str(script.get("intro") or ""),
                 bodySections=[
@@ -384,8 +386,9 @@ def save_analysis(channel_id: str, analysis: ChannelAnalysis) -> None:
     db.run("DELETE FROM channel_scripts WHERE channel_id = ?", (channel_id,))
     db.run("DELETE FROM channel_growth_blueprints WHERE channel_id = ?", (channel_id,))
 
+    idea_ids: dict[str, int] = {}
     for idea in analysis.contentIdeas:
-        db.run(
+        cursor = db.run(
             "INSERT INTO channel_content_ideas (channel_id, idea_title, idea_description, "
             "content_type, estimated_views, difficulty, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
@@ -398,10 +401,11 @@ def save_analysis(channel_id: str, analysis: ChannelAnalysis) -> None:
                 now,
             ),
         )
+        idea_ids[idea.title.strip().lower()] = cursor.lastrowid
     for script in analysis.scripts:
         db.run(
             "INSERT INTO channel_scripts (channel_id, script_title, hook, intro, body_sections, "
-            "outro, estimated_duration, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "outro, estimated_duration, idea_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 channel_id,
                 script.title,
@@ -410,6 +414,7 @@ def save_analysis(channel_id: str, analysis: ChannelAnalysis) -> None:
                 json.dumps(script.bodySections),
                 script.outro,
                 script.estimatedDuration,
+                idea_ids.get(script.ideaTitle.strip().lower()),
                 now,
             ),
         )
@@ -434,7 +439,7 @@ def save_analysis(channel_id: str, analysis: ChannelAnalysis) -> None:
     db.run(
         "INSERT OR REPLACE INTO similar_channel_analysis (source_channel_id, target_channel_id, "
         "similarity_score, analysis_json, created_at) VALUES (?, ?, ?, ?, ?)",
-        (channel_id, channel_id, 100, json.dumps(asdict_strategy(analysis.strategy)), now),
+        (channel_id, channel_id, 100, json.dumps(asdict(analysis), default=str), now),
     )
 
 
@@ -495,8 +500,15 @@ def get_analysis(channel_id: str) -> dict[str, Any]:
                 "actions": json.loads(row["actions"] or "[]"),
                 "metrics": json.loads(row["metrics"] or "[]"),
             }
+    stored: Any = json.loads(strategy_row["analysis_json"]) if strategy_row else None
+    if isinstance(stored, dict) and "strategy" in stored:
+        # The whole analysis is stored: strategy, ideas, scripts, blueprint.
+        strategy = stored.get("strategy")
+    else:
+        # Legacy row: the strategy was stored on its own.
+        strategy = stored
     return {
-        "strategy": json.loads(strategy_row["analysis_json"]) if strategy_row else None,
+        "strategy": strategy,
         "contentIdeas": ideas,
         "scripts": scripts,
         "growthBlueprint": blueprint,

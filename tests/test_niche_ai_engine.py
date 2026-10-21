@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
@@ -409,3 +411,95 @@ def test_analyze_channel_stops_before_calling_a_provider_when_cancelled(monkeypa
         ai.analyze_channel("UCx", cancel=lambda: True)
 
     assert calls == []
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the whole analysis has to be stored, not just the plan
+# --------------------------------------------------------------------------- #
+def test_the_full_analysis_is_stored_not_just_the_strategy(isolated_appdata):
+    """analysis_json held only the strategy, so the stored analysis could
+    never be read back as a whole."""
+    analysis = ai.parse_analysis_response(SAMPLE_JSON)
+    ai.save_analysis("UCx", analysis)
+
+    row = db.get(
+        "SELECT analysis_json FROM similar_channel_analysis WHERE source_channel_id = 'UCx'"
+    )
+    stored = json.loads(row["analysis_json"])
+
+    assert stored["strategy"]["contentType"] == analysis.strategy.contentType
+    assert len(stored["contentIdeas"]) == len(analysis.contentIdeas)
+    assert len(stored["scripts"]) == len(analysis.scripts)
+    assert "growthBlueprint" in stored
+
+
+def test_get_analysis_reads_the_stored_analysis_back(isolated_appdata):
+    analysis = ai.parse_analysis_response(SAMPLE_JSON)
+    ai.save_analysis("UCx", analysis)
+
+    result = ai.get_analysis("UCx")
+
+    assert result["strategy"]["contentType"] == analysis.strategy.contentType
+    assert len(result["contentIdeas"]) == len(analysis.contentIdeas)
+    assert len(result["scripts"]) == len(analysis.scripts)
+
+
+def test_get_analysis_still_reads_a_legacy_strategy_only_row(isolated_appdata):
+    """Rows written by the previous release hold the strategy on its own."""
+    db.run(
+        "INSERT OR REPLACE INTO similar_channel_analysis "
+        "(source_channel_id, target_channel_id, similarity_score, analysis_json, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("UCx", "UCx", 100, json.dumps({"contentType": ["educational"]}), db.now()),
+    )
+
+    result = ai.get_analysis("UCx")
+
+    assert result["strategy"] == {"contentType": ["educational"]}
+
+
+def test_scripts_are_linked_to_the_idea_they_came_from(isolated_appdata):
+    """channel_scripts.idea_id existed in the schema but was never written."""
+    payload = json.dumps(
+        {
+            "strategy": {"contentType": ["educational"]},
+            "contentIdeas": [
+                {"title": "Best AI tools", "description": "Roundup", "contentType": "video"},
+                {"title": "Quick tip", "description": "Short", "contentType": "short"},
+            ],
+            "scripts": [
+                {
+                    "title": "Best AI tools",
+                    "ideaTitle": "Best AI tools",
+                    "hook": "Stop wasting money",
+                    "intro": "In this video...",
+                    "bodySections": ["Section one"],
+                    "outro": "Thanks",
+                    "estimatedDuration": 600,
+                }
+            ],
+            "growthBlueprint": {},
+        }
+    )
+    analysis = ai.parse_analysis_response(payload)
+    ai.save_analysis("UCx", analysis)
+
+    script = db.get("SELECT idea_id FROM channel_scripts WHERE channel_id = 'UCx'")
+    idea = db.get(
+        "SELECT id FROM channel_content_ideas WHERE channel_id = 'UCx' AND idea_title = ?",
+        ("Best AI tools",),
+    )
+
+    assert idea is not None
+    assert script["idea_id"] == idea["id"]
+
+
+def test_a_script_without_an_idea_link_is_still_saved(isolated_appdata):
+    """The model does not always name the idea — the script must survive."""
+    analysis = ai.parse_analysis_response(SAMPLE_JSON)
+    ai.save_analysis("UCx", analysis)
+
+    script = db.get("SELECT idea_id FROM channel_scripts WHERE channel_id = 'UCx'")
+
+    assert script is not None
+    assert script["idea_id"] is None

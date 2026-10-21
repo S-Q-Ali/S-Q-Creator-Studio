@@ -533,3 +533,114 @@ def test_api_key_travels_in_a_header_not_the_query_string(monkeypatch):
         assert "AIzaSECRET" not in call["url"]
         assert "key" not in call["params"]
         assert call["headers"].get("X-Goog-Api-Key") == "AIzaSECRET"
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the Data API path has to carry the same data as yt-dlp
+# --------------------------------------------------------------------------- #
+class _ApiResponse:
+    def __init__(self, payload):
+        self.status_code = 200
+        self.text = "{}"
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class _ApiClient:
+    """A Data API client that answers the three calls the client makes."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def get(self, url, params=None, headers=None):
+        if url.endswith("/channels"):
+            return _ApiResponse(
+                {
+                    "items": [
+                        {
+                            "id": "UCx",
+                            "snippet": {
+                                "title": "Chan",
+                                "description": "d",
+                                "customUrl": "@chan",
+                                "publishedAt": "2020-01-01T00:00:00Z",
+                            },
+                            "statistics": {
+                                "subscriberCount": "100",
+                                "videoCount": "2",
+                                "viewCount": "500",
+                            },
+                            "contentDetails": {"relatedPlaylists": {"uploads": "UUx"}},
+                        }
+                    ]
+                }
+            )
+        if url.endswith("/playlistItems"):
+            return _ApiResponse(
+                {
+                    "items": [
+                        {"contentDetails": {"videoId": "v1"}},
+                        {"contentDetails": {"videoId": "v2"}},
+                    ]
+                }
+            )
+        if url.endswith("/videos"):
+            return _ApiResponse(
+                {
+                    "items": [
+                        {
+                            "id": "v1",
+                            "snippet": {
+                                "title": "One",
+                                "channelId": "UCx",
+                                "channelTitle": "Chan",
+                                "publishedAt": "2026-01-02T00:00:00Z",
+                            },
+                            "statistics": {"viewCount": "11", "likeCount": "1"},
+                        },
+                        {
+                            "id": "v2",
+                            "snippet": {
+                                "title": "Two",
+                                "channelId": "UCx",
+                                "channelTitle": "Chan",
+                                "publishedAt": "2026-01-01T00:00:00Z",
+                            },
+                            "statistics": {"viewCount": "22", "likeCount": "2"},
+                        },
+                    ]
+                }
+            )
+        return _ApiResponse({"items": []})
+
+
+def test_api_channel_fetch_includes_the_uploads_with_their_view_counts(monkeypatch):
+    """With a Data API key the scorecard showed "No uploads fetched" and the
+    AI prompt got no videos at all."""
+    monkeypatch.setattr(yc.httpx, "Client", _ApiClient)
+    db.set_setting("youtube_api_key", "AIzaTEST")
+
+    info = yc.fetch_channel("UCx", uploads_with_stats=True)
+
+    assert [u["video_id"] for u in info.uploads] == ["v1", "v2"]
+    assert info.uploads[0]["view_count"] == 11
+    assert info.uploads[0]["title"] == "One"
+
+
+def test_api_video_fetch_carries_the_channel_title(monkeypatch):
+    """A tracked video fell back to the channel id because the API path
+    never read snippet.channelTitle."""
+    monkeypatch.setattr(yc.httpx, "Client", _ApiClient)
+
+    with yc.httpx.Client(timeout=20.0) as client:
+        videos = yc._fetch_videos_via_api(client, ["v1"], "AIzaTEST")
+
+    assert videos[0].channel_title == "Chan"

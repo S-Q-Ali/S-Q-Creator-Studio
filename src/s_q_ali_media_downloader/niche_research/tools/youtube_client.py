@@ -462,6 +462,7 @@ def _fetch_videos_via_api(client: httpx.Client, video_ids: list[str], key: str) 
                 VideoInfo(
                     video_id=item["id"],
                     channel_id=snippet.get("channelId", ""),
+                    channel_title=snippet.get("channelTitle", ""),
                     title=snippet.get("title", ""),
                     description=snippet.get("description", ""),
                     published_at=snippet.get("publishedAt", ""),
@@ -478,15 +479,59 @@ def _fetch_videos_via_api(client: httpx.Client, video_ids: list[str], key: str) 
     return videos
 
 
+def _fetch_channel_uploads_via_api(
+    client: httpx.Client, uploads_playlist_id: str, key: str, limit: int
+) -> list[dict[str, Any]]:
+    """Fetch a channel's newest uploads through the Data API.
+
+    The uploads live in the channel's uploads playlist; the view counts
+    need a second call because playlistItems carries no statistics.
+    """
+    resp = client.get(
+        f"{YT_BASE}/playlistItems",
+        params={
+            "part": "contentDetails",
+            "playlistId": uploads_playlist_id,
+            "maxResults": max(1, min(limit, 50)),
+        },
+        headers=_api_headers(key),
+    )
+    if resp.status_code != 200:
+        return []
+    video_ids = [
+        (item.get("contentDetails") or {}).get("videoId")
+        for item in resp.json().get("items", [])
+        if (item.get("contentDetails") or {}).get("videoId")
+    ]
+    if not video_ids:
+        return []
+    return [
+        {
+            "video_id": v.video_id,
+            "title": v.title,
+            "view_count": v.view_count,
+            "like_count": v.like_count,
+            "upload_date": (v.published_at or "")[:10].replace("-", ""),
+            "thumbnail_url": v.thumbnail_url,
+        }
+        for v in _fetch_videos_via_api(client, video_ids, key)
+    ]
+
+
 def _fetch_channels_via_api(
-    client: httpx.Client, channel_ids: list[str], key: str
+    client: httpx.Client,
+    channel_ids: list[str],
+    key: str,
+    *,
+    with_uploads: bool = False,
+    uploads_limit: int = 30,
 ) -> list[ChannelInfo]:
     channels: list[ChannelInfo] = []
     for chunk in _chunks(channel_ids, 50):
         resp = client.get(
             f"{YT_BASE}/channels",
             params={
-                "part": "snippet,statistics",
+                "part": "snippet,statistics,contentDetails",
                 "id": ",".join(chunk),
             },
             headers=_api_headers(key),
@@ -496,6 +541,15 @@ def _fetch_channels_via_api(
         for item in resp.json().get("items", []):
             snippet = item.get("snippet", {})
             stats = item.get("statistics", {})
+            uploads: list[dict[str, Any]] = []
+            if with_uploads:
+                playlist_id = (
+                    (item.get("contentDetails") or {}).get("relatedPlaylists", {}).get("uploads", "")
+                )
+                if playlist_id:
+                    uploads = _fetch_channel_uploads_via_api(
+                        client, playlist_id, key, uploads_limit
+                    )
             channels.append(
                 ChannelInfo(
                     channel_id=item["id"],
@@ -509,6 +563,7 @@ def _fetch_channels_via_api(
                     video_count=int(stats.get("videoCount", 0)),
                     view_count=int(stats.get("viewCount", 0)),
                     topic_categories=list(snippet.get("topicCategories") or []),
+                    uploads=uploads,
                 )
             )
     return channels
@@ -660,11 +715,17 @@ def fetch_channel(
     """
     if channel_id.startswith("http") and not is_youtube_url(channel_id):
         raise ValueError(f"Not a YouTube URL: {channel_id}")
+    if uploads_with_stats:
+        items = max(1, min(stats_limit, uploads_limit))
+    else:
+        items = uploads_limit
     key = api_key or get_api_key()
     if key:
         with httpx.Client(timeout=20.0) as client:
             try:
-                channels = _fetch_channels_via_api(client, [channel_id], key)
+                channels = _fetch_channels_via_api(
+                    client, [channel_id], key, with_uploads=uploads_with_stats, uploads_limit=items
+                )
                 if channels:
                     return channels[0]
             except YoutubeApiError as exc:
@@ -674,7 +735,6 @@ def fetch_channel(
     else:
         url = f"https://www.youtube.com/channel/{channel_id}"
     if uploads_with_stats:
-        items = max(1, min(stats_limit, uploads_limit))
         extra = {"extract_flat": False, "playlist_items": f"1-{items}"}
     else:
         extra = {"extract_flat": True, "playlist_items": f"1-{uploads_limit}"}
