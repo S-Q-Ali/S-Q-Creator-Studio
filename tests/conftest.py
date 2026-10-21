@@ -63,7 +63,7 @@ def _stop_workers_after_each_test():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _isolated_settings(qapp, tmp_path_factory):
+def _isolated_settings(qapp):
     """Keep the tests out of the user's own settings.
 
     On Windows the preferences live in the registry. Every test that opened
@@ -71,10 +71,15 @@ def _isolated_settings(qapp, tmp_path_factory):
     user's real preferences - the download folder included. The settings
     are pointed at a temporary folder instead, in a format that is not the
     registry.
+
+    The folder is made with ``mkdtemp`` and not with pytest's own factory:
+    pytest removes its folders when the session ends, and a settings file
+    that is flushed after its folder is gone takes the process down with
+    it.
     """
     from PySide6.QtCore import QSettings
 
-    folder = str(tmp_path_factory.mktemp("settings"))
+    folder = tempfile.mkdtemp(prefix="sqali_settings_")
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
     for scope in (QSettings.Scope.UserScope, QSettings.Scope.SystemScope):
         QSettings.setPath(QSettings.Format.IniFormat, scope, folder)
