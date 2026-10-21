@@ -204,6 +204,31 @@ def test_the_modal_can_track_the_analysed_channel(qapp):
     assert tracked == ["UCabc"]
 
 
+def test_the_modal_can_open_the_analysed_channel_on_the_scorecard(qapp):
+    """AI Analysis -> Scorecard: the analysed channel itself must be
+    scoreable — the button used to exist only for similar channels."""
+    modal = AnalysisModal("UCabc")
+    opened: list[str] = []
+    modal.open_scorecard_requested.connect(opened.append)
+
+    modal._on_channel_data(_sample_data(True))
+
+    button = next(
+        (
+            b
+            for b in modal._channel_row.findChildren(QPushButton)
+            if "Scorecard" in b.text()
+        ),
+        None,
+    )
+    assert button is not None, "the analysis modal has no Scorecard button"
+    assert button.isEnabled() is True
+
+    button.click()
+
+    assert opened == ["UCabc"]
+
+
 def test_is_analyzed_is_false_for_a_fresh_channel(isolated_appdata):
     assert ai.is_analyzed("UCnothing") is False
 

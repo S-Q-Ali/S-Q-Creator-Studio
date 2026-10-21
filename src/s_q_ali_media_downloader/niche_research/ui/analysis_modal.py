@@ -557,6 +557,18 @@ class AnalysisModal(QDialog):
             lambda _=False, cid=channel_id: self.track_channel_requested.emit(cid)
         )
         actions.addWidget(track)
+        scorecard = QPushButton("Open in Scorecard")
+        scorecard.setProperty("variant", "outline")
+        scorecard.setEnabled(bool(channel_id))
+        scorecard.setToolTip(
+            "Score this channel on the Scorecard page"
+            if channel_id
+            else "No channel id available — this channel cannot be scored"
+        )
+        scorecard.clicked.connect(
+            lambda _=False, cid=channel_id: self.open_scorecard_requested.emit(cid)
+        )
+        actions.addWidget(scorecard)
         actions.addStretch(1)
         channel_box.addLayout(actions)
 
