@@ -3,7 +3,7 @@
 ; Version is injected from src/__init__.py at build time via /DMyAppVersion.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.4.2"
+  #define MyAppVersion "2.5.0"
 #endif
 
 #define MyAppName "S-Q Creator Studio"

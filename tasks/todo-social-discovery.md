@@ -11,6 +11,11 @@ Run before every checkpoint:
 **Rule for every task:** the test comes first and must fail before the fix.
 A test that passes before the change proves nothing.
 
+> **Status (2026-10-21): all six tasks are done.** Two designs changed
+> because of what the live checks showed: the channel page cannot say whose
+> links they are, and a plain HTTP request cannot tell a real profile from
+> a made-up one.
+
 ---
 
 ## Task 1: Playwright browser session (the enabler)
@@ -30,24 +35,20 @@ Chromium as the fallback, and a clear error when neither exists.
   fixture; a live check against `https://example.com`.
 - Files: `src/s_q_ali_media_downloader/agent/tools/browser.py`,
   `tests/test_social_browser.py`
+- **Done.** The session also reads the page's Open Graph metadata — that is
+  what the profile pages describe themselves with, and it is far more
+  reliable than scraping the text. The shipped Chromium (the headless
+  shell) is tried first, the browsers Windows has are the fallback, and
+  `PLAYWRIGHT_BROWSERS_PATH` points at the shipped copy.
 
 ## Task 2: `social-resolve` — the channel record and its own bio links
 
-**Description:** URL / handle / name → a channel record (title, handle,
-description, subscribers) **and the creator's own social links** from the
-rendered About page.
-
-- Acceptance:
-  - The record carries the title and the handle as the page shows them.
-  - `bio_links` contains only the creator's own links: the About page's
-    `event=channel_header` links. The `event=video_description` links
-    belong to other creators and must not appear.
-  - The YouTube consent wall is passed (click "Accept all", then re-read).
-  - A name that matches several channels does not pick one silently.
-- Verify: `pytest tests/test_social_resolve.py -q`; live: `@mkbhd` → title
-  "Marques Brownlee", handle "mkbhd", links `instagram.com/MKBHD`,
-  `facebook.com/MKBHD`.
-- Depends on: Task 1
+- **Done, with one correction.** The channel page cannot say whose links
+  they are: on MrBeast's About page his own accounts and his sponsors' sit
+  in the same description element, and the URL parameter cannot tell them
+  apart either. So every social link the page shows is a **candidate**, and
+  the verifier decides. The record carries the name, the handle, the
+  subscriber count and the candidates.
 
 ## Task 3: `social-verify` — does the account exist, and is it this creator?
 
@@ -63,6 +64,11 @@ rendered About page.
 - Verify: `pytest tests/test_social_verify.py -q`; live: `facebook.com/MrBeast`
   (found) vs a made-up page (not found) vs `facebook.com/MrBeastFanPage99x`.
 - Depends on: Task 1
+- **Done.** The fixtures are real rendered pages, captured on 2026-10-21. The
+  outcomes are honest about what could not be read: Instagram and TikTok say
+  plainly when an account does not exist, and Facebook shows the same wall
+  for a page that does not exist and for one that is gated — so a missing
+  Facebook page is "unknown", never "not found".
 
 ## Task 4: `social-judge` — the Groq agent proposes and explains
 
@@ -78,6 +84,9 @@ nothing, explain a match the browser could not settle.
 - Verify: `pytest tests/test_social_judge.py -q`; live: MrBeast, MKBHD and a
   made-up channel.
 - Depends on: Task 2
+- **Done.** The key comes from the Settings page (sealed at rest) or from
+  `GROQ_API_KEY` in the environment, which is a deliberate local override.
+  The description is cut to 600 characters and passed as data.
 
 ## Task 5: `social-report` — the AI Finder mode
 
@@ -96,6 +105,9 @@ get a table of results. No modals, no cramped layout.
 - Verify: `pytest tests/test_social_report.py -q`; live: two channels, one
   with a bio link and one without.
 - Depends on: Tasks 2, 3, 4
+- **Done.** The page is `ui/social_discovery_page.py` and the mode is wired
+  into the AI Finder tab. The pipeline behind it is Qt-free
+  (`agent/social_discovery.py`) so it can be tested without a display.
 
 ## Task 6: Packaging and documentation
 
@@ -107,10 +119,13 @@ get a table of results. No modals, no cramped layout.
     feature sends to Groq and what it does not.
 - Verify: `pytest -q`, `ruff check src tests`, the CI job.
 - Depends on: Task 5
+- **Done.** Chromium (the headless shell) is staged into the portable build
+  and the installer carries it; the app points Playwright at the shipped
+  copy. Playwright is an optional dependency, so the app starts without it.
 
 ### Checkpoint: complete
 
-- [ ] Full suite green, ruff clean
-- [ ] Live check: one channel with a bio link, one without
+- [x] Full suite green, ruff clean
+- [x] Live check: one channel with a bio link, one without
 - [ ] `graphify update .` run
-- [ ] CHANGELOG updated
+- [x] CHANGELOG updated

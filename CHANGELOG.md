@@ -3,6 +3,74 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.5.0] — 2026-10-21
+
+### Social Discovery — find a creator's other accounts
+
+Paste a YouTube channel URL, an `@handle` or a channel name (one per line
+for a batch) and get the creator's Facebook, Instagram and TikTok accounts
+— with the evidence for each answer, and without a single wrong "found".
+
+**How it works**
+
+1. **The channel's own page** is read in a real browser: the display name,
+   the handle and the social links the channel lists.
+2. **The links the page lists are candidates, not answers.** On MrBeast's
+   About page his own accounts and his sponsors' accounts sit in the same
+   description element — only the account itself can tell them apart.
+3. **When the channel lists nothing, the AI agent proposes** the handles it
+   knows (Groq, `openai/gpt-oss-120b`, structured output, ~700 tokens). The
+   model may only propose: it never decides a fact, and a channel it does
+   not know comes back with no candidates at all.
+4. **Every candidate is opened in a real browser** and read: does the
+   account exist, and does it say it belongs to this creator (the display
+   name, the handle, the links it lists)?
+
+**Why a browser is required**
+
+A plain HTTP request cannot tell a real profile from a made-up one.
+Verified on 2026-10-21: Instagram answered both with the same 590 KB page,
+TikTok with the same 1.4 KB script shell, and Facebook with the same login
+wall. A rendered page answers it — and the previous verifier, which called
+any 200 response "verified", was reporting made-up accounts as confirmed.
+
+**The verdicts**
+
+| Verdict | Meaning |
+|---|---|
+| Found | the account exists and it belongs to this creator |
+| Not this creator | the account exists, but it belongs to somebody else |
+| Not found | the account does not exist |
+| Unknown | we could not check (login wall, rate limit, timeout) — never "missing" |
+
+**Verified live**: Marques Brownlee and MrBeast — the four sponsor accounts
+on MrBeast's page (a fitness channel, a car dealership and two more) were
+rejected, and only his own accounts were reported. Veritasium, whose
+channel page lists nothing, was answered by the agent and confirmed in the
+browser on all three platforms.
+
+### Added
+
+- **Chromium ships with the app** (~277 MB, the headless shell). The
+  feature works on a machine that has neither Edge nor Chrome; the app
+  points Playwright at the shipped copy. Playwright itself stays an
+  optional dependency — the app starts without it and the feature says
+  what to install.
+- The Social Discovery mode in the AI Finder: its own input, its own
+  table, its own export, a progress line instead of a dialog, and a cancel
+  button.
+- `GROQ_API_KEY` in the environment is a local override for the key in
+  Settings.
+
+### Security
+
+- A `.env` file is never committed: `.env`, `.env.*` and `.env.local` are
+  ignored now. A local key file was untracked but not ignored, and the
+  next `git add -A` would have published it.
+- The channel description is untrusted text. It is cut to 600 characters,
+  passed to the model inside a delimited block, and the model is told to
+  ignore instructions inside it.
+
 ## [2.4.2] — 2026-10-20
 
 ### Niche Research completed

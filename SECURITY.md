@@ -53,6 +53,17 @@ Out of scope:
   300-character excerpt of the description and the titles of the five
   newest videos to that provider.
 
+## What leaves the machine
+
+- **The Social Discovery feature** asks Groq about a creator: the channel
+  title, the handle, the subscriber count and the first 600 characters of
+  the channel description. The description is written by whoever owns the
+  channel, so it is cut short, passed inside a delimited block, and the
+  model is told to ignore any instruction inside it. Nothing else is sent —
+  no cookies, no API keys, no browsing history.
+- The feature then opens the candidate accounts in a real browser to check
+  them. The browser is the one Windows has, or the Chromium the app ships.
+
 ## Notes for maintainers
 
 - The legacy activation secret (`legacy/licensing.py`) is gitignored and must

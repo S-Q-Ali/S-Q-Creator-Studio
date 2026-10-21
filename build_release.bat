@@ -24,7 +24,7 @@ if exist "%VERFILE%" del /q "%VERFILE%"
 "%PYTHON%" -c "import io,sys; sys.path.insert(0, r'%~dp0src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
 set /p APP_VERSION=<"%VERFILE%"
 del /q "%VERFILE%" 2>nul
-if not defined APP_VERSION set "APP_VERSION=2.4.2"
+if not defined APP_VERSION set "APP_VERSION=2.5.0"
 
 echo.
 echo ============================================================
