@@ -123,15 +123,19 @@ def _seed_video() -> None:
         "view_count, like_count, comment_count, last_fetched) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ("vidA", "Video A", "", "chan1", "2026-01-01T00:00:00Z", 1_000_000, 99, 5, db.now()),
     )
+    # One timestamp for both snapshots: two separate db.now() calls land a
+    # millisecond apart on a slow machine, and the window is then 2h + 1ms
+    # instead of exactly 2h — the VPH label would read 49999/hr.
+    t_now = db.now()
     db.run(
         "INSERT INTO video_snapshots (video_id, ts, view_count, like_count, comment_count) "
         "VALUES (?, ?, ?, ?, ?)",
-        ("vidA", db.now() - 2 * 3600 * 1000, 900_000, 80, 4),
+        ("vidA", t_now - 2 * 3600 * 1000, 900_000, 80, 4),
     )
     db.run(
         "INSERT INTO video_snapshots (video_id, ts, view_count, like_count, comment_count) "
         "VALUES (?, ?, ?, ?, ?)",
-        ("vidA", db.now(), 1_000_000, 99, 5),
+        ("vidA", t_now, 1_000_000, 99, 5),
     )
 
 

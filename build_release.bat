@@ -74,9 +74,24 @@ echo.
 if exist "%PORTABLE%" (
     echo Removing old portable build...
     rmdir /s /q "%PORTABLE%"
+    rem A running copy of the app - or a virus scanner - can still hold a lock
+    rem on the old DLLs. Retry a few times before giving up, and never let the
+    rem copy step prompt: a build that waits for an answer is a hung build.
+    for /l %%i in (1,1,5) do (
+        if exist "%PORTABLE%" (
+            ping -n 3 127.0.0.1 >nul
+            rmdir /s /q "%PORTABLE%" 2>nul
+        )
+    )
+    if exist "%PORTABLE%" (
+        echo [ERROR] Could not remove the old portable build.
+        echo           Close the running app (or anything holding its files)
+        echo           and run this script again.
+        exit /b 1
+    )
 )
 mkdir "%PORTABLE%"
-xcopy /e /i /q "%DISTPATH%\%APP_NAME%\*" "%PORTABLE%\"
+xcopy /e /i /q /y "%DISTPATH%\%APP_NAME%\*" "%PORTABLE%\"
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Failed to copy build to %PORTABLE%.

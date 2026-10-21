@@ -110,7 +110,11 @@ def test_get_tracked_videos_includes_vph_series(isolated_appdata):
             db.now(),
         ),
     )
-    t_old = _now_ms() - 2 * 3600 * 1000
+    # One timestamp for both snapshots: two separate _now_ms() calls land a
+    # millisecond apart on a slow machine, and the window is then 2h + 1ms
+    # instead of exactly 2h — which made this test fail on CI.
+    t_now = _now_ms()
+    t_old = t_now - 2 * 3600 * 1000
     db.run(
         "INSERT INTO video_snapshots (video_id, ts, view_count, like_count, comment_count) "
         "VALUES (?, ?, ?, ?, ?)",
@@ -119,7 +123,7 @@ def test_get_tracked_videos_includes_vph_series(isolated_appdata):
     db.run(
         "INSERT INTO video_snapshots (video_id, ts, view_count, like_count, comment_count) "
         "VALUES (?, ?, ?, ?, ?)",
-        ("vid123", _now_ms(), 1_000_000, 10_000, 1_000),
+        ("vid123", t_now, 1_000_000, 10_000, 1_000),
     )
 
     videos = ce.get_tracked_videos()
