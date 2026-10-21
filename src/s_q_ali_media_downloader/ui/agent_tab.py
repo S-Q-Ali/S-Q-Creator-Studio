@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -176,9 +177,29 @@ class AgentTabWidget(QWidget):
         row1.addWidget(self.btn_search, 1)
         search_layout.addLayout(row1)
 
-        # Row 2: Filters & Options
-        row2 = QHBoxLayout()
-        row2.setSpacing(16)
+        # The filters, the API key and the cookies file live behind a
+        # disclosure. Seven controls in one row gave the panel a 1197px
+        # minimum width - wider than a small laptop - so the whole window
+        # could not be made smaller than that and everything else was
+        # squeezed and clipped. Each group now has its own row, and the
+        # whole thing starts closed.
+        self.btn_options = QPushButton("⚙ Options")
+        self.btn_options.setProperty("kind", "ghost")
+        self.btn_options.setCheckable(True)
+        self.btn_options.setToolTip(
+            "Depth, the platform filters, the YouTube API key and the cookies file"
+        )
+        self.btn_options.toggled.connect(self._on_options_toggled)
+        search_layout.addWidget(self.btn_options, 0, Qt.AlignLeft)
+
+        self.options_panel = QWidget()
+        options_layout = QVBoxLayout(self.options_panel)
+        options_layout.setContentsMargins(0, 0, 0, 0)
+        options_layout.setSpacing(10)
+
+        # Row 2a: how deep, and how big
+        row2a = QHBoxLayout()
+        row2a.setSpacing(16)
 
         # Depth
         lbl_depth = QLabel("Depth:")
@@ -187,8 +208,8 @@ class AgentTabWidget(QWidget):
         self.depth_combo.addItems(["20 channels", "50 channels", "100 channels"])
         self.depth_combo.setCurrentIndex(1)
 
-        row2.addWidget(lbl_depth)
-        row2.addWidget(self.depth_combo)
+        row2a.addWidget(lbl_depth)
+        row2a.addWidget(self.depth_combo)
 
         # Min Subs
         self.lbl_subs = QLabel("Min Subs:")
@@ -197,8 +218,14 @@ class AgentTabWidget(QWidget):
         self.subs_combo.addItems(["Any", "5K+", "10K+", "50K+", "100K+"])
         self.subs_combo.setCurrentIndex(0)
 
-        row2.addWidget(self.lbl_subs)
-        row2.addWidget(self.subs_combo)
+        row2a.addWidget(self.lbl_subs)
+        row2a.addWidget(self.subs_combo)
+        row2a.addStretch()
+        options_layout.addLayout(row2a)
+
+        # Row 2b: the platforms to look for
+        row2b = QHBoxLayout()
+        row2b.setSpacing(16)
 
         # Checkboxes
         self.chk_fb = QCheckBox("Facebook Pages")
@@ -207,19 +234,25 @@ class AgentTabWidget(QWidget):
         self.chk_ig.setChecked(True)
         self.chk_tiktok = QCheckBox("TikTok Profiles")
         self.chk_tiktok.setChecked(True)
+
+        row2b.addWidget(self.chk_fb)
+        row2b.addWidget(self.chk_ig)
+        row2b.addWidget(self.chk_tiktok)
+        row2b.addStretch()
+        options_layout.addLayout(row2b)
+
+        # Row 2c: who to look for
+        row2c = QHBoxLayout()
+        row2c.setSpacing(16)
         self.chk_no_socials = QCheckBox("Only Missing Social Pages (Targets)")
         self.chk_no_socials.setChecked(False)
         self.chk_no_youtube = QCheckBox("Only Creators WITHOUT YouTube (Targets)")
         self.chk_no_youtube.setChecked(True)
 
-        row2.addWidget(self.chk_fb)
-        row2.addWidget(self.chk_ig)
-        row2.addWidget(self.chk_tiktok)
-        row2.addWidget(self.chk_no_socials)
-        row2.addWidget(self.chk_no_youtube)
-
-        row2.addStretch()
-        search_layout.addLayout(row2)
+        row2c.addWidget(self.chk_no_socials)
+        row2c.addWidget(self.chk_no_youtube)
+        row2c.addStretch()
+        options_layout.addLayout(row2c)
 
         # Row 3: Optional YouTube API Key
         row3 = QHBoxLayout()
@@ -233,7 +266,7 @@ class AgentTabWidget(QWidget):
 
         row3.addWidget(lbl_key)
         row3.addWidget(self.api_key_edit)
-        search_layout.addLayout(row3)
+        options_layout.addLayout(row3)
 
         # Row 4: TikTok cookies file (optional, TikTok mode only)
         row4 = QHBoxLayout()
@@ -251,7 +284,12 @@ class AgentTabWidget(QWidget):
         # YouTube mode is the default — cookies row only shows in TikTok mode.
         self.cookies_edit.setVisible(False)
         self.btn_browse_cookies.setVisible(False)
-        search_layout.addLayout(row4)
+        options_layout.addLayout(row4)
+
+        search_layout.addWidget(self.options_panel)
+        # The options start closed: the default view is the mode, the query
+        # and the results.
+        self.options_panel.setVisible(False)
 
         main_layout.addWidget(controls_frame)
 
@@ -286,7 +324,23 @@ class AgentTabWidget(QWidget):
         self.table.cellClicked.connect(self._open_cell_url)
         self.table.cellDoubleClicked.connect(self._open_cell_url)
 
-        main_layout.addWidget(self.table, 1)
+        # The table and the empty state share one slot: a table with no rows
+        # is seven hundred pixels of nothing, which reads as a broken screen
+        # rather than as "you have not searched yet".
+        self.table_stack = QStackedWidget()
+        self.table_stack.addWidget(self.table)
+        self.empty_state = QLabel(
+            "Nothing here yet.\n\n"
+            "Type a prompt, a tag or a creator handle above and press "
+            "Find & Verify Channels."
+        )
+        self.empty_state.setObjectName("EmptyState")
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.setWordWrap(True)
+        self.table_stack.addWidget(self.empty_state)
+        self.table_stack.setCurrentWidget(self.empty_state)
+
+        main_layout.addWidget(self.table_stack, 1)
 
         # 3b. The Social Discovery page — its own mode, its own controls.
         self.social_page = SocialDiscoveryPage()
@@ -333,12 +387,17 @@ class AgentTabWidget(QWidget):
             self.btn_send_queue,
         ]
 
+    def _on_options_toggled(self, open: bool):
+        """Show or hide the advanced options."""
+        self.options_panel.setVisible(open)
+        self.btn_options.setText("▾ Options" if open else "⚙ Options")
+
     def _on_mode_changed(self, mode: str):
         if mode == MODE_SOCIAL:
             # Social Discovery has its own input, its own table and its own
             # export. Everything the other two modes use is put away.
             self.search_panel.setVisible(False)
-            self.table.setVisible(False)
+            self.table_stack.setVisible(False)
             self.progress_bar.setVisible(False)
             self.lbl_status.setVisible(False)
             for button in self._footer_buttons:
@@ -348,7 +407,7 @@ class AgentTabWidget(QWidget):
 
         self.social_page.setVisible(False)
         self.search_panel.setVisible(True)
-        self.table.setVisible(True)
+        self.table_stack.setVisible(True)
         self.lbl_status.setVisible(True)
         for button in self._footer_buttons:
             button.setVisible(True)
@@ -581,6 +640,8 @@ class AgentTabWidget(QWidget):
             btn_queue = QPushButton("➔ Queue")
             btn_queue.clicked.connect(lambda _, c=ch: self._send_single_channel_to_queue(c))
             self.table.setCellWidget(row_idx, 8, btn_queue)
+
+        self.table_stack.setCurrentWidget(self.table if channels else self.empty_state)
 
     def _populate_tiktok_table(self, profiles):
         self.table.setRowCount(0)

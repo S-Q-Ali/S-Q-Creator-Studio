@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -175,7 +176,22 @@ class SocialDiscoveryPage(QWidget):
                 column, QHeaderView.ResizeMode.Stretch
             )
         self.table.cellClicked.connect(self._on_cell_clicked)
-        layout.addWidget(self.table, 1)
+
+        # The table and the empty state share one slot. A table with no rows
+        # is a screen of nothing; the empty state says what to do instead.
+        self.table_stack = QStackedWidget()
+        self.table_stack.addWidget(self.table)
+        self.empty_state = QLabel(
+            "No accounts checked yet.\n\n"
+            "Paste a YouTube channel URL, an @handle or a channel name above, "
+            "then press Find social accounts."
+        )
+        self.empty_state.setObjectName("EmptyState")
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.setWordWrap(True)
+        self.table_stack.addWidget(self.empty_state)
+        self.table_stack.setCurrentWidget(self.empty_state)
+        layout.addWidget(self.table_stack, 1)
 
         self.detail_label = QLabel("")
         self.detail_label.setWordWrap(True)
@@ -220,6 +236,7 @@ class SocialDiscoveryPage(QWidget):
         self._results.append(result)
         row = self.table.rowCount()
         self.table.insertRow(row)
+        self.table_stack.setCurrentWidget(self.table)
 
         channel = QTableWidgetItem(
             f"{result.title}  (@{result.handle})\n{result.subscribers:,} subscribers"

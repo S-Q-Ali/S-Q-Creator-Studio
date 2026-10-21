@@ -4,13 +4,12 @@ import json
 import os
 import sys
 
-from PySide6.QtCore import QSettings, QSize, Qt, QUrl
+from PySide6.QtCore import QSettings, Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QComboBox,
-    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -30,14 +29,9 @@ from s_q_ali_media_downloader.engine import (
     ACCOUNT_LIMITS,
     APP_NAME,
     APP_TITLE,
-    DEFAULT_DELAY,
-    DEFAULT_PARALLEL,
-    DEFAULT_PASSES,
-    DELAY_PRESETS,
     INLINE_RETRIES,
     MAX_ACCOUNT_VIDEOS,
     PARALLEL_OPTIONS,
-    QUALITY_OPTIONS,
     RETRY_PASSES,
     AccountFetchThread,
     DownloadThread,
@@ -54,7 +48,8 @@ from s_q_ali_media_downloader.engine import (
 )
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
-from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, glyph_icon, shield_pixmap
+from s_q_ali_media_downloader.ui.settings_page import SettingsPage
+from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, shield_pixmap
 
 ORG = "S-Q-Ali"
 VERSION = __version__
@@ -113,11 +108,30 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+
+        # The settings page owns every setting of the app. It is built first
+        # because the rail shows where the downloads land, and that is one
+        # of the settings.
+        self.settings_page = SettingsPage()
+        self.settings_page.density_changed.connect(self._apply_density)
+        self.settings_page.folder_edit.textChanged.connect(self._update_folder_label)
+
+        # The window keeps the old attribute names for the download
+        # preferences, so the rest of the code does not have to know where
+        # they live.
+        self.folder_edit = self.settings_page.folder_edit
+        self.quality = self.settings_page.quality
+        self.pace = self.settings_page.pace
+        self.parallel = self.settings_page.parallel
+        self.passes = self.settings_page.passes
+        self.cookies = self.settings_page.cookies
+
         self.rail = self._build_rail()
         layout.addWidget(self.rail)
         layout.addWidget(self._build_workspace(), 1)
 
         self._restore_settings()
+        self._update_folder_label()
         restored = self._load_queue()
         self._sync_buttons()
         self._update_stats()
@@ -166,96 +180,7 @@ class MainWindow(QMainWindow):
         lay.addLayout(head)
         lay.addSpacing(20)
 
-        lay.addWidget(self._section("SAVE TO"))
-        self.folder_edit = QLineEdit()
-        self.folder_edit.setPlaceholderText("Choose a folder")
-        lay.addWidget(self.folder_edit)
-        lay.addSpacing(8)
-
-        row = QHBoxLayout()
-        row.setSpacing(8)
-        browse = QPushButton("Browse")
-        browse.clicked.connect(self.choose_folder)
-        open_btn = QPushButton("Open folder")
-        open_btn.clicked.connect(self.open_folder)
-        row.addWidget(browse)
-        row.addWidget(open_btn)
-        lay.addLayout(row)
-        lay.addSpacing(16)
-
-        row_a = QHBoxLayout()
-        row_a.setSpacing(10)
-
-        col = QVBoxLayout()
-        col.setSpacing(6)
-        col.addWidget(self._section("QUALITY"))
-        self.quality = QComboBox()
-        self.quality.addItems(QUALITY_OPTIONS.keys())
-        col.addWidget(self.quality)
-        row_a.addLayout(col, 1)
-
-        col = QVBoxLayout()
-        col.setSpacing(6)
-        col.addWidget(self._section("PACE"))
-        self.pace = QComboBox()
-        self.pace.addItems(DELAY_PRESETS.keys())
-        self.pace.setToolTip(
-            "How long each worker waits between its own videos.\n"
-            "With 2 workers running, the effective rate is double this."
-        )
-        col.addWidget(self.pace)
-        row_a.addLayout(col, 1)
-
-        lay.addLayout(row_a)
-        lay.addSpacing(12)
-
-        row_b = QHBoxLayout()
-        row_b.setSpacing(10)
-
-        col = QVBoxLayout()
-        col.setSpacing(6)
-        col.addWidget(self._section("WORKERS"))
-        self.parallel = QComboBox()
-        self.parallel.addItems(PARALLEL_OPTIONS.keys())
-        self.parallel.setToolTip(
-            "How many videos download at once. A single link always runs on its own."
-        )
-        col.addWidget(self.parallel)
-        row_b.addLayout(col, 1)
-
-        col = QVBoxLayout()
-        col.setSpacing(6)
-        col.addWidget(self._section("END PASSES"))
-        self.passes = QComboBox()
-        self.passes.addItems(RETRY_PASSES.keys())
-        self.passes.setToolTip(
-            f"Each video is tried {1 + INLINE_RETRIES} times on the spot before it moves on as Waiting.\n"
-            "This sets how many extra sweeps run over the Waiting list at the end."
-        )
-        col.addWidget(self.passes)
-        row_b.addLayout(col, 1)
-
-        lay.addLayout(row_b)
-        lay.addSpacing(12)
-
-        self.cookies = QCheckBox("Sign in with Chrome cookies")
-        self.cookies.setToolTip(
-            "Use your Chrome session for private or age-gated videos. Close Chrome before you start a run."
-        )
-        lay.addWidget(self.cookies)
-        lay.addSpacing(8)
-
-        ok, label = impersonation_summary()
-        identity = QLabel(("Browser identity · " if ok else "No browser identity · ") + label)
-        identity.setProperty("role", "hint")
-        identity.setWordWrap(True)
-        identity.setStyleSheet(f"color: {C['done'] if ok else C['failed']}; font-size: 10px;")
-        identity.setToolTip(
-            "TikTok blocks requests that don't look like a real browser.\n"
-            "This is the signature yt-dlp is sending on your behalf."
-        )
-        lay.addWidget(identity)
-        lay.addSpacing(16)
+        lay.addSpacing(14)
 
         lay.addLayout(self._build_source_tabs())
         lay.addSpacing(8)
@@ -272,7 +197,18 @@ class MainWindow(QMainWindow):
         row2.addWidget(add, 1)
         row2.addWidget(clear_box)
         lay.addLayout(row2)
-        lay.addSpacing(10)
+        lay.addSpacing(8)
+
+        # Where the downloads land. One line, and it opens the folder - the
+        # rest of the download settings live in the Settings page, where
+        # there is room to edit them.
+        self.folder_label = QLabel("")
+        self.folder_label.setProperty("role", "hint")
+        self.folder_label.setToolTip("Click to open the download folder")
+        self.folder_label.setCursor(Qt.PointingHandCursor)
+        self.folder_label.mousePressEvent = lambda _event: self.open_folder()
+        lay.addWidget(self.folder_label)
+        lay.addSpacing(8)
 
         hint = QLabel(
             f"{1 + INLINE_RETRIES} tries per video, {INLINE_RETRY_WAIT_TEXT} apart, "
@@ -281,6 +217,9 @@ class MainWindow(QMainWindow):
         hint.setProperty("role", "hint")
         hint.setWordWrap(True)
         lay.addWidget(hint)
+        lay.addSpacing(10)
+
+        lay.addLayout(self._build_social_buttons())
 
         return rail
 
@@ -314,17 +253,15 @@ class MainWindow(QMainWindow):
         self.links = QPlainTextEdit()
         self.links.setMinimumHeight(120)
         self.links.setPlaceholderText(
-            "One TikTok or YouTube video link per line.\n\n"
-            "https://www.tiktok.com/@user/video/123...\n"
-            "https://www.youtube.com/watch?v=...\n"
+            "One TikTok or YouTube link per line.\n\n"
             "Playlists, channels and TikTok profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
-        self.chk_shorts = QCheckBox("Also fetch a YouTube channel's Shorts")
+        self.chk_shorts = QCheckBox("Also fetch Shorts")
         self.chk_shorts.setChecked(True)
         self.chk_shorts.setToolTip(
-            "A channel's Shorts live in their own tab. Turn this off to fetch "
-            "only the long videos."
+            "A YouTube channel's Shorts live in their own tab. Turn this off to "
+            "fetch only the long videos."
         )
         pl.addWidget(self.chk_shorts)
         self.source_stack.addWidget(page_links)
@@ -410,11 +347,13 @@ class MainWindow(QMainWindow):
 
         # Workspace Navigation Header
         nav_bar_frame = QFrame()
-        nav_bar_frame.setStyleSheet(
-            "background: #100E14; border-bottom: 1px solid #332C42; padding: 10px 24px;"
-        )
+        # The frame is styled through the app stylesheet by its object name.
+        # A stylesheet set on the frame itself would cascade to the buttons
+        # and override their checked state - which is how the active tab
+        # ended up with dark text on a dark background.
+        nav_bar_frame.setObjectName("NavBar")
         nav_lay = QHBoxLayout(nav_bar_frame)
-        nav_lay.setContentsMargins(0, 0, 0, 0)
+        nav_lay.setContentsMargins(24, 8, 24, 8)
         nav_lay.setSpacing(12)
 
         self.work_tab_group = QButtonGroup(self)
@@ -430,8 +369,11 @@ class MainWindow(QMainWindow):
 
         self.btn_nav_queue = QPushButton("📥 Download Queue")
         self.btn_nav_agent = QPushButton("🤖 AI Channel Finder & Social Inspector")
+        self.btn_nav_settings = QPushButton("⚙️ Settings")
 
-        for idx, btn in enumerate((self.btn_nav_queue, self.btn_nav_agent)):
+        for idx, btn in enumerate(
+            (self.btn_nav_queue, self.btn_nav_agent, self.btn_nav_settings)
+        ):
             btn.setCheckable(True)
             btn.setProperty("kind", "tab")
             btn.setCursor(Qt.PointingHandCursor)
@@ -548,24 +490,35 @@ class MainWindow(QMainWindow):
         self.agent_tab.send_to_queue_requested.connect(self._handle_agent_urls)
         self.workspace_stack.addWidget(self.agent_tab)
 
+        # Page 2: Settings
+        self.workspace_stack.addWidget(self.settings_page)
+
         lay.addWidget(self.workspace_stack, 1)
 
-        lay.addWidget(self._build_notice_bar())
-        lay.addWidget(self._build_status_line())
-        lay.addWidget(self._build_social_bar())
+        lay.addWidget(self._build_bottom_bar())
 
         return work
 
     def toggle_rail(self):
         self.rail.setVisible(not self.rail.isVisible())
 
-    def _build_notice_bar(self):
+    def _build_bottom_bar(self):
+        """One bar for the status, the notice and the social buttons.
+
+        They used to be three separate rows: the notice, the status line and
+        the footer. On a 720px screen those three rows ate a tenth of the
+        height for no reason, so they share one row now.
+        """
         frame = QFrame()
-        frame.setObjectName("NoticeBar")
+        frame.setObjectName("StatusBar")
         fl = QHBoxLayout(frame)
-        fl.setContentsMargins(24, 7, 24, 7)
+        fl.setContentsMargins(24, 5, 24, 5)
         fl.setSpacing(9)
-        fl.addStretch(1)
+
+        self.status_bar = QLabel("Ready.")
+        self.status_bar.setProperty("role", "statusText")
+        fl.addWidget(self.status_bar, 1)
+
         badge = QLabel()
         badge.setPixmap(shield_pixmap())
         badge.setStyleSheet("background: transparent;")
@@ -573,93 +526,57 @@ class MainWindow(QMainWindow):
         text = QLabel(NOTICE)
         text.setProperty("role", "notice")
         fl.addWidget(text, 0, Qt.AlignVCenter)
-        fl.addStretch(1)
+
         return frame
 
-    def _build_status_line(self):
-        frame = QFrame()
-        frame.setObjectName("StatusBar")
-        fl = QHBoxLayout(frame)
-        fl.setContentsMargins(24, 7, 24, 7)
-        self.status_bar = QLabel("Ready.")
-        self.status_bar.setProperty("role", "statusText")
-        fl.addWidget(self.status_bar, 1)
-        return frame
-
-    def _build_social_bar(self):
-        frame = QFrame()
-        frame.setObjectName("SocialBar")
-        fl = QHBoxLayout(frame)
-        fl.setContentsMargins(24, 11, 24, 11)
-        fl.setSpacing(10)
-
-        follow = QLabel("FOLLOW US")
-        follow.setProperty("role", "follow")
-        fl.addWidget(follow, 0, Qt.AlignVCenter)
-        tagline = QLabel("Tips, updates and support")
-        tagline.setProperty("role", "hint")
-        fl.addWidget(tagline, 0, Qt.AlignVCenter)
-        fl.addStretch(1)
-
+    def _build_social_buttons(self):
+        """The GitHub and LinkedIn buttons, small, in the rail's footer."""
+        row = QHBoxLayout()
+        row.setSpacing(6)
         for label, glyph, colour, url in SOCIALS:
-            btn = QPushButton("  " + label)
-            btn.setIcon(glyph_icon(glyph))
-            btn.setIconSize(QSize(16, 16))
+            btn = QPushButton(label)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setToolTip(url)
-            btn.setMinimumHeight(34)
+            btn.setMinimumHeight(28)
             hover = QColor(colour).lighter(118).name()
             pressed = QColor(colour).darker(112).name()
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background: {colour};
                     border: none;
-                    border-radius: 17px;
-                    padding: 7px 18px;
+                    border-radius: 14px;
+                    padding: 4px 12px;
                     color: #FFFFFF;
-                    font-size: 12px;
+                    font-size: 11px;
                     font-weight: 700;
-                    letter-spacing: 0.3px;
                 }}
                 QPushButton:hover {{ background: {hover}; }}
                 QPushButton:pressed {{ background: {pressed}; }}
             """)
             btn.clicked.connect(lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u)))
-            fl.addWidget(btn, 0, Qt.AlignVCenter)
-
-        return frame
+            row.addWidget(btn)
+        row.addStretch(1)
+        return row
 
     def _restore_settings(self):
-        if self.settings.value("settings_version") != SETTINGS_VERSION:
-            self.settings.setValue("quality", "1080p")
-            self.settings.setValue("pace", DEFAULT_DELAY)
-            self.settings.setValue("passes", DEFAULT_PASSES)
-            self.settings.setValue("parallel", DEFAULT_PARALLEL)
-            self.settings.setValue("settings_version", SETTINGS_VERSION)
-
-        self.folder_edit.setText(self.settings.value("output_dir") or default_output_dir())
-
-        quality = self.settings.value("quality")
-        self.quality.setCurrentText(quality if quality in QUALITY_OPTIONS else "1080p")
-
-        pace = self.settings.value("pace")
-        self.pace.setCurrentText(pace if pace in DELAY_PRESETS else DEFAULT_DELAY)
-
-        passes = self.settings.value("passes")
-        self.passes.setCurrentText(passes if passes in RETRY_PASSES else DEFAULT_PASSES)
-
-        parallel = self.settings.value("parallel")
-        self.parallel.setCurrentText(parallel if parallel in PARALLEL_OPTIONS else DEFAULT_PARALLEL)
-
-        self.cookies.setChecked(self.settings.value("cookies", "false") == "true")
+        """Read every setting into the Settings page."""
+        self.settings_page.load()
+        self._apply_density()
 
     def _save_settings(self):
-        self.settings.setValue("output_dir", self.folder_edit.text().strip())
-        self.settings.setValue("quality", self.quality.currentText())
-        self.settings.setValue("pace", self.pace.currentText())
-        self.settings.setValue("passes", self.passes.currentText())
-        self.settings.setValue("parallel", self.parallel.currentText())
-        self.settings.setValue("cookies", "true" if self.cookies.isChecked() else "false")
+        """Write the download preferences back."""
+        self.settings_page.save()
+
+    def _update_folder_label(self):
+        """Show where the downloads land, and keep it in step with the setting."""
+        folder = self.output_dir()
+        self.folder_label.setText(f"Saving to {folder}" if folder else "No folder chosen")
+
+    def _apply_density(self):
+        """Pick the layout density and tell the widgets about it."""
+        from s_q_ali_media_downloader.theme import apply_density
+
+        apply_density(self, self.settings_page.compact_check.isChecked())
 
     def _save_queue(self):
         try:
@@ -762,25 +679,14 @@ class MainWindow(QMainWindow):
         self.empty.setVisible(not self.jobs)
 
     def choose_folder(self):
-        chosen = QFileDialog.getExistingDirectory(
-            self, "Choose a download folder", self.output_dir()
-        )
-        if chosen:
-            self.folder_edit.setText(os.path.normpath(chosen))
-            self._save_settings()
+        """Ask for a download folder. The Settings page owns the widgets."""
+        self.settings_page.choose_folder()
+        self._save_settings()
+        self._update_folder_label()
 
     def open_folder(self):
-        folder = self.output_dir()
-        try:
-            os.makedirs(folder, exist_ok=True)
-            if sys.platform.startswith("win"):
-                os.startfile(folder)
-            elif sys.platform == "darwin":
-                os.system(f'open "{folder}"')
-            else:
-                os.system(f'xdg-open "{folder}"')
-        except OSError as exc:
-            QMessageBox.warning(self, APP_TITLE, f"Could not open the folder.\n{exc}")
+        """Open the download folder."""
+        self.settings_page.open_folder()
 
     def fetch_account(self):
         if self.fetching():

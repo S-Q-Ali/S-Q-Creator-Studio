@@ -63,6 +63,35 @@ def _stop_workers_after_each_test():
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _real_fonts(qapp):
+    """Give the offscreen platform a font database.
+
+    The offscreen plugin has none of its own: every label renders as a box
+    and, worse, its metrics are wrong - a label measured 30% wider than it
+    really is, so the layout tests reported clipping that was not there and
+    missed clipping that was. The system's own fonts are loaded instead, so
+    the interface is measured with the type it is actually drawn in.
+    """
+    from PySide6.QtGui import QFontDatabase
+
+    if QFontDatabase.families():
+        return
+
+    folder = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
+    for name in (
+        "segoeui.ttf",
+        "segoeuib.ttf",
+        "segoeuii.ttf",
+        "seguisb.ttf",
+        "consola.ttf",
+        "seguiemj.ttf",
+    ):
+        path = os.path.join(folder, name)
+        if os.path.isfile(path):
+            QFontDatabase.addApplicationFont(path)
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _no_worker_left_running(qapp):
     """Leave no worker thread alive when the interpreter shuts down.
 
