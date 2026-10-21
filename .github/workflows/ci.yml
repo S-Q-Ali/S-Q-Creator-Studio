@@ -27,6 +27,9 @@ jobs:
       - name: Test (offscreen GUI)
         env:
           QT_QPA_PLATFORM: offscreen
+          # A crash on the way out leaves no trace without this: the run
+          # would end with every test passed and a failure code.
+          PYTHONFAULTHANDLER: '1'
         run: pytest
 
       - name: Audit dependencies (OSV/pip-audit)
