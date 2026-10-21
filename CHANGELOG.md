@@ -113,6 +113,15 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
 - **The Data API path carries the same data as the yt-dlp path** — a tracked
   video shows the channel title instead of the channel id, and a channel
   lookup includes the newest uploads with their real view counts.
+- **Closing the app while a thumbnail was loading could crash it.** The
+  thumbnail loader fetches in a daemon thread, and a request that is still
+  inside the socket read when the process goes away takes it down with a
+  native access violation in the SSL layer. The loader is now stopped — and
+  waited for — when the app closes.
+- **PySide6 is pinned to the verified 6.11.x line.** 6.12 aborts during
+  teardown in some conditions. `curl_cffi` is pinned to `<0.16` as well:
+  0.16 and newer silently break yt-dlp's request handler, which disables the
+  TLS impersonation the TikTok fetches need.
 
 **Polish**
 - The Competitors sparklines were flat lines for every series above 100
