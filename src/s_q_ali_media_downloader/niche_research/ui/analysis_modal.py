@@ -137,6 +137,7 @@ class AnalysisModal(QDialog):
 
         self._workers: list[QThread] = []
         self._analysis_running = False
+        self._analysis_worker: QThread | None = None
         self._active_tab = "strategy"
         self._thumb_image: str | None = None
         self._thumb_style = "bold" if "bold" in ai.THUMB_STYLES else ai.THUMB_STYLES[0]
@@ -300,6 +301,13 @@ class AnalysisModal(QDialog):
         )
         self._run_analysis_btn.clicked.connect(self._start_analyze)
         card_layout.addWidget(self._run_analysis_btn, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self._cancel_analysis_btn = QPushButton("Cancel")
+        self._cancel_analysis_btn.setProperty("variant", "ghost")
+        self._cancel_analysis_btn.setToolTip("Stop the running analysis")
+        self._cancel_analysis_btn.setEnabled(False)
+        self._cancel_analysis_btn.clicked.connect(self._cancel_analysis)
+        card_layout.addWidget(self._cancel_analysis_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         self._analysis_progress = QLabel("")
         self._analysis_progress.setObjectName("smallLabel")
@@ -814,14 +822,29 @@ class AnalysisModal(QDialog):
         self._analysis_running = True
         self._run_analysis_btn.setText("Analyzing...")
         self._run_analysis_btn.setEnabled(False)
+        self._cancel_analysis_btn.setEnabled(True)
         self._analysis_progress.setText("Starting…")
         self._analysis_progress.setVisible(True)
         worker = AnalyzeWorker(self.channel_id, parent=self)
+        self._analysis_worker = worker
         self._track_worker(worker)
         worker.progress.connect(self._on_analyze_progress)
         worker.done.connect(self._on_analyze_done)
         worker.failed.connect(self._on_analyze_failed)
         worker.start()
+
+    def _cancel_analysis(self) -> None:
+        """Stop the running analysis.
+
+        The worker polls the interruption flag between providers, so the
+        next provider is never called — a cancelled analysis does not cost
+        a second call.
+        """
+        worker = getattr(self, "_analysis_worker", None)
+        if worker is not None and worker.isRunning():
+            worker.requestInterruption()
+            self._analysis_progress.setText("Cancelling…")
+        self._cancel_analysis_btn.setEnabled(False)
 
     def _on_analyze_progress(self, message: str) -> None:
         self._analysis_progress.setText(message)
@@ -885,6 +908,7 @@ class AnalysisModal(QDialog):
         self._analysis_running = False
         self._run_analysis_btn.setEnabled(True)
         self._run_analysis_btn.setText("🤖  Analyze this channel")
+        self._cancel_analysis_btn.setEnabled(False)
         self._analysis_progress.hide()
         self._load()
 
@@ -892,6 +916,7 @@ class AnalysisModal(QDialog):
         self._analysis_running = False
         self._run_analysis_btn.setEnabled(True)
         self._run_analysis_btn.setText("🤖  Analyze this channel")
+        self._cancel_analysis_btn.setEnabled(False)
         self._analysis_progress.hide()
         self._analysis_stack.setCurrentIndex(0)
         self._error_label.setText(f"Analysis failed: {error}")

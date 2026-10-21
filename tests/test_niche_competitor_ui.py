@@ -46,7 +46,7 @@ def test_tracked_video_opens_the_scorecard(isolated_appdata, qapp):
     page = CompetitorsPage()
     page.show()
     got: list = []
-    page.scorecard_requested.connect(got.append)
+    page.scorecard_requested.connect(lambda url, mode: got.append((url, mode)))
 
     from PySide6.QtWidgets import QPushButton
 
@@ -55,7 +55,27 @@ def test_tracked_video_opens_the_scorecard(isolated_appdata, qapp):
             btn.click()
             break
 
-    assert got and "watch?v=vidA" in got[0]
+    assert got and "watch?v=vidA" in got[0][0]
+    assert got[0][1] == "video"
+
+
+def test_tracked_channel_opens_the_scorecard_in_channel_mode(isolated_appdata, qapp):
+    """The handoff carried no mode, so a channel was scored as a video."""
+    _seed_channel()
+    page = CompetitorsPage()
+    page.show()
+    got: list = []
+    page.scorecard_requested.connect(lambda url, mode: got.append((url, mode)))
+
+    from PySide6.QtWidgets import QPushButton
+
+    for btn in page.findChildren(QPushButton):
+        if btn.text() == "Scorecard":
+            btn.click()
+            break
+
+    assert got and "/channel/" in got[0][0]
+    assert got[0][1] == "channel"
 
 
 def test_tracked_channel_can_be_analysed(isolated_appdata, qapp):

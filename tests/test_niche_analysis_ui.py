@@ -122,6 +122,39 @@ def test_the_analyze_button_is_disabled_while_the_analysis_runs(qapp, monkeypatc
     assert len(starts) == 1
 
 
+def test_the_modal_can_cancel_a_running_analysis(qapp, monkeypatch):
+    """An analysis that is already running has to be stoppable — the only
+    way out used to be closing the dialog, which discarded a paid call."""
+    from s_q_ali_media_downloader.niche_research.ui import analysis_modal as am
+
+    monkeypatch.setattr(ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False))
+
+    class _FakeWorker(QThread):
+        progress = Signal(str)
+        done = Signal(object)
+        failed = Signal(str)
+
+        def __init__(self, channel_id, parent=None):
+            super().__init__(parent)
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(am, "AnalyzeWorker", _FakeWorker)
+
+    modal = AnalysisModal("UCabc")
+
+    assert modal._cancel_analysis_btn.isEnabled() is False
+
+    modal._start_analyze()
+
+    assert modal._cancel_analysis_btn.isEnabled() is True
+
+    modal._cancel_analysis()
+
+    assert modal._analysis_worker.isInterruptionRequested() is True
+
+
 def test_is_analyzed_is_false_for_a_fresh_channel(isolated_appdata):
     assert ai.is_analyzed("UCnothing") is False
 

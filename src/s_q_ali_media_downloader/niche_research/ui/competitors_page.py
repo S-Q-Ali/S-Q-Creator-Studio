@@ -93,7 +93,7 @@ def _section_heading(title: str, hint: str) -> QWidget:
 
 
 class CompetitorsPage(QWidget):
-    scorecard_requested = Signal(str)
+    scorecard_requested = Signal(str, str)
     analyze_requested = Signal(str)
     keyword_requested = Signal(str)
 
@@ -285,7 +285,7 @@ class CompetitorsPage(QWidget):
         scorecard.setToolTip("Score this video on the Scorecard page")
         scorecard.clicked.connect(
             lambda _=False, vid=v["videoId"]: self.scorecard_requested.emit(
-                f"https://www.youtube.com/watch?v={vid}"
+                f"https://www.youtube.com/watch?v={vid}", "video"
             )
         )
         meta.addWidget(scorecard)
@@ -345,7 +345,7 @@ class CompetitorsPage(QWidget):
         scorecard.setToolTip("Score this channel on the Scorecard page")
         scorecard.clicked.connect(
             lambda _=False, cid=c["channelId"]: self.scorecard_requested.emit(
-                f"https://www.youtube.com/channel/{cid}"
+                f"https://www.youtube.com/channel/{cid}", "channel"
             )
         )
         meta.addWidget(scorecard)

@@ -279,7 +279,7 @@ CREATE INDEX IF NOT EXISTS idx_scripts_channel ON channel_scripts(channel_id);
 CREATE INDEX IF NOT EXISTS idx_blueprints_channel ON channel_growth_blueprints(channel_id);
 """
 
-_env_lock = threading.Lock()
+_env_lock = threading.RLock()
 _conn: sqlite3.Connection | None = None
 _db_path: str | None = None
 
@@ -326,18 +326,27 @@ def configure(path: str) -> None:
 
 
 def _connect() -> sqlite3.Connection:
+    """Return the shared connection, opening it once.
+
+    The lock is taken here as well: two worker threads reaching the database
+    at the same time used to both see ``_conn is None``, open a second
+    connection and run the migrations twice — the second ALTER TABLE failed
+    with "duplicate column name" and the WAL pragma failed with "database
+    is locked".
+    """
     global _conn
-    if _conn is None:
-        path = db_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        _conn = sqlite3.connect(path, check_same_thread=False)
-        _conn.row_factory = sqlite3.Row
-        _conn.execute("PRAGMA journal_mode = WAL;")
-        _conn.execute("PRAGMA busy_timeout = 5000;")
-        _conn.execute("PRAGMA foreign_keys = ON;")
-        _conn.executescript(SCHEMA)
-        _apply_migrations(_conn)
-    return _conn
+    with _env_lock:
+        if _conn is None:
+            path = db_path()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            _conn = sqlite3.connect(path, check_same_thread=False)
+            _conn.row_factory = sqlite3.Row
+            _conn.execute("PRAGMA journal_mode = WAL;")
+            _conn.execute("PRAGMA busy_timeout = 5000;")
+            _conn.execute("PRAGMA foreign_keys = ON;")
+            _conn.executescript(SCHEMA)
+            _apply_migrations(_conn)
+        return _conn
 
 
 def run(sql: str, params: Sequence[Any] = ()) -> sqlite3.Cursor:

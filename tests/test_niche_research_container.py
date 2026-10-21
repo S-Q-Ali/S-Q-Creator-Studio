@@ -24,6 +24,19 @@ def test_container_builds_all_pages(qapp):
     container.deleteLater()
 
 
+def test_competitors_channel_handoff_opens_the_scorecard_in_channel_mode(qapp):
+    """The handoff carried no mode, so a channel URL was scored as a video
+    and the lookup always failed with "Could not parse a YouTube video ID"."""
+    container = ResearchContainer()
+
+    container.competitors_page.scorecard_requested.emit(
+        "https://www.youtube.com/channel/UCx", "channel"
+    )
+
+    assert container.scorecard_page._mode == "channel"
+    container.deleteLater()
+
+
 def test_container_sidebar_navigation(qapp):
     container = ResearchContainer()
     container.show_page("trending")
