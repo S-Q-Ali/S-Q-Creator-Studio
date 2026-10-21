@@ -1,0 +1,96 @@
+name: Release
+
+# A tag cuts the release: push v2.5.2 and the installer is built, checked
+# and published as a GitHub Release with its own notes.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install Inno Setup and ffmpeg
+        # The installer is compiled with Inno Setup, and ffmpeg has to be
+        # next to the app: without it yt-dlp cannot merge the separate
+        # video and audio streams of a "best available" download.
+        shell: pwsh
+        run: |
+          choco install innosetup ffmpeg --yes --no-progress
+          Write-Output "ISCC: $((Get-ChildItem 'C:\Program Files*\Inno Setup 6\ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
+          Write-Output "ffmpeg: $((Get-Command ffmpeg -ErrorAction SilentlyContinue).Source)"
+
+      - name: Install the browser the app ships
+        # The Social Discovery feature drives a real browser; the installer
+        # carries Chromium's headless shell.
+        run: python -m playwright install chromium
+
+      - name: Build the portable app and the installer
+        shell: cmd
+        run: build_release.bat
+
+      - name: Check the build
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "release\portable\*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "the portable build is missing" }
+          $setup = Get-ChildItem "release\S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1
+          if (-not $setup) { throw "the installer is missing" }
+          if (-not (Test-Path "release\portable\browsers")) { throw "the browser was not shipped" }
+          Write-Output "portable: $($exe.Name)  $([math]::Round($exe.Length/1MB,1)) MB"
+          Write-Output "installer: $($setup.Name)  $([math]::Round($setup.Length/1MB,1)) MB"
+          Write-Output "sha256: $((Get-FileHash -Algorithm SHA256 $setup.FullName).Hash)"
+
+      - name: Smoke test the built app
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $p = Start-Process -FilePath "release\portable\S-Q Creator Studio.exe" -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { throw "the built app exited immediately (code $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+          Write-Output "the built app stayed alive"
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $setup = (Get-ChildItem "release\S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1).FullName
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          $sha = (Get-FileHash -Algorithm SHA256 $setup).Hash
+          $name = Split-Path -Leaf $setup
+          $lines = @(
+            "## S-Q Creator Studio $version",
+            "",
+            "The installer for this release.",
+            "",
+            "SHA-256 of ``$name``:",
+            "````",
+            $sha,
+            "````",
+            "",
+            "Windows may ask you to confirm the installer the first time - it is an unsigned build.",
+            "Full details in the [changelog](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md)."
+          )
+          $notes = $lines -join [Environment]::NewLine
+          gh release create $tag $setup --title "S-Q Creator Studio $version" --notes $notes

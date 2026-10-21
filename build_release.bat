@@ -160,6 +160,8 @@ echo ============================================================
 echo.
 
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not exist "%ISCC%" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 set "STAGING=release\staging\bin"
 
 if not exist "%ISCC%" (

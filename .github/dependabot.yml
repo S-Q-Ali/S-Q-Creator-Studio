@@ -1,0 +1,26 @@
+# Keep the dependencies honest.
+#
+# The certifi advisory (PYSEC-2026-4320, a revoked CA root) was found by
+# running pip-audit by hand - a machine does it on every push instead.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
