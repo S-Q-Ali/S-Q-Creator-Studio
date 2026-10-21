@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 # to plaintext so the suite stays portable. Everything is transparent through
 # set_setting()/get_setting(); legacy plaintext rows are re-sealed on first read.
 SEAL_PREFIX = "dpapi1:"
+# Never change this: every key already sealed with it would become
+# undecryptable and the user would have to re-enter all of them.
 _SEAL_ENTROPY = b"S-Q-Ali Media Downloader\x00app\x00v1"
 
 
