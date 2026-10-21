@@ -15,13 +15,11 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QStackedWidget,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -446,26 +444,20 @@ class MainWindow(QMainWindow):
         bar.addWidget(divider)
         bar.addSpacing(6)
 
-        # The four "remove" actions live behind one menu. As separate
-        # buttons they made the header a wall of nine controls, and the
-        # words took the space the queue itself needed.
-        clear_menu = QMenu(self)
+        # The four "remove" actions used to sit between the run controls
+        # and the empty-queue button. They are shorter now, so the header
+        # is one row of controls and not a wall.
         for text, handler in (
-            ("Remove selected", self.clear_selected),
-            ("Remove completed", self.clear_completed),
-            ("Remove failed", self.clear_failed),
-            ("Remove waiting", self.clear_remaining),
+            ("Selected", self.clear_selected),
+            ("Done", self.clear_completed),
+            ("Failed", self.clear_failed),
+            ("Waiting", self.clear_remaining),
         ):
-            action = clear_menu.addAction(text)
-            action.triggered.connect(handler)
-        more = QToolButton()
-        more.setText("⋯")
-        more.setToolTip("More queue actions")
-        more.setMenu(clear_menu)
-        more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        more.setProperty("kind", "ghost")
-        more.setMinimumHeight(30)
-        bar.addWidget(more)
+            btn = QPushButton(text)
+            btn.setProperty("kind", "ghost")
+            btn.setToolTip(f"Remove {text.lower()} from the queue")
+            btn.clicked.connect(handler)
+            bar.addWidget(btn)
 
         bar.addStretch(1)
         clear_all = QPushButton("Empty queue")
