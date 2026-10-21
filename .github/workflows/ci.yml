@@ -43,7 +43,7 @@ jobs:
           Write-Output ("EXE size MB: {0:N1}" -f ((Get-Item "dist\S-Q Creator Studio\S-Q Creator Studio.exe").Length / 1MB))
 
       - name: Upload portable build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: portable-build
           path: dist\S-Q Creator Studio
