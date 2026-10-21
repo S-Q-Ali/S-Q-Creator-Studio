@@ -76,18 +76,22 @@ if exist "%PORTABLE%" (
     echo Removing old portable build...
     rem Read-only attributes make rmdir fail with "Access is denied", and a
     rem running copy of the app - or a virus scanner - can hold a lock on the
-    rem old DLLs. Clear both, retry for a while, and never let the copy step
-    prompt: a build that waits for an answer is a hung build.
-    for /l %%i in (1,1,10) do (
+    rem old DLLs. The browser folder alone is ~1500 files, so the removal is
+    retried for a while and the copy never prompts: a build that waits for
+    rem an answer is a hung build.
+    set "EMPTY_DIR=%TEMP%\sq_empty_%RANDOM%"
+    mkdir "%EMPTY_DIR%" >nul 2>nul
+    for /l %%i in (1,1,20) do (
         if exist "%PORTABLE%" (
             attrib -R "%PORTABLE%\*" /S /D >nul 2>nul
+            rem Mirroring an empty folder over it removes the contents; it is
+            rem far quicker than rmdir on a few thousand files.
+            robocopy "%EMPTY_DIR%" "%PORTABLE%" /MIR /NFL /NDL /NJH /NJS /NC /NS /R:1 /W:1 >nul 2>nul
             rmdir /s /q "%PORTABLE%" >nul 2>nul
-            if exist "%PORTABLE%" (
-                powershell -NoProfile -Command "Remove-Item -LiteralPath '%PORTABLE%' -Recurse -Force -ErrorAction SilentlyContinue" >nul 2>nul
-            )
             if exist "%PORTABLE%" ping -n 4 127.0.0.1 >nul
         )
     )
+    rmdir /s /q "%EMPTY_DIR%" >nul 2>nul
     if exist "%PORTABLE%" (
         echo [ERROR] Could not remove the old portable build.
         echo           Close the running app (or anything holding its files)
