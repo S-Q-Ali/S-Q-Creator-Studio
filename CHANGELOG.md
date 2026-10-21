@@ -73,9 +73,12 @@ paths and only one of ~16 page-to-page handoffs. This release finishes it.
 
 **Added**
 - **Cross-page handoffs:** Niche Discovery → queue / Scorecard / Track / Open,
-  Scorecard → AI Analysis, Competitors → Scorecard / keyword detail / AI
-  Analysis, AI Analysis → Scorecard. One shared
-  `send_to_queue_requested` bridge feeds the download queue.
+  Scorecard → AI Analysis / queue / YouTube, Keyword Research → Scorecard,
+  Competitors → Scorecard / keyword detail / AI Analysis / queue, AI Analysis →
+  Scorecard / queue / Competitors. All eighteen handoffs now exist — six of them
+  were listed as done before they had been built. One shared
+  `send_to_queue_requested` bridge feeds the download queue; there is no
+  second path, and every button is disabled with a reason when it cannot run.
 - **A real Dashboard** — metric tiles, top channels, top keywords, a recent
   activity feed and working quick actions (it was a static intro card).
 - **Export** on every data page: CSV (Excel-ready), JSON (full data) and

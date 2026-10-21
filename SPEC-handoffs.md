@@ -3,6 +3,12 @@
 **Objective:** a researcher should never have to leave a page, retype a URL and
 guess what to do next. Today exactly one of ~16 plausible handoffs works.
 
+**Status: delivered.** All eighteen rows of the matrix below are implemented and
+covered by offscreen tests. The last six (Scorecard → queue, Scorecard →
+YouTube, Keyword Research → Scorecard, Competitors → queue, AI Analysis →
+queue, AI Analysis → Competitors) were missing when this release was first
+written — the task list had marked them done before they existed.
+
 ## Handoff matrix to deliver
 
 | From → To | Action |

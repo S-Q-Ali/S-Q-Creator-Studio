@@ -6,6 +6,14 @@ Run before every checkpoint:
 `source\venv\Scripts\python.exe -m pytest -q` and
 `source\venv\Scripts\python.exe -m ruff check src tests`
 
+> **Note (2026-10-21):** every box below was ticked before the release was
+> reviewed, and the review found that six of them were not actually true: the
+> analysis progress never named the provider and there was no cancel button,
+> `analysis_json` held only the strategy, `channel_scripts.idea_id` was never
+> written, the Competitors export dropped two of its three groups, and six of
+> the eighteen handoffs did not exist. All of them are implemented now, each
+> with a regression test — see the commits after the checkpoint commit.
+
 ---
 
 ## Task 1: Keyword demand, ranked-video duplicates, score preservation
