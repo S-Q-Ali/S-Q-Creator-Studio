@@ -33,7 +33,7 @@ def test_youtube_channel_standard_urls():
 
 
 def test_metadatum_maps_channel_info():
-    from s_q_ali_media_downloader.niche_research.tools.youtube_client import ChannelInfo
+    from s_q_ali_media_downloader.core.youtube_client import ChannelInfo
 
     info = ChannelInfo(
         channel_id="UCisZ2efLJn1Dxvn4th6mwlA",
@@ -56,7 +56,7 @@ def test_metadatum_maps_channel_info():
 
 
 def test_metadatum_falls_back_to_channel_url():
-    from s_q_ali_media_downloader.niche_research.tools.youtube_client import ChannelInfo
+    from s_q_ali_media_downloader.core.youtube_client import ChannelInfo
 
     info = ChannelInfo(channel_id="UCisZ2efLJn1Dxvn4th6mwlA", title="No Handle")
     ch = YouTubeSearchTool._metadatum_from_channel_info(info)
@@ -66,7 +66,7 @@ def test_metadatum_falls_back_to_channel_url():
 
 
 def test_metadatum_empty_title_defaults():
-    from s_q_ali_media_downloader.niche_research.tools.youtube_client import ChannelInfo
+    from s_q_ali_media_downloader.core.youtube_client import ChannelInfo
 
     info = ChannelInfo(channel_id="UCisZ2efLJn1Dxvn4th6mwlA")
     ch = YouTubeSearchTool._metadatum_from_channel_info(info)
@@ -83,7 +83,7 @@ def test_handle_from_custom_url_variants():
 
 def test_search_via_ytdlp_delegates_to_shared_client(monkeypatch):
     from s_q_ali_media_downloader.agent.tools import youtube_search as ys
-    from s_q_ali_media_downloader.niche_research.tools.youtube_client import ChannelInfo
+    from s_q_ali_media_downloader.core.youtube_client import ChannelInfo
 
     captured = {}
 

@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from s_q_ali_media_downloader.niche_research.storage import db
+from s_q_ali_media_downloader.core import settings_store
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def groq_key() -> str | None:
     from_env = (os.environ.get("GROQ_API_KEY") or "").strip()
     if from_env:
         return from_env
-    stored = (db.get_setting("groq_api_key") or "").strip()
+    stored = (settings_store.get_setting("groq_api_key") or "").strip()
     return stored or None
 
 

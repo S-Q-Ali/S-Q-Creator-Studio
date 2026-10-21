@@ -30,7 +30,7 @@ from s_q_ali_media_downloader.agent.social_discovery import (
     discover,
 )
 from s_q_ali_media_downloader.agent.tools.browser import BrowserSession
-from s_q_ali_media_downloader.niche_research.tools import exporter
+from s_q_ali_media_downloader.core import exporter
 from s_q_ali_media_downloader.theme import C
 
 logger = logging.getLogger(__name__)

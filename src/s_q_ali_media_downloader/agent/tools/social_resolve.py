@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from urllib.parse import parse_qs, unquote, urlparse
 
 from s_q_ali_media_downloader.agent.tools.browser import Page, PageUnavailable
-from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
+from s_q_ali_media_downloader.core.youtube_client import (
     fetch_channel,
 )
 

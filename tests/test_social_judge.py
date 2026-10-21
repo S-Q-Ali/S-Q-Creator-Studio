@@ -107,13 +107,13 @@ def test_without_a_key_the_agent_says_so(monkeypatch):
 def test_the_environment_key_overrides_the_stored_one(monkeypatch):
     """A .env file is a deliberate local override and wins."""
     monkeypatch.setenv("GROQ_API_KEY", "gsk_from_env")
-    monkeypatch.setattr(sj.db, "get_setting", lambda key: "stored-key")
+    monkeypatch.setattr(sj.settings_store, "get_setting", lambda key: "stored-key")
 
     assert sj.groq_key() == "gsk_from_env"
 
 
 def test_the_stored_key_is_used_when_the_environment_has_none(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    monkeypatch.setattr(sj.db, "get_setting", lambda key: "stored-key")
+    monkeypatch.setattr(sj.settings_store, "get_setting", lambda key: "stored-key")
 
     assert sj.groq_key() == "stored-key"

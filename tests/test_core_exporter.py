@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from s_q_ali_media_downloader.niche_research.tools import exporter
+from s_q_ali_media_downloader.core import exporter
 
 ROWS = [
     {"title": "First video", "views": 1200, "channel": "Chan A"},

@@ -5,7 +5,7 @@ import logging
 import httpx
 
 from s_q_ali_media_downloader.agent.schema import ChannelMetadata
-from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
+from s_q_ali_media_downloader.core.youtube_client import (
     ChannelInfo,
     search_channels,
 )

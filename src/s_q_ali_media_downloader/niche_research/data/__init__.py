@@ -1,1 +1,0 @@
-"""Niche catalog data package."""

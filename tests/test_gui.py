@@ -80,21 +80,6 @@ def test_expand_thread_for_picks_account_thread_for_tiktok_profile(qapp, isolate
     window.close()
 
 
-def test_rail_auto_collapses_on_research(qapp, isolated_appdata):
-    window = MainWindow()
-    window.show()
-    qapp.processEvents()
-    assert window.rail.isVisible()
-    window.btn_nav_research.click()
-    qapp.processEvents()
-    assert not window.rail.isVisible()
-    window.btn_nav_queue.click()
-    qapp.processEvents()
-    assert window.rail.isVisible()
-    window.research_tab.stop_poller()
-    window.close()
-
-
 def test_rail_toggle_button(qapp, isolated_appdata):
     window = MainWindow()
     window.show()
@@ -117,26 +102,6 @@ def test_agent_urls_reach_the_download_queue(qapp, isolated_appdata):
     not exist — every "Queue" click raised AttributeError."""
     window = MainWindow()
     window._handle_agent_urls(["https://www.youtube.com/watch?v=dQw4w9WgXcQ"])
-    assert len(window.jobs) == 1
-    assert window.jobs[0].url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    window.close()
-
-
-def test_closing_the_window_stops_the_research_poller(qapp, isolated_appdata):
-    """The poller must not outlive the app — a running timer keeps the
-    process alive and can fire a refresh during shutdown."""
-    window = MainWindow()
-    assert window.research_tab._poller._timer.isActive() is True
-    window.close()
-    assert window.research_tab._poller._timer.isActive() is False
-
-
-def test_research_queue_signal_reaches_the_download_queue(qapp, isolated_appdata):
-    """The research tab and the Agent tab share one bridge to the queue."""
-    window = MainWindow()
-    window.research_tab.send_to_queue_requested.emit(
-        ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
-    )
     assert len(window.jobs) == 1
     assert window.jobs[0].url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     window.close()

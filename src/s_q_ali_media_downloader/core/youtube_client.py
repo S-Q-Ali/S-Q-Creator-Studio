@@ -23,8 +23,8 @@ import httpx
 import yt_dlp
 from yt_dlp.utils import DateRange
 
+from s_q_ali_media_downloader.core import settings_store
 from s_q_ali_media_downloader.engine import impersonate_target, js_runtime_opts
-from s_q_ali_media_downloader.niche_research.storage import db
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ class ChannelInfo:
 
 
 def get_api_key() -> str | None:
-    value = db.get_setting("youtube_api_key")
+    value = settings_store.get_setting("youtube_api_key")
     return (value or "").strip() or None
 
 
@@ -103,7 +103,7 @@ def get_cookies_file() -> str | None:
     browser is the escape hatch — it is configured once in Settings and used
     by every request.
     """
-    path = (db.get_setting("youtube_cookies_file") or "").strip()
+    path = (settings_store.get_setting("youtube_cookies_file") or "").strip()
     if not path:
         return None
     if not os.path.isfile(path):

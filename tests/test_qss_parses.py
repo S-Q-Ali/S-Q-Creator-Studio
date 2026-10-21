@@ -1,7 +1,7 @@
 """QSS stylesheets must parse cleanly so the dark-cyan design renders correctly.
 
 A single stray token or unmatched brace silently drops every rule that follows
-it, so both stylesheets are pinned against Qt's parser on every run.
+it, so the stylesheet is pinned against Qt's parser on every run.
 """
 
 import sys
@@ -9,7 +9,6 @@ import sys
 import pytest
 from PySide6.QtWidgets import QLabel, QWidget
 
-from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 from s_q_ali_media_downloader.theme import STYLESHEET
 
 
@@ -32,17 +31,10 @@ def test_main_stylesheet_parses(qapp, capfd):
     assert not err, f"Qt reported stylesheet warnings:\n{err}"
 
 
-def test_research_stylesheet_parses(qapp, capfd):
-    _parse_without_warnings(qapp, research_style())
-    _, err = capfd.readouterr()
-    assert not err, f"Qt reported stylesheet warnings:\n{err}"
-
-
-def test_research_stylesheet_has_no_stray_tokens(qapp):
+def test_main_stylesheet_has_no_stray_tokens():
     # Regression: a stray bare "W" once sat at the end of the stylesheet.
-    css = research_style()
+    css = STYLESHEET
     assert not css.rstrip().endswith("W"), "stray token at end of stylesheet"
-    assert "text-transform: uppercase" in css
 
 
 if __name__ == "__main__":  # pragma: no cover

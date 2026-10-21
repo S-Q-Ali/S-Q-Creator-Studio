@@ -4,8 +4,8 @@ import pytest
 import yt_dlp
 import yt_dlp.utils as ydl_utils
 
-from s_q_ali_media_downloader.niche_research.storage import db
-from s_q_ali_media_downloader.niche_research.tools import youtube_client as yc
+from s_q_ali_media_downloader.core import settings_store as db
+from s_q_ali_media_downloader.core import youtube_client as yc
 
 
 @pytest.fixture(autouse=True)
@@ -13,7 +13,7 @@ def _isolated_db(isolated_appdata):
     db.configure(None)
     db.set_setting("youtube_api_key", "")
     yield
-    db.close_db()
+    db.close_store()
 
 
 def test_parse_video_id():

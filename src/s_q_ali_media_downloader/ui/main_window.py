@@ -52,7 +52,6 @@ from s_q_ali_media_downloader.engine import (
     normalize_youtube_channel_url,
     platform_of,
 )
-from s_q_ali_media_downloader.niche_research.ui.research_container import ResearchContainer
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, glyph_icon, shield_pixmap
@@ -431,9 +430,8 @@ class MainWindow(QMainWindow):
 
         self.btn_nav_queue = QPushButton("📥 Download Queue")
         self.btn_nav_agent = QPushButton("🤖 AI Channel Finder & Social Inspector")
-        self.btn_nav_research = QPushButton("🧭 Niche Research")
 
-        for idx, btn in enumerate((self.btn_nav_queue, self.btn_nav_agent, self.btn_nav_research)):
+        for idx, btn in enumerate((self.btn_nav_queue, self.btn_nav_agent)):
             btn.setCheckable(True)
             btn.setProperty("kind", "tab")
             btn.setCursor(Qt.PointingHandCursor)
@@ -550,28 +548,13 @@ class MainWindow(QMainWindow):
         self.agent_tab.send_to_queue_requested.connect(self._handle_agent_urls)
         self.workspace_stack.addWidget(self.agent_tab)
 
-        # Page 2: Niche Research Container Workspace Page
-        self.research_tab = ResearchContainer()
-        self.research_tab.send_to_queue_requested.connect(self._handle_agent_urls)
-        self.workspace_stack.addWidget(self.research_tab)
-
         lay.addWidget(self.workspace_stack, 1)
-
-        self.workspace_stack.currentChanged.connect(self._sync_rail_to_tab)
-        self._sync_rail_to_tab(self.workspace_stack.currentIndex())
 
         lay.addWidget(self._build_notice_bar())
         lay.addWidget(self._build_status_line())
         lay.addWidget(self._build_social_bar())
 
         return work
-
-    def _sync_rail_to_tab(self, index):
-        """Auto-hide the left rail on the Niche Research tab so it gets full width."""
-        if not hasattr(self, "research_tab"):
-            return
-        on_research = index == self.workspace_stack.indexOf(self.research_tab)
-        self.rail.setVisible(not on_research)
 
     def toggle_rail(self):
         self.rail.setVisible(not self.rail.isVisible())
@@ -1215,11 +1198,6 @@ class MainWindow(QMainWindow):
             self.fetcher.wait(2000)
         if self.expander is not None and self.expander.isRunning():
             self.expander.wait(2000)
-        research = getattr(self, "research_tab", None)
-        if research is not None:
-            # Stops the poller and joins the research workers — a running
-            # QThread at shutdown aborts the whole process.
-            research.shutdown()
         self._save_settings()
         self._save_queue()
         event.accept()

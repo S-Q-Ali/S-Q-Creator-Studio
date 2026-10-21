@@ -60,36 +60,6 @@ def _stop_workers_after_each_test():
     """No worker outlives the test that started it."""
     yield
     _stop_running_qthreads()
-    _stop_thumb_loader()
-
-
-def _stop_thumb_loader() -> None:
-    """Stop the thumbnail loader, if one was ever created.
-
-    The loader fetches over HTTP in a daemon thread. A request that is still
-    in flight when the interpreter tears the modules down crashes the
-    process with a native access violation in the SSL layer.
-    """
-    from s_q_ali_media_downloader.niche_research.ui import widgets
-
-    widgets.shutdown_thumb_loader(timeout=2.0)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _no_network():
-    """The test suite must not touch the network.
-
-    A real HTTPS request that is still in flight when the process exits
-    crashes it in the SSL layer, and a test that depends on YouTube
-    answering is a test that fails for reasons that have nothing to do with
-    the code under test.
-    """
-    from s_q_ali_media_downloader.niche_research.ui import widgets
-
-    original = widgets._fetch_image_bytes
-    widgets._fetch_image_bytes = lambda url, timeout=8.0: None
-    yield
-    widgets._fetch_image_bytes = original
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -111,10 +81,6 @@ def _no_worker_left_running(qapp):
         if app is not None:
             app.processEvents()
         time.sleep(0.05)
-    # The thumbnail loader fetches over HTTP in a daemon thread. A daemon
-    # thread that is inside a socket read when the interpreter tears the
-    # modules down crashes the process with a native access violation.
-    _stop_thumb_loader()
     # The GUI tests delete their widgets with deleteLater(). Those deferred
     # deletions are only processed when the event loop runs, so a widget
     # whose C++ object is already gone can be destroyed twice when the
