@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from PySide6.QtCore import Qt
 
 from s_q_ali_media_downloader.agent.social_discovery import (
