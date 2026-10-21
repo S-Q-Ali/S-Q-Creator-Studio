@@ -89,13 +89,19 @@ def _real_fonts(qapp):
     really is, so the layout tests reported clipping that was not there and
     missed clipping that was. The system's own fonts are loaded instead, so
     the interface is measured with the type it is actually drawn in.
+
+    The fonts are handed back before the application is torn down. An
+    application font that is still registered when the font database is
+    destroyed takes the process down with it on the way out.
     """
     from PySide6.QtGui import QFontDatabase
 
     if QFontDatabase.families():
+        yield
         return
 
     folder = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
+    loaded = []
     for name in (
         "segoeui.ttf",
         "segoeuib.ttf",
@@ -106,7 +112,14 @@ def _real_fonts(qapp):
     ):
         path = os.path.join(folder, name)
         if os.path.isfile(path):
-            QFontDatabase.addApplicationFont(path)
+            font_id = QFontDatabase.addApplicationFont(path)
+            if font_id >= 0:
+                loaded.append(font_id)
+
+    yield
+
+    for font_id in loaded:
+        QFontDatabase.removeApplicationFont(font_id)
 
 
 @pytest.fixture(scope="session", autouse=True)
