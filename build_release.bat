@@ -82,7 +82,10 @@ if exist "%PORTABLE%" (
         if exist "%PORTABLE%" (
             attrib -R "%PORTABLE%\*" /S /D >nul 2>nul
             rmdir /s /q "%PORTABLE%" >nul 2>nul
-            if exist "%PORTABLE%" ping -n 3 127.0.0.1 >nul
+            if exist "%PORTABLE%" (
+                powershell -NoProfile -Command "Remove-Item -LiteralPath '%PORTABLE%' -Recurse -Force -ErrorAction SilentlyContinue" >nul 2>nul
+            )
+            if exist "%PORTABLE%" ping -n 4 127.0.0.1 >nul
         )
     )
     if exist "%PORTABLE%" (
