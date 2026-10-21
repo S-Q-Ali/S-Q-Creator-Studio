@@ -321,6 +321,13 @@ class MainWindow(QMainWindow):
             "Playlists, channels and TikTok profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
+        self.chk_shorts = QCheckBox("Also fetch a YouTube channel's Shorts")
+        self.chk_shorts.setChecked(True)
+        self.chk_shorts.setToolTip(
+            "A channel's Shorts live in their own tab. Turn this off to fetch "
+            "only the long videos."
+        )
+        pl.addWidget(self.chk_shorts)
         self.source_stack.addWidget(page_links)
 
         page_account = QWidget()
@@ -803,7 +810,9 @@ class MainWindow(QMainWindow):
         # YouTube channel / playlist URL — expand into individual video URLs
         if is_youtube_channel_url(text) or is_youtube_playlist_url(text):
             normalized = normalize_youtube_channel_url(text)
-            self.fetcher = YouTubeFetchThread(normalized, limit, self)
+            self.fetcher = YouTubeFetchThread(
+                normalized, limit, self, include_shorts=self.chk_shorts.isChecked()
+            )
             self.fetcher.note.connect(self.set_status)
             self.fetcher.found.connect(self.on_youtube_channel_fetched)
             self.fetcher.failed.connect(self.on_account_failed)
@@ -925,7 +934,9 @@ class MainWindow(QMainWindow):
         limit = MAX_ACCOUNT_VIDEOS
         if is_profile_url(url):
             return AccountFetchThread(url, limit, False, self)
-        return YouTubeFetchThread(url, limit, self)
+        return YouTubeFetchThread(
+            url, limit, self, include_shorts=self.chk_shorts.isChecked()
+        )
 
     def on_youtube_found(self, urls, label):
         existing = {j.url for j in self.jobs}

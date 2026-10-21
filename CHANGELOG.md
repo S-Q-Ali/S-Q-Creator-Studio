@@ -3,6 +3,29 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.5.1] — 2026-10-21
+
+### Fixed
+
+- **Pasting a YouTube channel queued nothing that could be downloaded.**
+  A channel URL does not list the channel's videos — yt-dlp returns the
+  channel's *tabs* (Videos, Live, Shorts), and every entry carries the
+  24-character channel id. The app turned those into `watch?v=UC...`
+  links, which are not videos. The expansion now visits the channel's
+  Videos tab, and the Shorts tab as well.
+
+  Verified live on 2026-10-21: @mkbhd, @MrBeast and @veritasium each
+  returned two or three tab entries and no video; the Videos tab returns
+  the real videos.
+
+### Added
+
+- **A channel's Shorts are fetched too.** A Shorts link downloads on its
+  own (verified live: a 59-second Short came through as a 2.6 MB mp4 with
+  its audio), and "Also fetch a YouTube channel's Shorts" — on by
+  default — adds the channel's Shorts tab to the expansion. Each tab gets
+  its own budget, so the videos no longer eat the Shorts' share.
+
 ## [2.5.0] — 2026-10-21
 
 ### Social Discovery — find a creator's other accounts

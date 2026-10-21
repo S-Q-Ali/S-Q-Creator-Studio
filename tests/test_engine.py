@@ -13,6 +13,7 @@ from s_q_ali_media_downloader.engine import (
     QUALITY_OPTIONS,
     AccountFetchThread,
     DownloadThread,
+    YouTubeFetchThread,
     human_size,
     impersonation_summary,
     is_permanent,
@@ -224,6 +225,109 @@ def test_account_fetch_thread_returns_page_urls():
         thread.run()
 
     assert found == [["https://www.tiktok.com/@tiktok/video/7694797676306615583"]]
+
+
+# --------------------------------------------------------------------------- #
+# Expanding a YouTube channel
+# --------------------------------------------------------------------------- #
+class _FakeChannelYDL:
+    """Mimics yt-dlp 2026.8.19 on a channel URL.
+
+    A channel URL does not list the channel's videos — it lists the
+    channel's TABS, and every entry carries the channel id. Verified live on
+    2026-10-21 for @mkbhd, @MrBeast and @veritasium: three entries, no
+    video among them.
+    """
+
+    def __init__(self, opts=None):
+        self.opts = opts or {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def extract_info(self, url, download=False):
+        if url.endswith("/videos"):
+            return {
+                "_type": "playlist",
+                "entries": [
+                    {"id": "vidAAAAAAAA", "title": "A long video"},
+                    {"id": "vidBBBBBBBB", "title": "Another video"},
+                ],
+            }
+        if url.endswith("/shorts"):
+            return {
+                "_type": "playlist",
+                "entries": [
+                    {"id": "shoAAAAAAAA", "title": "A short"},
+                    {"id": "shoBBBBBBBB", "title": "Another short"},
+                ],
+            }
+        return {
+            "_type": "playlist",
+            "entries": [
+                {"id": "UCabcdefghijklmnopqrstuv", "title": "Chan - Videos"},
+                {"id": "UCabcdefghijklmnopqrstuv", "title": "Chan - Shorts"},
+            ],
+        }
+
+
+def test_a_channel_expands_into_its_videos_not_its_tabs():
+    """Regression (2026-10): the expansion queued watch?v=UC<channel id> —
+    a channel id is not a video, so nothing downloaded."""
+    with patch("yt_dlp.YoutubeDL", _FakeChannelYDL):
+        thread = YouTubeFetchThread("https://www.youtube.com/@chan")
+        found = []
+        thread.found.connect(lambda urls, name: found.append(urls))
+        thread.run()
+
+    assert found == [
+        [
+            "https://www.youtube.com/watch?v=vidAAAAAAAA",
+            "https://www.youtube.com/watch?v=vidBBBBBBBB",
+        ]
+    ]
+
+
+def test_the_shorts_tab_is_fetched_when_asked_for():
+    """A channel's Shorts live in their own tab, which the app never visited."""
+    with patch("yt_dlp.YoutubeDL", _FakeChannelYDL):
+        thread = YouTubeFetchThread(
+            "https://www.youtube.com/@chan", include_shorts=True
+        )
+        found = []
+        thread.found.connect(lambda urls, name: found.append(urls))
+        thread.run()
+
+    assert found == [
+        [
+            "https://www.youtube.com/watch?v=vidAAAAAAAA",
+            "https://www.youtube.com/watch?v=vidBBBBBBBB",
+            "https://www.youtube.com/watch?v=shoAAAAAAAA",
+            "https://www.youtube.com/watch?v=shoBBBBBBBB",
+        ]
+    ]
+
+
+def test_a_playlist_is_still_expanded_as_it_was():
+    """A playlist URL is not a channel: it lists its videos directly."""
+
+    class _FakePlaylistYDL(_FakeChannelYDL):
+        def extract_info(self, url, download=False):
+            return {
+                "_type": "playlist",
+                "entries": [{"id": "vidAAAAAAAA", "title": "A long video"}],
+            }
+
+    with patch("yt_dlp.YoutubeDL", _FakePlaylistYDL):
+        thread = YouTubeFetchThread("https://www.youtube.com/playlist?list=PLabc")
+        found = []
+        thread.found.connect(lambda urls, name: found.append(urls))
+        thread.run()
+
+    assert found == [["https://www.youtube.com/watch?v=vidAAAAAAAA"]]
 
 
 def test_download_error_is_not_swallowed():

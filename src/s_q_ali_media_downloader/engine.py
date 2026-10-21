@@ -253,6 +253,15 @@ def is_youtube_channel_url(url):
     return re.search(r"youtube\.com/uc[a-z0-9_\-]{22}", low) is not None
 
 
+def _is_video_id(value) -> bool:
+    """A YouTube video id is exactly eleven characters.
+
+    A channel id is twenty-four, and that is what a channel's tab entries
+    carry — so this tells a video from a tab.
+    """
+    return isinstance(value, str) and len(value) == 11
+
+
 def normalize_youtube_channel_url(url):
     """Ensures youtube.com/UC... shorthand URLs are normalized to youtube.com/channel/UC..."""
     url = url.strip()
@@ -353,10 +362,31 @@ class YouTubeFetchThread(QThread):
     failed = Signal(str)
     note = Signal(str)
 
-    def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None):
+    def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None, include_shorts=False):
         super().__init__(parent)
         self.url = url
         self.limit = max(1, min(int(limit), 500))
+        self.include_shorts = include_shorts
+
+    def _targets(self) -> list[str]:
+        """The pages to read.
+
+        A channel URL does not list the channel's videos: yt-dlp returns the
+        channel's *tabs* (Videos, Live, Shorts) and every entry carries the
+        channel id. Turning those into ``watch?v=UC...`` links queues
+        something that is not a video. The tabs have to be visited one by
+        one, and the Shorts tab is a page of its own.
+
+        Verified live on 2026-10-21 for @mkbhd, @MrBeast and @veritasium:
+        the channel URL returned two or three tab entries and no video.
+        """
+        if not is_youtube_channel_url(self.url):
+            return [self.url]
+        base = self.url.rstrip("/")
+        targets = [f"{base}/videos"]
+        if self.include_shorts:
+            targets.append(f"{base}/shorts")
+        return targets
 
     def run(self):
         self.note.emit("Expanding YouTube link…")
@@ -370,31 +400,36 @@ class YouTubeFetchThread(QThread):
             "ignoreerrors": True,
             "js_runtimes": js_runtime_opts(),
         }
-        try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(self.url, download=False)
-        except Exception as exc:
-            self.failed.emit(tidy_error(exc))
-            return
-        if not info:
-            self.failed.emit("Nothing came back from that YouTube link.")
-            return
-        entries = info.get("entries")
-        if not entries and info.get("_type") != "playlist":
-            entries = [info]
-        urls = []
-        for entry in entries or []:
-            if not entry:
+        urls: list[str] = []
+        label = ""
+        for target in self._targets():
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(target, download=False)
+            except Exception as exc:
+                self.failed.emit(tidy_error(exc))
+                return
+            if not info:
                 continue
-            vid = entry.get("id")
-            if not vid:
-                continue
-            candidate = f"https://www.youtube.com/watch?v={vid}"
-            if candidate not in urls:
-                urls.append(candidate)
-            if len(urls) >= self.limit:
-                break
-        label = info.get("title") or "this YouTube source"
+            entries = info.get("entries")
+            if not entries and info.get("_type") != "playlist":
+                entries = [info]
+            if not label:
+                label = info.get("title") or "this YouTube source"
+            # Each tab gets its own budget: the videos tab must not eat the
+            # Shorts tab's share.
+            taken = 0
+            for entry in entries or []:
+                vid = (entry or {}).get("id")
+                if not _is_video_id(vid):
+                    # A tab placeholder, not a video.
+                    continue
+                candidate = f"https://www.youtube.com/watch?v={vid}"
+                if candidate not in urls:
+                    urls.append(candidate)
+                taken += 1
+                if taken >= self.limit:
+                    break
         if not urls:
             self.failed.emit("No videos found in that playlist or channel.")
             return

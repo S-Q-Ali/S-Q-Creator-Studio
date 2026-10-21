@@ -32,7 +32,10 @@ def test_extract_flat_is_not_passed(mock_ydl_cls):
             return {
                 "_type": "playlist",
                 "title": "Test Channel",
-                "entries": [{"id": f"video{i}"} for i in range(30)],
+                # A real video id is eleven characters; the expansion drops
+                # anything else (a channel's tab entries carry a 24-character
+                # channel id).
+                "entries": [{"id": f"vid{i:08d}"} for i in range(30)],
             }
 
     mock_ydl_cls.side_effect = FakeYDL
