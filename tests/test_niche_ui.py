@@ -286,13 +286,59 @@ def test_trending_page_niche_combo_width(isolated_appdata, qapp):
 
 
 def test_trending_page_niche_combo_is_populated_at_startup(isolated_appdata, qapp):
-    """The niche filter used to stay empty until the format combo was
-    touched, because only _on_format_changed populated it."""
+    """The niche filter must be usable before the format combo is touched.
+
+    It used to hold nothing but "All Niches" until a format was picked, so the
+    niche filter was unusable on the default view.
+    """
+    from s_q_ali_media_downloader.niche_research.data import niches
+
     db.configure(None)
     page = TrendingChannelsPage()
     combo = page._niche_combo
-    assert combo.count() >= 1
+
     assert combo.itemText(0) == "All Niches"
+    ids = [combo.itemData(i) for i in range(1, combo.count())]
+    # every niche of every format is offered, exactly once
+    assert set(ids) == set(niches.get_niches(None))
+    assert len(ids) == len(niches.get_niches(None))
+    # niches of both formats are present
+    assert "insurance" in ids  # longform only
+    assert "asmr" in ids  # shortform only
+    assert "tech_ai" in ids  # both
+    # the names are shown, not the raw ids
+    catalog = niches.get_niches(None)
+    names = [combo.itemText(i) for i in range(1, combo.count())]
+    assert names == [catalog[niche_id].name for niche_id in ids]
+    assert "Insurance" in names  # a real longform niche
+    assert "Faceless Shorts" in names  # a real shortform niche
+    # and picking one really filters
+    page._niche_combo.setCurrentIndex(ids.index("tech_ai") + 1)  # +1: "All Niches"
+    qapp.processEvents()
+    assert page.selected_niche() == "tech_ai"
+    db.close_db()
+
+
+def test_ai_only_filter_count_matches_the_grid(isolated_appdata, qapp):
+    """The header counted every channel while the grid showed only AI ones.
+
+    The count query missed the ``ai_only`` flag, so the subtitle lied and
+    "Next" led to an empty page.
+    """
+    db.configure(None)
+    te.save_trending_channels(
+        [_sample(f"UCai{i}", f"AI {i}", 50, ai_score=90) for i in range(5)]
+    )
+    te.save_trending_channels([_sample(f"UCplain{i}", f"Human {i}", 50) for i in range(20)])
+    page = TrendingChannelsPage()
+    page._ai_only_check.setChecked(True)
+    qapp.processEvents()
+
+    shown = [page._grid.itemAt(i).widget().data().title for i in range(page._grid.count())]
+    assert sorted(shown) == [f"AI {i}" for i in range(5)]
+    assert page._subtitle.text().startswith("5 channels discovered")
+    assert page._page_label.text() == "Page 1 of 1"
+    assert page._next_btn.isEnabled() is False
     db.close_db()
 
 
@@ -385,7 +431,7 @@ def test_research_style_renders_unified_dark_theme():
     assert default == light_arg
 
 
-def _sample(channel_id, title, viral_score):
+def _sample(channel_id, title, viral_score, ai_score=0):
     return te.TrendingChannel(
         channel_id=channel_id,
         title=title,
@@ -405,5 +451,5 @@ def _sample(channel_id, title, viral_score):
         avg_views_per_video=500,
         is_newly_created=False,
         is_rapidly_growing=False,
-        ai_score=0,
+        ai_score=ai_score,
     )

@@ -224,13 +224,18 @@ class TrendingChannelsPage(QWidget):
         self._format_combo.blockSignals(False)
 
     def _populate_niche_combo(self) -> None:
+        """Fill the niche filter.
+
+        With a format selected only that format's niches are offered; with
+        "All Formats" the union of every format's niches is offered, so the
+        filter is usable without touching the format combo first.
+        """
         self._niche_combo.blockSignals(True)
         self._niche_combo.clear()
         self._niche_combo.addItem("All Niches", "all")
-        if self._selected_format != "all":
-            fmt = self._selected_format
-            for niche in get_niches(fmt).values():
-                self._niche_combo.addItem(niche.name, niche.id)
+        fmt = self._selected_format if self._selected_format != "all" else None
+        for niche in get_niches(fmt).values():
+            self._niche_combo.addItem(niche.name, niche.id)
         self._niche_combo.blockSignals(False)
         self._fit_niche_combo()
 
@@ -344,7 +349,9 @@ class TrendingChannelsPage(QWidget):
         channels = te.get_trending_channels(
             fmt, niche, limit=PAGE_SIZE, offset=offset, ai_only=self._ai_only
         )
-        total = te.get_trending_channel_count(fmt, niche)
+        # The count must use the same filters, or the header lies and "Next"
+        # leads to an empty page.
+        total = te.get_trending_channel_count(fmt, niche, ai_only=self._ai_only)
         total_pages = max(1, -(-total // PAGE_SIZE)) if total else 1
 
         self._load_count = total

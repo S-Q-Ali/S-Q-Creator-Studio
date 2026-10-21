@@ -519,3 +519,46 @@ def test_discovery_stops_when_cancelled(monkeypatch):
     te.discover_trending_channels("longform", "tech_ai", cancel=lambda: len(searches) >= 1)
 
     assert len(searches) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the count query must apply the same filters
+# --------------------------------------------------------------------------- #
+def _trending_row(channel_id, ai_score=0):
+    return te.TrendingChannel(
+        channel_id=channel_id,
+        title=channel_id,
+        description="",
+        thumbnail_url="",
+        subscriber_count=10,
+        view_count=100,
+        video_count=2,
+        published_at="",
+        video_format="longform",
+        niche="tech_ai",
+        category_name="N",
+        viral_score=50,
+        growth_rate=0,
+        view_sub_ratio=10,
+        recent_video_count=1,
+        avg_views_per_video=100,
+        is_newly_created=False,
+        is_rapidly_growing=False,
+        ai_score=ai_score,
+    )
+
+
+def test_trending_count_applies_the_same_ai_filter_as_the_rows():
+    """The count and the rows must agree, or the pager shows empty pages."""
+    te.save_trending_channels(
+        [_trending_row(f"UCai{i}", ai_score=te.AI_GENERATED_THRESHOLD) for i in range(5)]
+    )
+    te.save_trending_channels([_trending_row(f"UCplain{i}", ai_score=10) for i in range(20)])
+
+    rows = te.get_trending_channels(ai_only=True)
+    assert len(rows) == 5
+    assert te.get_trending_channel_count(ai_only=True) == len(rows)
+
+    assert len(te.get_trending_channels(limit=100)) == 25
+    assert te.get_trending_channel_count() == 25
+    assert te.get_trending_channel_count(ai_only=False) == 25
