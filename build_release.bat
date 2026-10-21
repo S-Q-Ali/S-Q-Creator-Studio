@@ -84,11 +84,11 @@ if %ERRORLEVEL% neq 0 (
 )
 
 rem Locate ffmpeg once: PATH first, then the winget install folder.
-set "FFMPEG_EXE="
+rem FFMPEG_EXE can be set by the caller to point at a specific build.
+set "FFMPEG_EXE=%FFMPEG_EXE%"
 for /f "delims=" %%F in ('where ffmpeg 2^>nul') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%F"
 if not defined FFMPEG_EXE (
-    set "FFMPEG_SRC=C:\Users\MuslimQasim\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin\ffmpeg.exe"
-    if exist "%FFMPEG_SRC%" set "FFMPEG_EXE=%FFMPEG_SRC%"
+    for /f "delims=" %%F in ('dir /b /s "%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg_*\bin\ffmpeg.exe" 2^>nul') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%F"
 )
 
 rem ffmpeg ships next to the app: "Best available" downloads video and audio

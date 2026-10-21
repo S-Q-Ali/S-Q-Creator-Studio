@@ -28,7 +28,7 @@ Bulk-download **TikTok** and **YouTube** videos, discover cross-platform creator
 
 ### Installer (recommended)
 
-Download `S-Q-Creator-Studio-Setup-2.2.0.exe` from the [latest release](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases).
+Download `S-Q-Creator-Studio-Setup-2.4.2.exe` from the [latest release](https://github.com/S-Q-Ali/Bulk-Video-Downloader/releases).
 
 - Per-user install — **no administrator rights needed**.
 - Bundles `ffmpeg.exe`, so audio-only extraction and format merging work out of the box.

@@ -214,7 +214,10 @@ def get_initials(name: str) -> str:
 
 
 def time_ago(timestamp: float) -> str:
-    diff_ms = timestamp * 1000 if timestamp < 10_000_000_000 else timestamp
+    try:
+        diff_ms = timestamp * 1000 if timestamp < 10_000_000_000 else timestamp
+    except TypeError:
+        return "recently"
     try:
         from time import time
 

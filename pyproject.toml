@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "s-q-ali-media-downloader"
-version = "2.1.0"
+version = "2.4.2"
 description = "Bulk-download TikTok and YouTube videos with a queue-based desktop app."
 readme = "README.md"
 requires-python = ">=3.10"

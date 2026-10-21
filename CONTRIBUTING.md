@@ -15,7 +15,7 @@ pip install -r requirements-dev.txt
 ## Running checks
 
 ```powershell
-pytest                # 260+ tests incl. full offscreen GUI smoke suite
+pytest                # 390+ tests incl. full offscreen GUI smoke suite
 ruff check src tests  # lint
 ```
 

@@ -445,7 +445,10 @@ def test_thumbnail_tab_is_reachable_without_an_analysis(qapp, monkeypatch):
     assert buttons
     buttons[0].click()
     assert modal._analysis_stack.currentIndex() == 2
-    assert modal._thumb_title.isVisible() or True  # the page is the thumbnail page
+    # the thumbnail page is the one on screen, with its own controls
+    thumb_page = modal._analysis_stack.widget(2)
+    assert thumb_page is not None
+    assert thumb_page.findChildren(QPushButton)
     modal.reject()
     modal.deleteLater()
 
