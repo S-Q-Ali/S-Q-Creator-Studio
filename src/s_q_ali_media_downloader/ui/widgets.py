@@ -34,15 +34,15 @@ class ElidedLabel(QLabel):
         self.setToolTip(text)
         self._elide()
 
-    def setText(self, text: str) -> None:  # noqa: N802 - Qt's name
+    def setText(self, text: str) -> None:
         self._full = text or ""
         self.setToolTip(self._full)
         self._elide()
 
-    def fullText(self) -> str:  # noqa: N802 - Qt's name
+    def fullText(self) -> str:
         return self._full
 
-    def resizeEvent(self, event):  # noqa: N802 - Qt's name
+    def resizeEvent(self, event):
         super().resizeEvent(event)
         self._elide()
 
