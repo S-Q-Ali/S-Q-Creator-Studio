@@ -198,8 +198,13 @@ def discover_trending_channels(
     *,
     cookiefile: str | None = None,
     progress: Callable[[str], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> tuple[list[TrendingChannel], int]:
-    """Discover trending channels for one format/niche. Returns (channels, searches_used)."""
+    """Discover trending channels for one format/niche. Returns (channels, searches_used).
+
+    ``cancel`` is checked between searches so a long scan can be stopped
+    without waiting for the whole search budget to be used up.
+    """
     niche = get_niche(video_format, niche_id)
     if niche is None:
         logger.error("Niche %s not found for format %s", niche_id, video_format)
@@ -213,6 +218,9 @@ def discover_trending_channels(
             logger.info(
                 "Search budget exhausted (%s/%s), stopping discovery", searches_used, SEARCH_BUDGET
             )
+            break
+        if cancel is not None and cancel():
+            logger.info("Discovery cancelled after %s searches", searches_used)
             break
 
         try:
@@ -525,11 +533,14 @@ def refresh_all_trending(
     cookiefile: str | None = None,
     progress: Callable[[str], None] | None = None,
     force: bool = False,
+    cancel: Callable[[], bool] | None = None,
 ) -> dict:
     """Refresh trending data for all (or one) format/niche, honoring the 24h cache.
 
     Pass ``force=True`` to bypass the cache and always re-scan (used by the manual
     Discover/Update buttons so a click never silently no-ops on a fresh niche).
+
+    ``cancel`` stops the scan between niches so the worker can finish early.
     """
     total_discovered = 0
     niches_scanned = 0
@@ -543,11 +554,18 @@ def refresh_all_trending(
         else:
             niches = list(get_niches(fmt))
         for niche_key in niches:
+            if cancel is not None and cancel():
+                logger.info("Trending refresh cancelled")
+                return {
+                    "discovered": total_discovered,
+                    "niches": niches_scanned,
+                    "searches_used": total_searches,
+                }
             if not force and was_niche_discovered_recently(fmt, niche_key):
                 continue
             try:
                 channels, searches_used = discover_trending_channels(
-                    fmt, niche_key, 50, cookiefile=cookiefile, progress=progress
+                    fmt, niche_key, 50, cookiefile=cookiefile, progress=progress, cancel=cancel
                 )
                 save_trending_channels(channels)
                 if channels:

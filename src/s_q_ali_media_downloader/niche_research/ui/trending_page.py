@@ -64,6 +64,7 @@ class TrendingDiscoveryWorker(QThread):
                 cookiefile=self.cookiefile,
                 progress=lambda msg: self.progress.emit(msg),
                 force=self.force,
+                cancel=self.isInterruptionRequested,
             )
             self.done.emit(result["discovered"], result["searches_used"])
         except Exception as exc:

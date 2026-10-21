@@ -165,7 +165,6 @@ def test_discover_trending_channels(monkeypatch):
             subscriber_count=5_000,
         ),
     }
-
     def fake_search(query, max_results, days_recent, cookiefile, progress):
         a = [
             _make_raw_video(f"a{i}", "UCa", 100_000 + i, 5000 + i, 100 + i, i + 1, 600)
@@ -438,7 +437,9 @@ def test_refresh_all_trending_skips_recently_discovered(monkeypatch):
 def test_refresh_all_trending_force_bypasses_cache(monkeypatch):
     ran = []
 
-    def fake_discover(video_format, niche_id, max_results, cookiefile=None, progress=None):
+    def fake_discover(
+        video_format, niche_id, max_results, cookiefile=None, progress=None, cancel=None
+    ):
         ran.append((video_format, niche_id))
         return [
             te.TrendingChannel(
@@ -499,3 +500,22 @@ def test_update_last_analyzed():
     te.save_trending_channels([channel])
     te.update_last_analyzed("UCx", 12345)
     assert te.get_trending_channel_by_id("UCx").last_analyzed == 12345
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): a long scan must be stoppable
+# --------------------------------------------------------------------------- #
+def test_discovery_stops_when_cancelled(monkeypatch):
+    """A full discovery scan runs dozens of searches; the worker has to be
+    able to stop it when the app closes."""
+    searches: list[str] = []
+
+    def fake_search(query, max_results, days_recent, cookiefile, progress):
+        searches.append(query)
+        return []
+
+    monkeypatch.setattr(te, "search_videos", fake_search)
+
+    te.discover_trending_channels("longform", "tech_ai", cancel=lambda: len(searches) >= 1)
+
+    assert len(searches) == 1

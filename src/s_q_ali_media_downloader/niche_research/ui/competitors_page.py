@@ -53,7 +53,9 @@ class RefreshWorker(QThread):
 
     def run(self) -> None:
         try:
-            counts = ce.refresh_snapshots(progress=self.progress.emit)
+            counts = ce.refresh_snapshots(
+                progress=self.progress.emit, cancel=self.isInterruptionRequested
+            )
             self.done.emit(counts)
         except Exception as exc:
             logger.warning("Competitor refresh failed", exc_info=True)

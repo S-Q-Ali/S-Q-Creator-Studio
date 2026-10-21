@@ -386,3 +386,26 @@ def test_generate_thumbnail_styles_build_prompt_shape(isolated_appdata, monkeypa
     assert captured["payload"]["response_format"] == "b64_json"
     assert "vibrant" in captured["payload"]["prompt"]
     assert "Niche: Tech" in captured["payload"]["prompt"]
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): a cancelled analysis must not buy another provider call
+# --------------------------------------------------------------------------- #
+def test_analyze_channel_stops_before_calling_a_provider_when_cancelled(monkeypatch):
+    db.set_setting("groq_api_key", "k-groq")
+    calls: list[str] = []
+
+    def fake_call(provider, prompt):
+        calls.append(provider["name"])
+        return SAMPLE_JSON
+
+    monkeypatch.setattr(ai, "call_provider", fake_call)
+    monkeypatch.setattr(
+        ai, "fetch_channel", lambda *a, **kw: ChannelInfo(channel_id="UCx", title="T")
+    )
+    monkeypatch.setattr(ai, "fetch_videos", lambda *a, **kw: [])
+
+    with pytest.raises(RuntimeError, match="cancel"):
+        ai.analyze_channel("UCx", cancel=lambda: True)
+
+    assert calls == []

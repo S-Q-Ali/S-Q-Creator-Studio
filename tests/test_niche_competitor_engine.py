@@ -402,3 +402,28 @@ def _channel(channel_id: str):
         topic_categories=None,
         uploads=[],
     )
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): a snapshot refresh must be stoppable
+# --------------------------------------------------------------------------- #
+def test_refresh_snapshots_stops_when_cancelled(monkeypatch):
+    """The refresh runs one network request per tracked item; cancelling
+    between items keeps the worker responsive."""
+    from s_q_ali_media_downloader.niche_research.tools.youtube_client import VideoInfo
+
+    _track("video", "vidA")
+    _track("video", "vidB")
+    fetched: list[str] = []
+
+    def fake_fetch(video_id, cookiefile=None, api_key=None):
+        fetched.append(video_id)
+        return VideoInfo(
+            video_id=video_id, title="T", view_count=1, like_count=0, comment_count=0
+        )
+
+    monkeypatch.setattr(ce, "fetch_video", fake_fetch)
+
+    ce.refresh_snapshots(cancel=lambda: len(fetched) >= 1)
+
+    assert fetched == ["vidA"]

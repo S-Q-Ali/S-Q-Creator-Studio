@@ -25,21 +25,32 @@ from s_q_ali_media_downloader.niche_research.ui.theme import (
 logger = logging.getLogger(__name__)
 
 
+HARD_STOP_TIMEOUT_MS = 35_000
+
+
 def stop_worker(worker: QThread | None, timeout_ms: int = 3000) -> None:
     """Stop and join a worker thread.
 
-    A QThread that is destroyed while it is still running aborts the whole
-    process, so a worker that refuses to stop within the grace period is
-    terminated.
+    The worker is asked to stop and then gets time to finish the item it is
+    on. A QThread that is destroyed while it is still running aborts the
+    whole process, and ``terminate()`` is a last resort: on Windows it kills
+    the thread at an arbitrary instruction, which can corrupt the
+    interpreter. Workers poll ``isInterruptionRequested()``, so the grace
+    period is normally enough.
     """
     if worker is None:
         return
-    if worker.isRunning():
-        worker.requestInterruption()
-        if not worker.wait(timeout_ms):
-            logger.warning("Worker still running after %dms — terminating it", timeout_ms)
-            worker.terminate()
-            worker.wait(1000)
+    if not worker.isRunning():
+        return
+    worker.requestInterruption()
+    if worker.wait(timeout_ms):
+        return
+    logger.warning("Worker still running after %dms — waiting for it to finish", timeout_ms)
+    if worker.wait(HARD_STOP_TIMEOUT_MS):
+        return
+    logger.error("Worker did not stop — terminating it")
+    worker.terminate()
+    worker.wait(1000)
 
 
 # --------------------------------------------------------------------------- #

@@ -64,6 +64,7 @@ class AnalyzeWorker(QThread):
             analysis = ai.analyze_channel(
                 self.channel_id,
                 progress=lambda message: self.progress.emit(message),
+                cancel=self.isInterruptionRequested,
             )
             self.done.emit(analysis)
         except Exception as exc:
@@ -135,6 +136,7 @@ class AnalysisModal(QDialog):
         self.channel_id = channel_id
 
         self._workers: list[QThread] = []
+        self._analysis_running = False
         self._active_tab = "strategy"
         self._thumb_image: str | None = None
         self._thumb_style = "bold" if "bold" in ai.THUMB_STYLES else ai.THUMB_STYLES[0]
@@ -283,19 +285,21 @@ class AnalysisModal(QDialog):
         sub.setObjectName("smallLabel")
         sub.setWordWrap(True)
         card_layout.addWidget(sub)
-        self._analyze_btn = QPushButton("Create Similar Channel")
-        self._analyze_btn.setFixedWidth(220)
-        self._analyze_btn.setToolTip(
+        self._similar_btn = QPushButton("Create Similar Channel")
+        self._similar_btn.setFixedWidth(220)
+        self._similar_btn.setToolTip(
             "Find the discovered channels that most resemble this one"
         )
-        self._analyze_btn.clicked.connect(self._start_similar)
-        card_layout.addWidget(self._analyze_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        self._similar_btn.clicked.connect(self._start_similar)
+        card_layout.addWidget(self._similar_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
-        analyze_btn = QPushButton("🤖  Analyze this channel")
-        analyze_btn.setProperty("variant", "outline")
-        analyze_btn.setToolTip("Generate the AI strategy, ideas, scripts and blueprint")
-        analyze_btn.clicked.connect(self._start_analyze)
-        card_layout.addWidget(analyze_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        self._run_analysis_btn = QPushButton("🤖  Analyze this channel")
+        self._run_analysis_btn.setProperty("variant", "outline")
+        self._run_analysis_btn.setToolTip(
+            "Generate the AI strategy, ideas, scripts and blueprint"
+        )
+        self._run_analysis_btn.clicked.connect(self._start_analyze)
+        card_layout.addWidget(self._run_analysis_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         self._analysis_progress = QLabel("")
         self._analysis_progress.setObjectName("smallLabel")
@@ -571,8 +575,8 @@ class AnalysisModal(QDialog):
             self._render_analysis(data.get("analysis") or {})
             self._analysis_stack.setCurrentIndex(1)
         else:
-            self._analyze_btn.setEnabled(True)
-            self._analyze_btn.setText("Create Similar Channel")
+            self._similar_btn.setEnabled(True)
+            self._similar_btn.setText("Create Similar Channel")
             self._analysis_stack.setCurrentIndex(0)
 
     def _render_analysis(self, analysis: dict) -> None:
@@ -805,8 +809,11 @@ class AnalysisModal(QDialog):
     # Actions
     # ------------------------------------------------------------------ #
     def _start_analyze(self) -> None:
-        self._analyze_btn.setText("Analyzing...")
-        self._analyze_btn.setEnabled(False)
+        if self._analysis_running:
+            return
+        self._analysis_running = True
+        self._run_analysis_btn.setText("Analyzing...")
+        self._run_analysis_btn.setEnabled(False)
         self._analysis_progress.setText("Starting…")
         self._analysis_progress.setVisible(True)
         worker = AnalyzeWorker(self.channel_id, parent=self)
@@ -821,8 +828,8 @@ class AnalysisModal(QDialog):
 
     def _start_similar(self) -> None:
         """Find the discovered channels that most resemble this one."""
-        self._analyze_btn.setText("Searching...")
-        self._analyze_btn.setEnabled(False)
+        self._similar_btn.setText("Searching...")
+        self._similar_btn.setEnabled(False)
         worker = SimilarChannelsWorker(self.channel_id, parent=self)
         self._track_worker(worker)
         worker.done.connect(self._on_similar_done)
@@ -830,8 +837,8 @@ class AnalysisModal(QDialog):
         worker.start()
 
     def _on_similar_done(self, channels: list) -> None:
-        self._analyze_btn.setEnabled(True)
-        self._analyze_btn.setText("Create Similar Channel")
+        self._similar_btn.setEnabled(True)
+        self._similar_btn.setText("Create Similar Channel")
         while self._similar_body.count():
             item = self._similar_body.takeAt(0)
             if item.widget():
@@ -870,19 +877,21 @@ class AnalysisModal(QDialog):
         self._similar_box.show()
 
     def _on_similar_failed(self, error: str) -> None:
-        self._analyze_btn.setEnabled(True)
-        self._analyze_btn.setText("Create Similar Channel")
+        self._similar_btn.setEnabled(True)
+        self._similar_btn.setText("Create Similar Channel")
         self._similar_caption.setText(f"Similar channels — search failed: {error}")
 
     def _on_analyze_done(self, _analysis) -> None:
-        self._analyze_btn.setEnabled(True)
-        self._analyze_btn.setText("Create Similar Channel")
+        self._analysis_running = False
+        self._run_analysis_btn.setEnabled(True)
+        self._run_analysis_btn.setText("🤖  Analyze this channel")
         self._analysis_progress.hide()
         self._load()
 
     def _on_analyze_failed(self, error: str) -> None:
-        self._analyze_btn.setEnabled(True)
-        self._analyze_btn.setText("Create Similar Channel")
+        self._analysis_running = False
+        self._run_analysis_btn.setEnabled(True)
+        self._run_analysis_btn.setText("🤖  Analyze this channel")
         self._analysis_progress.hide()
         self._analysis_stack.setCurrentIndex(0)
         self._error_label.setText(f"Analysis failed: {error}")
@@ -1001,13 +1010,6 @@ class AnalysisModal(QDialog):
     def _shutdown_workers(self, timeout_ms: int = 5000) -> None:
         """Stop and join every worker this dialog started."""
         for worker in list(self._workers):
-            if worker.isRunning():
-                worker.requestInterruption()
-                if not worker.wait(timeout_ms):
-                    logger.warning(
-                        "Analysis worker still running after %dms — terminating it", timeout_ms
-                    )
-                    worker.terminate()
-                    worker.wait(1000)
+            w.stop_worker(worker, timeout_ms)
             if worker in self._workers:
                 self._workers.remove(worker)

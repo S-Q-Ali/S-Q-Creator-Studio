@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QLabel, QPushButton
 
 from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
@@ -20,14 +20,29 @@ def _db(isolated_appdata):
     db.close_db()
 
 
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    """The modal starts a channel-data worker on construction; stub the
+    network call so no test reaches YouTube and leaves a live thread
+    behind."""
+    monkeypatch.setattr(
+        ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False)
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Regression (2026-10): the modal must never abort the process on close
 # --------------------------------------------------------------------------- #
 class _SlowWorker(QThread):
-    """A worker that keeps running until it is stopped."""
+    """A worker that keeps running until it is asked to stop.
+
+    It polls isInterruptionRequested() like the real workers do, so stopping
+    it never has to fall back to terminate() — killing a live thread can
+    corrupt the interpreter.
+    """
 
     def run(self) -> None:  # pragma: no cover - timing dependent
-        while True:
+        while not self.isInterruptionRequested():
             self.msleep(50)
 
 
@@ -58,6 +73,53 @@ def test_is_analyzed_is_true_without_scripts(isolated_appdata):
     )
 
     assert ai.is_analyzed("UCabc") is True
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): one click, one paid analysis
+# --------------------------------------------------------------------------- #
+def test_the_analyze_button_is_disabled_while_the_analysis_runs(qapp, monkeypatch):
+    """The "Analyze this channel" button was a local variable, so it was never
+    disabled: every click started another provider call, and the button that
+    got disabled was the unrelated "Create Similar Channel" one."""
+    from s_q_ali_media_downloader.niche_research.ui import analysis_modal as am
+
+    monkeypatch.setattr(ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False))
+
+    starts: list[str] = []
+
+    class _FakeWorker(QThread):
+        progress = Signal(str)
+        done = Signal(object)
+        failed = Signal(str)
+
+        def __init__(self, channel_id, parent=None):
+            super().__init__(parent)
+            starts.append(channel_id)
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(am, "AnalyzeWorker", _FakeWorker)
+
+    modal = AnalysisModal("UCabc")
+    analyze_btn = modal._run_analysis_btn
+    similar_btn = modal._similar_btn
+
+    assert analyze_btn.isEnabled() is True
+    assert "Analyze" in analyze_btn.text()
+
+    modal._start_analyze()
+
+    assert analyze_btn.isEnabled() is False
+    assert "Analyzing" in analyze_btn.text()
+    # the similar-channel button keeps its own label and stays clickable
+    assert similar_btn.text() == "Create Similar Channel"
+    assert similar_btn.isEnabled() is True
+
+    modal._start_analyze()  # a second click must not buy a second analysis
+
+    assert len(starts) == 1
 
 
 def test_is_analyzed_is_false_for_a_fresh_channel(isolated_appdata):
@@ -302,7 +364,7 @@ def test_modal_renders_not_analyzed(qapp, monkeypatch):
     assert modal._data["channel"]["title"] == "Test Channel"
     # not analyzed -> empty-state + analyze button visible
     assert modal._analysis_stack.currentIndex() == 0
-    assert modal._analyze_btn.text() == "Create Similar Channel"
+    assert modal._similar_btn.text() == "Create Similar Channel"
     # recent video tile title present
     assert len(modal._data["recentVideos"]) == 1
     modal.reject()

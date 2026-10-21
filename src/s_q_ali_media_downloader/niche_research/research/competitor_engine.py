@@ -237,6 +237,7 @@ def refresh_snapshots(
     *,
     cookiefile: str | None = None,
     progress: Callable[[str], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> dict[str, int]:
     """Re-fetch every tracked item and record a fresh snapshot row.
 
@@ -246,6 +247,9 @@ def refresh_snapshots(
     The result reports both successes and failures per kind, so the UI can
     say "3 videos snapshotted, 1 failed" instead of silently skipping the
     items that could not be fetched.
+
+    ``cancel`` is checked between items so the worker can stop promptly
+    instead of running the whole list.
     """
     counts = {"videos": 0, "channels": 0, "keywords": 0}
     failures = {"videos": 0, "channels": 0, "keywords": 0}
@@ -255,6 +259,9 @@ def refresh_snapshots(
         for r in db.all("SELECT ref_id FROM tracked_items WHERE kind = 'video' ORDER BY added_at")
     ]
     for i, video_id in enumerate(video_ids, start=1):
+        if cancel is not None and cancel():
+            logger.info("Snapshot refresh cancelled during videos")
+            break
         if progress:
             progress(f"Snapshoting video {i}/{len(video_ids)}")
         try:
@@ -269,6 +276,9 @@ def refresh_snapshots(
         for r in db.all("SELECT ref_id FROM tracked_items WHERE kind = 'channel' ORDER BY added_at")
     ]
     for i, channel_id in enumerate(channel_ids, start=1):
+        if cancel is not None and cancel():
+            logger.info("Snapshot refresh cancelled during channels")
+            break
         if progress:
             progress(f"Snapshoting channel {i}/{len(channel_ids)}")
         try:

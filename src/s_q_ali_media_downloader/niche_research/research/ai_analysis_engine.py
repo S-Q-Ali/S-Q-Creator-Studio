@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -325,8 +326,13 @@ def analyze_channel(
     *,
     cookiefile: str | None = None,
     progress=None,
+    cancel: Callable[[], bool] | None = None,
 ) -> ChannelAnalysis:
-    """Fetch a channel + recent uploads, run AI analysis, persist the result."""
+    """Fetch a channel + recent uploads, run AI analysis, persist the result.
+
+    ``cancel`` is checked before every provider call: a cancelled analysis
+    must not fall through to the next (paid) provider.
+    """
     providers = get_providers()
     if not providers:
         raise RuntimeError(
@@ -351,6 +357,11 @@ def analyze_channel(
     prompt = build_analysis_prompt(channel, videos)
     last_error: Exception | None = None
     for provider in providers:
+        if cancel is not None and cancel():
+            logger.info("Analysis cancelled before provider %s", provider["name"])
+            raise RuntimeError("Analysis cancelled")
+        if progress:
+            progress(f"Trying {provider['name']}...")
         logger.info("Trying AI provider: %s", provider["name"])
         try:
             response = call_provider(provider, prompt)
