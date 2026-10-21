@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS channel_snapshots (
 CREATE TABLE IF NOT EXISTS videos (
   video_id TEXT PRIMARY KEY,
   channel_id TEXT,
+  channel_title TEXT,
   title TEXT,
   description TEXT,
   published_at TEXT,
@@ -275,6 +276,21 @@ _env_lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
 _db_path: str | None = None
 
+# Additive column migrations for databases created by an older build.
+# ``CREATE TABLE IF NOT EXISTS`` cannot add a column to an existing table, so
+# every new column is listed here and applied on connect.
+_COLUMN_MIGRATIONS: tuple[tuple[str, str, str], ...] = (
+    ("videos", "channel_title", "TEXT"),
+)
+
+
+def _apply_migrations(conn: sqlite3.Connection) -> None:
+    for table, column, decl in _COLUMN_MIGRATIONS:
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            conn.commit()
+
 
 def db_path() -> str:
     """Resolve the SQLite database file path."""
@@ -313,6 +329,7 @@ def _connect() -> sqlite3.Connection:
         _conn.execute("PRAGMA busy_timeout = 5000;")
         _conn.execute("PRAGMA foreign_keys = ON;")
         _conn.executescript(SCHEMA)
+        _apply_migrations(_conn)
     return _conn
 
 
@@ -377,11 +394,6 @@ def now() -> int:
     return int(time.time() * 1000)
 
 
-def vacuum() -> None:
-    conn = _connect()
-    with _env_lock:
-        conn.execute("VACUUM;")
-        conn.commit()
 
 
 def close_db() -> None:

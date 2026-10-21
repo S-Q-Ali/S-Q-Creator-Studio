@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
 from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
+from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
 _VideoThumb = w.VideoThumb
@@ -90,6 +91,10 @@ def _section_heading(title: str, hint: str) -> QWidget:
 
 
 class CompetitorsPage(QWidget):
+    scorecard_requested = Signal(str)
+    analyze_requested = Signal(str)
+    keyword_requested = Signal(str)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("researchPage")
@@ -120,8 +125,8 @@ class CompetitorsPage(QWidget):
 
         info_row = QHBoxLayout()
         note = QLabel(
-            "The poller records a snapshot hourly (and every refresh you trigger). "
-            "VPH and growth need at least two snapshots ~1h apart."
+            "A snapshot is recorded in the background every hour (and on every refresh "
+            "you trigger). VPH and growth need at least two snapshots ~1h apart."
         )
         note.setObjectName("smallLabel")
         note.setWordWrap(True)
@@ -129,6 +134,12 @@ class CompetitorsPage(QWidget):
         self._refresh_btn = QPushButton("Refresh now")
         self._refresh_btn.clicked.connect(self.refresh_now)
         info_row.addWidget(self._refresh_btn)
+        self._export_btn = ExportButton("competitors", "Competitors dashboard")
+        self._export_btn.exported.connect(
+            lambda path: self._summary.setText(f"Exported to {path}")
+        )
+        self._export_btn.failed.connect(lambda message: self._summary.setText(message))
+        info_row.addWidget(self._export_btn)
         root.addLayout(info_row)
 
         self._summary = QLabel("")
@@ -214,6 +225,16 @@ class CompetitorsPage(QWidget):
 
         self._content_layout.addStretch(1)
 
+        sections = [
+            ("Tracked videos", videos),
+            ("Tracked channels", channels),
+            ("Tracked keywords", keywords),
+        ]
+        self._export_btn.set_payload(
+            videos or channels or keywords,
+            sections=sections,
+        )
+
     def _empty_note(self, text: str) -> QLabel:
         note = QLabel(text)
         note.setObjectName("statusText")
@@ -257,7 +278,16 @@ class CompetitorsPage(QWidget):
             chip.setObjectName("chip")
             meta.addWidget(chip)
         meta.addStretch(1)
-        untrack = QPushButton("Tracking")
+        scorecard = QPushButton("Scorecard")
+        scorecard.setProperty("variant", "ghost")
+        scorecard.setToolTip("Score this video on the Scorecard page")
+        scorecard.clicked.connect(
+            lambda _=False, vid=v["videoId"]: self.scorecard_requested.emit(
+                f"https://www.youtube.com/watch?v={vid}"
+            )
+        )
+        meta.addWidget(scorecard)
+        untrack = QPushButton("Untrack")
         untrack.setProperty("variant", "ghost")
         untrack.setToolTip("Remove from tracking")
         untrack.clicked.connect(lambda _=False, k="video", rid=v["videoId"]: self._untrack(k, rid))
@@ -308,7 +338,23 @@ class CompetitorsPage(QWidget):
             grow.setToolTip("Subscriber change over the last 7 days")
             meta.addWidget(grow)
         meta.addStretch(1)
-        untrack = QPushButton("Tracking")
+        scorecard = QPushButton("Scorecard")
+        scorecard.setProperty("variant", "ghost")
+        scorecard.setToolTip("Score this channel on the Scorecard page")
+        scorecard.clicked.connect(
+            lambda _=False, cid=c["channelId"]: self.scorecard_requested.emit(
+                f"https://www.youtube.com/channel/{cid}"
+            )
+        )
+        meta.addWidget(scorecard)
+        analyze = QPushButton("Analyze")
+        analyze.setProperty("variant", "ghost")
+        analyze.setToolTip("Run the AI channel analysis for this channel")
+        analyze.clicked.connect(
+            lambda _=False, cid=c["channelId"]: self.analyze_requested.emit(cid)
+        )
+        meta.addWidget(analyze)
+        untrack = QPushButton("Untrack")
         untrack.setProperty("variant", "ghost")
         untrack.setToolTip("Remove from tracking")
         untrack.clicked.connect(
@@ -340,6 +386,13 @@ class CompetitorsPage(QWidget):
         top.addWidget(name, 1)
         top.addWidget(w.ScoreBadge(k.get("score", 0), size="sm"))
         top.addWidget(w.CompetitionBadge(k.get("competitionLabel", "Low")))
+        details = QPushButton("Details")
+        details.setProperty("variant", "ghost")
+        details.setToolTip("Open this keyword's detail view")
+        details.clicked.connect(
+            lambda _=False, term=k["term"]: self.keyword_requested.emit(term)
+        )
+        top.addWidget(details)
         untrack = QPushButton("✕")
         untrack.setProperty("variant", "ghost")
         untrack.setFixedWidth(28)
@@ -390,6 +443,12 @@ class CompetitorsPage(QWidget):
     # ------------------------------------------------------------------ #
     def refresh_now(self) -> None:
         if self._worker is not None and self._worker.isRunning():
+            self._summary.setText("A refresh is already running.")
+            return
+        if not ce.get_competitor_dashboard()["videos"] and not ce.get_competitor_dashboard()[
+            "channels"
+        ] and not ce.get_competitor_dashboard()["keywords"]:
+            self._summary.setText("Nothing tracked yet — no snapshot to record.")
             return
         self._refresh_btn.setEnabled(False)
         self._refresh_btn.setText("Refreshing...")
@@ -406,13 +465,22 @@ class CompetitorsPage(QWidget):
     def _on_refresh_done(self, counts: dict) -> None:
         self._refresh_btn.setEnabled(True)
         self._refresh_btn.setText("Refresh now")
-        self._summary.setText(
-            f"Snapshotted {counts['videos']} videos, {counts['channels']} channels, "
-            f"{counts['keywords']} keywords."
+        failed = int(counts.get("failed") or 0)
+        summary = (
+            f"Snapshotted {counts.get('videos', 0)} videos, "
+            f"{counts.get('channels', 0)} channels, {counts.get('keywords', 0)} keywords."
         )
+        if failed:
+            summary += f" {failed} failed."
+        self._summary.setText(summary)
         self.refresh_dashboard()
 
     def _on_refresh_failed(self, error: str) -> None:
         self._refresh_btn.setEnabled(True)
         self._refresh_btn.setText("Refresh now")
         self._summary.setText(f"Refresh failed: {error}")
+
+    def stop_workers(self) -> None:
+        """Stop and join the refresh worker (called when the app closes)."""
+        w.stop_worker(self._worker)
+        self._worker = None

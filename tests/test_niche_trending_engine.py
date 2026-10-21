@@ -346,6 +346,56 @@ def test_discovery_log_and_cache():
     }
 
 
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): analysed marker + discovery ordering
+# --------------------------------------------------------------------------- #
+def test_rediscovery_keeps_the_analyzed_marker():
+    """A re-scan must not clear the "already analysed" flag."""
+    channel = te.TrendingChannel(
+        channel_id="UCx",
+        title="Channel",
+        description="",
+        thumbnail_url="",
+        subscriber_count=10,
+        view_count=100,
+        video_count=2,
+        published_at="",
+        video_format="longform",
+        niche="tech_ai",
+        category_name="N",
+        viral_score=50,
+        growth_rate=0,
+        view_sub_ratio=0,
+        recent_video_count=1,
+        avg_views_per_video=100,
+        is_newly_created=False,
+        is_rapidly_growing=False,
+        ai_score=0,
+    )
+    te.save_trending_channels([channel])
+    te.update_last_analyzed("UCx", 1_700_000_000_000)
+
+    te.save_trending_channels([channel])
+
+    assert te.get_trending_channel_by_id("UCx").last_analyzed == 1_700_000_000_000
+
+
+def test_discovery_status_lists_the_newest_discovery_first():
+    te.log_discovery("longform", "tech_ai", 5, 4)
+    db.run(
+        "UPDATE discovery_log SET discovered_at = ? WHERE video_format = ?",
+        (1_000, "longform"),
+    )
+    te.log_discovery("shortform", "gaming", 7, 3)
+
+    status = te.get_discovery_status()
+
+    assert status[0]["video_format"] == "shortform"
+    assert status[0]["niche"] == "gaming"
+    assert status[-1]["video_format"] == "longform"
+
+
+
 def test_refresh_all_trending_skips_recently_discovered(monkeypatch):
     ran = []
 

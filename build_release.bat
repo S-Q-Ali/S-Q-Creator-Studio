@@ -17,9 +17,18 @@ set "DISTPATH=build\out"
 set "APP_NAME=S-Q Creator Studio"
 set "PORTABLE=release\portable"
 
+rem Read the app version from src/__init__.py so the setup name and
+rem installer metadata never drift from the packaged app (single source).
+set "VERFILE=%TEMP%\sq_creator_ver.tmp"
+if exist "%VERFILE%" del /q "%VERFILE%"
+"%PYTHON%" -c "import io,sys; sys.path.insert(0, r'%~dp0src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
+set /p APP_VERSION=<"%VERFILE%"
+del /q "%VERFILE%" 2>nul
+if not defined APP_VERSION set "APP_VERSION=2.4.0"
+
 echo.
 echo ============================================================
-echo  Step 1 of 3 — Building with PyInstaller (one-directory)
+echo  Building release %APP_VERSION% with PyInstaller (one-directory)
 echo ============================================================
 echo.
 
@@ -74,6 +83,28 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
+rem Locate ffmpeg once: PATH first, then the winget install folder.
+set "FFMPEG_EXE="
+for /f "delims=" %%F in ('where ffmpeg 2^>nul') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%F"
+if not defined FFMPEG_EXE (
+    set "FFMPEG_SRC=C:\Users\MuslimQasim\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin\ffmpeg.exe"
+    if exist "%FFMPEG_SRC%" set "FFMPEG_EXE=%FFMPEG_SRC%"
+)
+
+rem ffmpeg ships next to the app: "Best available" downloads video and audio
+rem as separate streams and yt-dlp needs ffmpeg to merge them. Without it the
+rem portable build fails on every YouTube download.
+if defined FFMPEG_EXE (
+    if not exist "%PORTABLE%\bin" mkdir "%PORTABLE%\bin"
+    copy /y "%FFMPEG_EXE%" "%PORTABLE%\bin\ffmpeg.exe" >nul
+    echo ffmpeg.exe staged into %PORTABLE%\bin
+    for %%F in ("%FFMPEG_EXE%") do echo   from %%~fF
+) else (
+    echo [WARNING] ffmpeg.exe not found.
+    echo           The portable build cannot merge video+audio until ffmpeg.exe
+    echo           is copied to %PORTABLE%\bin\ by hand.
+)
+
 for %%F in ("%PORTABLE%\%APP_NAME%.exe") do (
     set /a "SIZE_MB=%%~zF / 1048576"
 )
@@ -88,7 +119,6 @@ echo ============================================================
 echo.
 
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
-set "FFMPEG_SRC=C:\Users\MuslimQasim\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin\ffmpeg.exe"
 set "STAGING=release\staging\bin"
 
 if not exist "%ISCC%" (
@@ -99,31 +129,32 @@ if not exist "%ISCC%" (
 
 echo Staging ffmpeg.exe for installer...
 if not exist "%STAGING%" mkdir "%STAGING%"
-if exist "%FFMPEG_SRC%" (
-    copy /y "%FFMPEG_SRC%" "%STAGING%\ffmpeg.exe" >nul
+if defined FFMPEG_EXE (
+    copy /y "%FFMPEG_EXE%" "%STAGING%\ffmpeg.exe" >nul
     echo ffmpeg.exe staged.
 ) else (
-    echo [WARNING] ffmpeg.exe not found at expected winget path.
+    echo [WARNING] ffmpeg.exe not found.
     echo           Installer will build without ffmpeg — copy it manually to %STAGING%\ first.
 )
 
 echo Running Inno Setup compiler...
-"%ISCC%" "release\installer.iss"
+"%ISCC%" /DMyAppVersion=%APP_VERSION% "release\installer.iss"
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Inno Setup compilation failed.
     exit /b %ERRORLEVEL%
 )
 
-echo Installer built: release\S-Q-Creator-Studio-Setup-2.2.0.exe
+echo Installer built: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe
 
 :done
 echo.
 echo ============================================================
 echo  BUILD COMPLETE
 echo ============================================================
+echo  Version:   %APP_VERSION%
 echo  Portable:  %PORTABLE%\%APP_NAME%.exe
-echo  Installer: release\S-Q-Creator-Studio-Setup-2.2.0.exe (if built)
+echo  Installer: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe (if built)
 echo ============================================================
 echo.
 endlocal

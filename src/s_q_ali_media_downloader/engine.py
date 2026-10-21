@@ -83,6 +83,13 @@ QUALITY_OPTIONS = {
 MAX_ACCOUNT_VIDEOS = 200
 ACCOUNT_LIMITS = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
 
+# YouTube's default player client ("web") needs a PO token that only a real
+# browser can mint, so a single-video download from most non-residential IPs
+# dies with "Sign in to confirm you're not a bot". The embedded and mobile-web
+# clients answer without one, so they are tried first; "web" stays last as the
+# fallback that works when browser cookies are supplied.
+YOUTUBE_PLAYER_CLIENTS = ("web_embedded", "mweb", "web")
+
 NON_MEDIA_HINTS = (
     "/tiktokstudio",
     "/upload",
@@ -119,6 +126,15 @@ def _target_version(target):
     if match:
         return int(match.group(1))
     return -1
+
+
+def js_runtime_opts():
+    """yt-dlp 2026.x runs YouTube/TikTok web-extraction challenges through a
+    JavaScript runtime (EJS) and enables only deno by default. Without a
+    runtime YouTube downloads hit bot checks and TikTok profile fetches fail
+    with "Unable to extract secondary user ID". Enabling every supported
+    runtime lets yt-dlp use whichever one is installed."""
+    return {"deno": {}, "node": {}, "bun": {}, "quickjs": {}}
 
 
 def impersonate_target():
@@ -177,7 +193,27 @@ def is_tiktok_url(url):
         return False
     if re.search(r"(vm|vt)\.tiktok\.com/", low):
         return True
-    return ("/video/" in low) or ("/photo/" in low)
+    # A page URL carries the numeric video/photo id. TikTok's CDN media URLs
+    # also contain "/video/" but the id segment is a token, and those links
+    # answer HTTP 403 when downloaded, so they must not be queued.
+    return re.search(r"/(?:video|photo)/\d+", low) is not None
+
+
+def tiktok_page_url(entry, username):
+    """Stable page URL for a TikTok profile entry.
+
+    Profile entries carry a signed CDN media URL in "url" — those return
+    HTTP 403 when downloaded. The page URL ("webpage_url", or rebuilt from
+    the numeric video id) is what the downloader must queue.
+    """
+    page = str(entry.get("webpage_url") or "")
+    if re.search(r"tiktok\.com/@[^/]+/(?:video|photo)/\d+", page):
+        return page
+    video_id = str(entry.get("id") or "")
+    if video_id.isdigit():
+        kind = "photo" if "/photo/" in page else "video"
+        return f"https://www.tiktok.com/@{username}/{kind}/{video_id}"
+    return ""
 
 
 def is_profile_url(url):
@@ -274,6 +310,7 @@ class AccountFetchThread(QThread):
             # 'extract_flat' is omitted because yt_dlp does not honor `playlistend` for TikTok profiles.
             "playlistend": self.limit,
             "ignoreerrors": True,
+            "js_runtimes": js_runtime_opts(),
         }
         target, _label = impersonate_target()
         if target is not None:
@@ -295,13 +332,8 @@ class AccountFetchThread(QThread):
         for entry in info.get("entries") or []:
             if not entry:
                 continue
-            candidate = entry.get("url") or ""
-            if not str(candidate).startswith("http"):
-                video_id = entry.get("id")
-                candidate = (
-                    f"https://www.tiktok.com/@{username}/video/{video_id}" if video_id else ""
-                )
-            if str(candidate).startswith("http") and candidate not in urls:
+            candidate = tiktok_page_url(entry, username)
+            if candidate and candidate not in urls:
                 urls.append(candidate)
             if len(urls) >= self.limit:
                 break
@@ -310,6 +342,7 @@ class AccountFetchThread(QThread):
                 f"No videos found for @{username}. Private accounts need the Chrome cookies option."
             )
             return
+        logger.info("Fetched %d TikTok video URLs for @%s", len(urls), username)
         self.found.emit(urls, username)
 
 
@@ -335,6 +368,7 @@ class YouTubeFetchThread(QThread):
             # for YouTube channel / playlist URLs when it is set.
             "playlistend": self.limit,
             "ignoreerrors": True,
+            "js_runtimes": js_runtime_opts(),
         }
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -459,8 +493,17 @@ def tidy_error(exc):
     lowered = message.lower()
     if "rehydration" in lowered or "unexpected response" in lowered:
         return "TikTok refused the request — rate limited."
+    if "secondary user id" in lowered:
+        return "TikTok didn't return the profile page — retry in a few minutes."
+    if "sign in to confirm" in lowered or "use --cookies" in lowered:
+        return (
+            "YouTube asked to verify you're not a bot. Wait 10-30 minutes and "
+            "retry, or enable Chrome cookies (close Chrome first)."
+        )
     if "unavailable" in lowered or "not found" in lowered:
         return "Video is unavailable, private or deleted."
+    if "403" in lowered and "forbidden" in lowered:
+        return "TikTok's media link expired — re-fetch the profile for fresh links."
     if "ffmpeg" in lowered:
         return "This format needs ffmpeg to merge. Pick a lower quality."
     if not message:
@@ -550,11 +593,16 @@ class DownloadThread(QThread):
             "no_warnings": True,
             "noprogress": True,
             "noplaylist": True,
+            "js_runtimes": js_runtime_opts(),
         }
         if platform == "TikTok":
             target, _label = impersonate_target()
             if self._impersonate and target is not None:
                 opts["impersonate"] = target
+        elif platform == "YouTube":
+            opts["extractor_args"] = {
+                "youtube": {"player_client": list(YOUTUBE_PLAYER_CLIENTS)}
+            }
         if self.use_cookies:
             opts["cookiesfrombrowser"] = ("chrome",)
         if self._ffmpeg_dir:
@@ -614,26 +662,28 @@ class DownloadThread(QThread):
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                if info is None:
+                    raise RuntimeError("No video found at this link")
+                if info.get("_type") == "playlist":
+                    entries = [e for e in (info.get("entries") or []) if e]
+                    if not entries:
+                        raise RuntimeError("This link is a page, not a single video")
+                    info = entries[0]
+                downloaded = None
+                for item in info.get("requested_downloads") or []:
+                    downloaded = item.get("filepath") or item.get("_filename")
+                    if downloaded:
+                        break
+                if not downloaded:
+                    try:
+                        downloaded = ydl.prepare_filename(info)
+                    except Exception:
+                        downloaded = None
         except Exception:
-            downloaded = None
-        else:
-            if info is None:
-                raise RuntimeError("No video found at this link")
-            if info.get("_type") == "playlist":
-                entries = [e for e in (info.get("entries") or []) if e]
-                if not entries:
-                    raise RuntimeError("This link is a page, not a single video")
-                info = entries[0]
-            downloaded = None
-            for item in info.get("requested_downloads") or []:
-                downloaded = item.get("filepath") or item.get("_filename")
-                if downloaded:
-                    break
-            if not downloaded:
-                try:
-                    downloaded = ydl.prepare_filename(info)
-                except Exception:
-                    downloaded = None
+            # Never swallow the extractor/HTTP error — it is the only thing
+            # that tells the user why the download failed.
+            logger.exception("Download failed: %s", url)
+            raise
         if downloaded and not os.path.isfile(downloaded):
             vid = str(info.get("id") or "")
             for name in _listdir(self.output_dir):
@@ -673,7 +723,9 @@ class DownloadThread(QThread):
                 except _Stopped:
                     raise
                 except Exception as exc2:
+                    logger.warning("Download failed: %s — %s", url, exc2)
                     return (False, "—", tidy_error(exc2))
+            logger.warning("Download failed: %s — %s", url, exc)
             return (False, "—", tidy_error(exc))
 
     def _try_with_inline(self, uid, url, position):

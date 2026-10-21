@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -15,14 +18,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from s_q_ali_media_downloader.niche_research.data.niches import get_niche, get_niches
+from s_q_ali_media_downloader.niche_research.data.niches import format_name, get_niche, get_niches
 from s_q_ali_media_downloader.niche_research.research import trending_engine as te
+from s_q_ali_media_downloader.niche_research.research.competitor_engine import track_item
+from s_q_ali_media_downloader.niche_research.tools import exporter
+from s_q_ali_media_downloader.niche_research.tools import youtube_client as yc
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
+from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 from s_q_ali_media_downloader.niche_research.ui.trending_card import (
     TrendingCardData,
     TrendingChannelCard,
 )
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 20
 
@@ -61,8 +70,35 @@ class TrendingDiscoveryWorker(QThread):
             self.failed.emit(str(exc))
 
 
+class ChannelUploadsWorker(QThread):
+    """Fetches a channel's recent uploads so they can be queued for download."""
+
+    done = Signal(list)
+    failed = Signal(str)
+
+    def __init__(self, channel_id: str, *, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.channel_id = channel_id
+
+    def run(self) -> None:
+        try:
+            info = yc.fetch_channel(self.channel_id, uploads_limit=10)
+            urls = [
+                f"https://www.youtube.com/watch?v={u.get('video_id')}"
+                for u in info.uploads
+                if u.get("video_id")
+            ]
+            self.done.emit(urls)
+        except Exception as exc:
+            logger.warning("Upload fetch failed for %s", self.channel_id, exc_info=True)
+            self.failed.emit(str(exc))
+
+
 class TrendingChannelsPage(QWidget):
     analyze_requested = Signal(str)
+    queue_urls_requested = Signal(list)
+    scorecard_requested = Signal(str)
+    tracked = Signal(str)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -70,8 +106,10 @@ class TrendingChannelsPage(QWidget):
         self.setStyleSheet(research_style())
 
         self._worker: TrendingDiscoveryWorker | None = None
+        self._uploads_worker: ChannelUploadsWorker | None = None
         self._selected_format = "all"
         self._selected_niche = "all"
+        self._ai_only = False
         self._page = 1
         self._load_count = 0
 
@@ -105,9 +143,18 @@ class TrendingChannelsPage(QWidget):
         self._niche_combo.setMinimumWidth(190)
         self._discover_btn = QPushButton("Discover")
         self._discover_btn.clicked.connect(self.start_discovery)
+        self._ai_only_check = QCheckBox("AI only")
+        self._ai_only_check.setToolTip(
+            "Only show channels that look AI-generated (score 70+)"
+        )
+        self._ai_only_check.toggled.connect(self._on_ai_only_changed)
+        self._export_btn = ExportButton("niche-discovery", "Niche Discovery")
+        self._export_btn.exported.connect(self._on_exported)
         controls.addWidget(self._format_combo)
         controls.addWidget(self._niche_combo)
+        controls.addWidget(self._ai_only_check)
         controls.addWidget(self._discover_btn)
+        controls.addWidget(self._export_btn)
         header.addLayout(controls)
         root.addLayout(header)
 
@@ -159,6 +206,7 @@ class TrendingChannelsPage(QWidget):
         self._next_btn.clicked.connect(lambda: self.show_page(self._page + 1))
 
         self._populate_format_combo()
+        self._populate_niche_combo()
         self._format_combo.currentIndexChanged.connect(self._on_format_changed)
         self._niche_combo.currentIndexChanged.connect(self._on_niche_changed)
         self.reload(keep_page=True)
@@ -208,6 +256,11 @@ class TrendingChannelsPage(QWidget):
         self._page = 1
         self.reload(keep_page=True)
 
+    def _on_ai_only_changed(self, checked: bool) -> None:
+        self._ai_only = bool(checked)
+        self._page = 1
+        self.reload(keep_page=True)
+
     def reload(self, keep_page: bool = False) -> None:
         if not keep_page:
             self._page = 1
@@ -240,7 +293,7 @@ class TrendingChannelsPage(QWidget):
             )
             if answer != QMessageBox.StandardButton.Yes:
                 return
-        nfmt = "All formats" if fmt == "all" else "Longform" if fmt == "longform" else "Shortform"
+        nfmt = "All formats" if fmt == "all" else format_name(fmt)
         nname = "all niches" if niche == "all" else self._niche_combo.currentText()
         self._set_message(f"Discovering {nfmt} / {nname} ... (force refresh, may take a minute)")
         self._discover_btn.setEnabled(False)
@@ -287,7 +340,9 @@ class TrendingChannelsPage(QWidget):
         niche = self.selected_niche()
         offset = (self._page - 1) * PAGE_SIZE
 
-        channels = te.get_trending_channels(fmt, niche, limit=PAGE_SIZE, offset=offset)
+        channels = te.get_trending_channels(
+            fmt, niche, limit=PAGE_SIZE, offset=offset, ai_only=self._ai_only
+        )
         total = te.get_trending_channel_count(fmt, niche)
         total_pages = max(1, -(-total // PAGE_SIZE)) if total else 1
 
@@ -323,10 +378,18 @@ class TrendingChannelsPage(QWidget):
                     video_format=ch.video_format,
                     niche=ch.niche,
                     rpm=rpm,
+                    niche_competition=(niche_data.competition if niche_data else ""),
+                    niche_difficulty=(niche_data.difficulty if niche_data else ""),
                 )
             )
             card.analyze_requested.connect(self.analyze_requested)
+            card.queue_requested.connect(self._queue_channel_videos)
+            card.scorecard_requested.connect(self.scorecard_requested)
+            card.track_requested.connect(self._track_channel)
+            card.open_requested.connect(self._open_channel)
             self._grid.addWidget(card)
+
+        self._export_btn.set_payload(exporter.rows_from(channels))
 
         if not channels:
             self._show_empty_state()
@@ -376,8 +439,59 @@ class TrendingChannelsPage(QWidget):
             )
         else:
             self._last_discovered.setText("Not discovered yet")
-        self._budget_icon.setText("Search: unlimited (yt-dlp)")
+        self._budget_icon.setText("Search: yt-dlp, no quota")
 
     def show_page(self, page: int) -> None:
         self._page = max(1, page)
         self.reload(keep_page=True)
+
+    # ------------------------------------------------------------------ #
+    # Card actions
+    # ------------------------------------------------------------------ #
+    def _track_channel(self, channel_id: str, title: str = "") -> None:
+        """Track the channel so the Competitors page can follow it."""
+        if not title:
+            row = te.get_trending_channel_by_id(channel_id)
+            title = (row.title if row is not None else "") or channel_id
+        track_item("channel", channel_id, title)
+        self.tracked.emit(channel_id)
+        self._set_message(f"Tracking {title}.", ok=True)
+
+    def _open_channel(self, channel_id: str) -> None:
+        """Open the channel on YouTube in the default browser."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+
+        url = f"https://www.youtube.com/channel/{channel_id}"
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _queue_channel_videos(self, channel_id: str) -> None:
+        """Fetch the channel's recent uploads and hand them to the queue."""
+        if self._uploads_worker is not None and self._uploads_worker.isRunning():
+            self._set_message("Already fetching uploads…")
+            return
+        self._set_message("Fetching this channel's recent videos…")
+        self._uploads_worker = ChannelUploadsWorker(channel_id, parent=self)
+        self._uploads_worker.done.connect(self._on_uploads_ready)
+        self._uploads_worker.failed.connect(self._on_uploads_failed)
+        self._uploads_worker.start()
+
+    def _on_uploads_ready(self, urls: list) -> None:
+        if not urls:
+            self._set_message("No videos found for that channel.", error=True)
+            return
+        self._set_message(f"Queueing {len(urls)} videos…", ok=True)
+        self.queue_urls_requested.emit(urls)
+
+    def _on_uploads_failed(self, error: str) -> None:
+        self._set_message(f"Could not fetch videos: {error}", error=True)
+
+    def _on_exported(self, path: str) -> None:
+        self._set_message(f"Exported to {path}", ok=True)
+
+    def stop_workers(self) -> None:
+        """Stop and join the discovery worker (called when the app closes)."""
+        w.stop_worker(self._worker)
+        self._worker = None
+        w.stop_worker(self._uploads_worker)
+        self._uploads_worker = None

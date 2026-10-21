@@ -21,7 +21,6 @@ import logging
 import math
 from dataclasses import dataclass
 from typing import Literal
-from urllib.parse import unquote
 
 from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.tools.autocomplete import (
@@ -69,11 +68,6 @@ class ResearchOptions:
     cookiefile: str | None = None
 
 
-def decode_term(raw: str) -> str:
-    try:
-        return unquote(raw).lower()
-    except Exception:
-        return raw.lower()
 
 
 def compute_demand(rank_entries: list[dict[str, int]]) -> int:
@@ -123,9 +117,20 @@ def _upsert_keyword(
     source: str,
     language: str | None,
     country: str | None,
+    preserve_scored: bool = False,
 ) -> None:
-    existing = db.get("SELECT first_seen FROM keywords WHERE term = ?", (term,))
+    """Write a keyword row + a snapshot.
+
+    `preserve_scored` keeps a keyword that was already scored against a live
+    search: a later research run that only saw the term in its suggestion pool
+    must not reset its competition score and score back to "unscored".
+    """
+    existing = db.get("SELECT * FROM keywords WHERE term = ?", (term,))
     first_seen = existing["first_seen"] if existing else db.now()
+    if preserve_scored and existing and existing["competition_score"] > 0:
+        competition_score = existing["competition_score"]
+        competition_label = existing["competition_label"]
+        score = existing["score"]
     db.run(
         """
         INSERT INTO keywords (
@@ -170,19 +175,24 @@ def _save_video_for_ranking(video: VideoInfo) -> None:
     db.run(
         """
         INSERT INTO videos (
-            video_id, channel_id, title, description, published_at, duration_seconds,
-            thumbnail_url, default_language, view_count, like_count, comment_count,
-            tags, category_id, last_fetched
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            video_id, channel_id, channel_title, title, description, published_at,
+            duration_seconds, thumbnail_url, default_language, view_count,
+            like_count, comment_count, tags, category_id, last_fetched
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(video_id) DO UPDATE SET
             view_count = excluded.view_count,
             like_count = excluded.like_count,
             comment_count = excluded.comment_count,
+            channel_title = CASE
+                WHEN excluded.channel_title <> '' THEN excluded.channel_title
+                ELSE videos.channel_title
+            END,
             last_fetched = excluded.last_fetched
         """,
         (
             video.video_id,
             video.channel_id,
+            video.channel_title or "",
             video.title,
             video.description,
             video.published_at,
@@ -202,8 +212,15 @@ def _save_video_for_ranking(video: VideoInfo) -> None:
 # --------------------------------------------------------------------------- #
 # Ranking
 # --------------------------------------------------------------------------- #
-def rank_keyword(term: str, opts: ResearchOptions | None = None) -> KeywordResult | None:
-    """Rank a single keyword against a live YouTube search. Cached 24h."""
+def rank_keyword(
+    term: str, opts: ResearchOptions | None = None, *, demand: int | None = None
+) -> KeywordResult | None:
+    """Rank a single keyword against a live YouTube search. Cached 24h.
+
+    `demand` is the demand computed from the autocomplete ranks. It is passed
+    in by `research_keyword` so the ranking step cannot replace it with the
+    "new term" default of 100.
+    """
     opts = opts or ResearchOptions()
     existing = db.get(
         "SELECT * FROM keywords WHERE term = ? AND last_checked >= ?",
@@ -225,15 +242,20 @@ def rank_keyword(term: str, opts: ResearchOptions | None = None) -> KeywordResul
     views = sorted((v.view_count for v in videos if v.view_count), reverse=True)
     comp_score, comp_label = competition_from_views(views)
 
-    demand = existing["demand_score"] if existing else compute_demand([{"rank": 0, "count": 1}])
+    if demand is not None:
+        demand_score = demand
+    elif existing:
+        demand_score = existing["demand_score"]
+    else:
+        demand_score = compute_demand([{"rank": 0, "count": 1}])
     display_term = existing["display_term"] if existing else term
     source = existing["source"] if existing else "search"
-    score = overall_score(demand, comp_score)
+    score = overall_score(demand_score, comp_score)
     _upsert_keyword(
         term,
         display_term,
         score,
-        demand,
+        demand_score,
         comp_score,
         comp_label,
         source,
@@ -255,7 +277,7 @@ def rank_keyword(term: str, opts: ResearchOptions | None = None) -> KeywordResul
     return KeywordResult(
         term=term,
         display_term=display_term,
-        demand_score=demand,
+        demand_score=demand_score,
         competition_score=comp_score,
         competition_label=comp_label,
         overall_score=score,
@@ -317,11 +339,12 @@ def research_keyword(seed: str, opts: ResearchOptions | None = None) -> Research
 
     results.sort(key=lambda r: r.demand_score, reverse=True)
     to_rank = [r.term for r in results[:rank_top]]
+    demand_by_term = {r.term: r.demand_score for r in results}
 
     ranked_terms: dict[str, KeywordResult] = {}
     for term in to_rank:
         try:
-            ranked = rank_keyword(term, opts)
+            ranked = rank_keyword(term, opts, demand=demand_by_term.get(term))
             if ranked:
                 ranked_terms[term] = ranked
         except Exception:
@@ -349,6 +372,7 @@ def research_keyword(seed: str, opts: ResearchOptions | None = None) -> Research
             r.source,
             opts.hl,
             opts.gl,
+            preserve_scored=not r.scored,
         )
 
     sorted_results = sorted(merged, key=lambda r: r.overall_score, reverse=True)
@@ -376,17 +400,6 @@ def _fetch_suggestions_safe(query: str, opts: ResearchOptions) -> list[str]:
 # --------------------------------------------------------------------------- #
 # Reads
 # --------------------------------------------------------------------------- #
-def get_cached_keywords(search: str | None = None, limit: int = 100) -> list[dict]:
-    if search:
-        rows = db.all(
-            "SELECT * FROM keywords WHERE term LIKE ? ORDER BY score DESC, last_checked DESC LIMIT ?",
-            (f"%{search.lower()}%", limit),
-        )
-    else:
-        rows = db.all(
-            "SELECT * FROM keywords ORDER BY score DESC, last_checked DESC LIMIT ?", (limit,)
-        )
-    return rows
 
 
 def get_keyword(term: str) -> dict | None:
@@ -404,6 +417,11 @@ def get_keyword_snapshots(term: str) -> list[dict]:
 
 
 def get_ranked_videos(term: str) -> list[dict]:
+    """Ranked videos for the newest ranking snapshot of this term.
+
+    `rankings` keeps every historical snapshot, so without the MAX(ts) filter
+    a re-ranked term returns the same video once per run.
+    """
     return db.all(
         """
         SELECT r.video_id, r.position, v.title, v.published_at, v.view_count,
@@ -411,7 +429,8 @@ def get_ranked_videos(term: str) -> list[dict]:
         FROM rankings r
         JOIN videos v ON v.video_id = r.video_id
         WHERE r.term = ?
+          AND r.ts = (SELECT MAX(ts) FROM rankings WHERE term = ?)
         ORDER BY r.position ASC
         """,
-        (term,),
+        (term, term),
     )

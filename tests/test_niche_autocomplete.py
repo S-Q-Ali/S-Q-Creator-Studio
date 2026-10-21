@@ -4,11 +4,7 @@ import httpx
 import pytest
 
 from s_q_ali_media_downloader.niche_research.tools.autocomplete import (
-    ALPHABET,
-    DIGITS,
-    QUESTION_WORDS,
     AutocompleteError,
-    expand_seed,
     fetch_suggestions,
 )
 
@@ -42,27 +38,6 @@ def test_fetch_suggestions_retries_then_fails(monkeypatch):
     with pytest.raises(AutocompleteError):
         fetch_suggestions("x", retries=2)
     assert calls["n"] == 3
-
-
-def test_expand_seed_dedup_and_alphabets(monkeypatch):
-    suggestions_seen = []
-
-    def fake_fetch(query, **kwargs):
-        suggestions_seen.append(query)
-        if query == "skin care":
-            return ["skin care routine"]
-        if query.startswith("skin care a"):
-            return ["skin care aha"]
-        if query == "what skin care":
-            return ["what skin care products"]
-        return []
-
-    monkeypatch.setattr(
-        "s_q_ali_media_downloader.niche_research.tools.autocomplete.fetch_suggestions", fake_fetch
-    )
-    results = expand_seed("skin care")
-    assert results == ["skin care routine", "skin care aha", "what skin care products"]
-    assert len(suggestions_seen) == 1 + len(ALPHABET) + len(DIGITS) + len(QUESTION_WORDS)
 
 
 def test_expand_seed_deduplicates_case_and_space():

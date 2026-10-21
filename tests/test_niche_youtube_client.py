@@ -38,6 +38,108 @@ def test_parse_channel_id():
     assert yc.parse_channel_id("https://www.youtube.com/@handle") is None
 
 
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): uploads must be able to carry their real view count
+# --------------------------------------------------------------------------- #
+def test_fetch_channel_is_flat_by_default(monkeypatch):
+    """Discovery scans many channels, so uploads stay flat (fast)."""
+    captured: dict = {}
+
+    def fake_extract(url, opts):
+        captured.update(opts)
+        return {"id": "UCx", "channel": "Chan", "entries": []}
+
+    monkeypatch.setattr(yc, "_extract", fake_extract)
+
+    yc.fetch_channel("UCx")
+
+    assert captured.get("extract_flat") is True
+
+
+def test_fetch_channel_can_include_upload_stats(monkeypatch):
+    """The scorecard shows upload view counts, which flat extraction drops."""
+    captured: dict = {}
+
+    def fake_extract(url, opts):
+        captured.update(opts)
+        return {
+            "id": "UCx",
+            "channel": "Chan",
+            "entries": [
+                {"id": "v1", "title": "One", "view_count": 1234, "upload_date": "20260901"},
+                {"id": "v2", "title": "Two", "view_count": 56, "upload_date": "20260801"},
+            ],
+        }
+
+    monkeypatch.setattr(yc, "_extract", fake_extract)
+
+    info = yc.fetch_channel("UCx", uploads_with_stats=True)
+
+    assert captured.get("extract_flat") is False
+    assert info.uploads[0]["view_count"] == 1234
+    assert info.uploads[1]["view_count"] == 56
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the cookies.txt escape hatch must exist
+# --------------------------------------------------------------------------- #
+def test_configured_cookie_file_reaches_every_request(isolated_appdata, tmp_path, monkeypatch):
+    """YouTube bot-checks blocked the research pages; a cookies.txt is the
+    escape hatch — every engine has to pick it up."""
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    db.set_setting("youtube_cookies_file", str(cookies))
+
+    captured: dict = {}
+
+    def fake_extract(url, opts):
+        captured.update(opts)
+        return {"id": "UCx", "channel": "Chan", "entries": []}
+
+    monkeypatch.setattr(yc, "_extract", fake_extract)
+
+    yc.fetch_channel("UCx")
+
+    assert captured.get("cookiefile") == str(cookies)
+
+
+def test_missing_cookie_file_is_ignored(isolated_appdata, monkeypatch):
+    """A cookie file that was deleted must not break the requests."""
+    db.set_setting("youtube_cookies_file", "C:/definitely/missing/cookies.txt")
+
+    captured: dict = {}
+
+    def fake_extract(url, opts):
+        captured.update(opts)
+        return {"id": "UCx", "channel": "Chan", "entries": []}
+
+    monkeypatch.setattr(yc, "_extract", fake_extract)
+
+    yc.fetch_channel("UCx")
+
+    assert "cookiefile" not in captured
+
+
+def test_explicit_cookiefile_wins_over_the_setting(isolated_appdata, tmp_path, monkeypatch):
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("x", encoding="utf-8")
+    db.set_setting("youtube_cookies_file", str(cookies))
+
+    captured: dict = {}
+
+    def fake_extract(url, opts):
+        captured.update(opts)
+        return {"id": "UCx", "channel": "Chan", "entries": []}
+
+    monkeypatch.setattr(yc, "_extract", fake_extract)
+
+    yc.fetch_channel("UCx", cookiefile="C:/explicit/cookies.txt")
+
+    assert captured.get("cookiefile") == "C:/explicit/cookies.txt"
+
+
+
+
 def test_parse_iso8601_duration():
     assert yc.parse_iso8601_duration("PT1H2M3S") == 3723
     assert yc.parse_iso8601_duration("PT2M30S") == 150
@@ -340,3 +442,10 @@ def test_search_channels_empty_pool(monkeypatch):
 
 def test_search_channels_zero_max_results(monkeypatch):
     assert yc.search_channels("q", max_results=0) == []
+
+
+def test_base_opts_enable_js_runtimes():
+    """Regression (2026-10): research scans hit YouTube bot checks when no JS
+    runtime is enabled (yt-dlp 2026.x defaults to deno-only)."""
+    runtimes = yc._base_opts()["js_runtimes"]
+    assert {"deno", "node", "bun", "quickjs"} <= set(runtimes)

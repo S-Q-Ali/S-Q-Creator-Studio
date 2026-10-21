@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
+from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class ChannelDataWorker(QThread):
 class AnalyzeWorker(QThread):
     done = Signal(object)
     failed = Signal(str)
+    progress = Signal(str)
 
     def __init__(self, channel_id: str, *, parent: QWidget | None = None):
         super().__init__(parent)
@@ -59,7 +61,10 @@ class AnalyzeWorker(QThread):
 
     def run(self) -> None:
         try:
-            analysis = ai.analyze_channel(self.channel_id)
+            analysis = ai.analyze_channel(
+                self.channel_id,
+                progress=lambda message: self.progress.emit(message),
+            )
             self.done.emit(analysis)
         except Exception as exc:
             logger.warning("AI analysis failed", exc_info=True)
@@ -99,7 +104,27 @@ def _selectable(label: QLabel) -> QLabel:
     return label
 
 
+class SimilarChannelsWorker(QThread):
+    """Finds the discovered channels that most resemble this one."""
+
+    done = Signal(list)
+    failed = Signal(str)
+
+    def __init__(self, channel_id: str, *, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.channel_id = channel_id
+
+    def run(self) -> None:
+        try:
+            self.done.emit(ai.find_similar_channels(self.channel_id))
+        except Exception as exc:
+            logger.warning("Similar channel search failed", exc_info=True)
+            self.failed.emit(str(exc))
+
+
 class AnalysisModal(QDialog):
+    open_scorecard_requested = Signal(str)
+
     def __init__(self, channel_id: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("analysisModal")
@@ -112,7 +137,7 @@ class AnalysisModal(QDialog):
         self._workers: list[QThread] = []
         self._active_tab = "strategy"
         self._thumb_image: str | None = None
-        self._thumb_style = "bold"
+        self._thumb_style = "bold" if "bold" in ai.THUMB_STYLES else ai.THUMB_STYLES[0]
         self._build()
         self._load()
 
@@ -134,6 +159,10 @@ class AnalysisModal(QDialog):
         self._modal_title = _selectable(QLabel("Loading…"))
         self._modal_title.setObjectName("modalHeader")
         header.addWidget(self._modal_title, 1)
+        self._export_btn = ExportButton("channel-analysis", "Channel analysis")
+        self._export_btn.exported.connect(self._on_exported)
+        self._export_btn.failed.connect(self._on_export_failed)
+        header.addWidget(self._export_btn)
         close_x = QPushButton("✕")
         close_x.setProperty("variant", "ghost")
         close_x.setFixedWidth(34)
@@ -224,8 +253,10 @@ class AnalysisModal(QDialog):
 
         self._analysis_stack = QStackedWidget()
         box.addWidget(self._analysis_stack, 1)
+        self._thumbnail_page = self._build_thumbnail_tab()
         self._analysis_stack.addWidget(self._build_not_analyzed())
         self._analysis_stack.addWidget(self._build_analyzed_tabs())
+        self._analysis_stack.addWidget(self._thumbnail_page)
         return page
 
     def _build_not_analyzed(self) -> QWidget:
@@ -254,9 +285,48 @@ class AnalysisModal(QDialog):
         card_layout.addWidget(sub)
         self._analyze_btn = QPushButton("Create Similar Channel")
         self._analyze_btn.setFixedWidth(220)
-        self._analyze_btn.clicked.connect(self._start_analyze)
+        self._analyze_btn.setToolTip(
+            "Find the discovered channels that most resemble this one"
+        )
+        self._analyze_btn.clicked.connect(self._start_similar)
         card_layout.addWidget(self._analyze_btn, 0, Qt.AlignmentFlag.AlignCenter)
+
+        analyze_btn = QPushButton("🤖  Analyze this channel")
+        analyze_btn.setProperty("variant", "outline")
+        analyze_btn.setToolTip("Generate the AI strategy, ideas, scripts and blueprint")
+        analyze_btn.clicked.connect(self._start_analyze)
+        card_layout.addWidget(analyze_btn, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self._analysis_progress = QLabel("")
+        self._analysis_progress.setObjectName("smallLabel")
+        self._analysis_progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._analysis_progress.setWordWrap(True)
+        self._analysis_progress.hide()
+        card_layout.addWidget(self._analysis_progress)
+
+        thumb_btn = QPushButton("🖼  Thumbnail generator")
+        thumb_btn.setProperty("variant", "outline")
+        thumb_btn.setToolTip(
+            "Generate a thumbnail without running a full AI analysis"
+        )
+        thumb_btn.clicked.connect(lambda: self._analysis_stack.setCurrentIndex(2))
+        card_layout.addWidget(thumb_btn, 0, Qt.AlignmentFlag.AlignCenter)
         box.addWidget(card)
+
+        # Similar channels found by "Create Similar Channel"
+        self._similar_box = QFrame()
+        self._similar_box.setObjectName("card")
+        self._similar_layout = QVBoxLayout(self._similar_box)
+        self._similar_layout.setContentsMargins(14, 12, 14, 12)
+        self._similar_layout.setSpacing(6)
+        self._similar_caption = QLabel("Similar channels")
+        self._similar_caption.setObjectName("sectionLabel")
+        self._similar_layout.addWidget(self._similar_caption)
+        self._similar_body = QVBoxLayout()
+        self._similar_body.setSpacing(4)
+        self._similar_layout.addLayout(self._similar_body)
+        self._similar_box.hide()
+        box.addWidget(self._similar_box)
         box.addStretch(1)
         return page
 
@@ -295,13 +365,11 @@ class AnalysisModal(QDialog):
         self._blueprint_page = QWidget()
         self._blueprint_layout = QHBoxLayout(self._blueprint_page)
         self._blueprint_layout.setSpacing(10)
-        self._thumbnail_page = self._build_thumbnail_tab()
         for pg in (
             self._strategy_page,
             self._ideas_page,
             self._scripts_page,
             self._blueprint_page,
-            self._thumbnail_page,
         ):
             self._tab_stack.addWidget(pg)
         box.addWidget(self._tab_stack, 1)
@@ -337,7 +405,7 @@ class AnalysisModal(QDialog):
         style_row = QHBoxLayout()
         style_row.setSpacing(6)
         self._style_buttons: dict[str, QPushButton] = {}
-        for style in ("bold", "modern", "minimal", "cinematic", "vibrant"):
+        for style in ai.THUMB_STYLES:
             btn = QPushButton(style.capitalize())
             btn.setObjectName("tabBtn")
             btn.setProperty("active", style == "bold")
@@ -517,6 +585,40 @@ class AnalysisModal(QDialog):
                 f"Content Ideas ({len(analysis.get('contentIdeas') or [])})"
             )
             self._tab_buttons["scripts"].setText(f"Scripts ({len(analysis.get('scripts') or [])})")
+        self._set_export_payload(analysis)
+
+    def _set_export_payload(self, analysis: dict) -> None:
+        """Offer the analysis as CSV / JSON / Markdown."""
+        strategy = analysis.get("strategy") or {}
+        channel = (getattr(self, "_data", None) or {}).get("channel") or {}
+        rows = [
+            {
+                "channel": channel.get("title", ""),
+                "channel_id": channel.get("channelId", ""),
+                "subscribers": channel.get("subscriberCount", 0),
+                "total_views": channel.get("viewCount", 0),
+                "content_types": strategy.get("contentType") or [],
+                "posting_schedule": strategy.get("postingSchedule", ""),
+                "thumbnail_style": strategy.get("thumbnailStyle", ""),
+                "title_formula": strategy.get("titleFormula", ""),
+                "tag_strategy": strategy.get("tagStrategy") or [],
+                "unique_selling_points": strategy.get("uniqueSellingPoints") or [],
+            }
+        ]
+        sections = [
+            ("Content ideas", analysis.get("contentIdeas") or []),
+            ("Scripts", analysis.get("scripts") or []),
+        ]
+        blueprint = analysis.get("growthBlueprint") or {}
+        for phase, data in blueprint.items():
+            sections.append((f"Growth blueprint — {phase}", [data]))
+        self._export_btn.set_payload(rows, sections=sections)
+
+    def _on_exported(self, path: str) -> None:
+        self._modal_title.setToolTip(f"Exported to {path}")
+
+    def _on_export_failed(self, message: str) -> None:
+        self._modal_title.setToolTip(message)
 
     def _render_strategy(self, strategy: dict) -> None:
         self._clear_layout(self._strategy_layout)
@@ -705,20 +807,83 @@ class AnalysisModal(QDialog):
     def _start_analyze(self) -> None:
         self._analyze_btn.setText("Analyzing...")
         self._analyze_btn.setEnabled(False)
+        self._analysis_progress.setText("Starting…")
+        self._analysis_progress.setVisible(True)
         worker = AnalyzeWorker(self.channel_id, parent=self)
         self._track_worker(worker)
+        worker.progress.connect(self._on_analyze_progress)
         worker.done.connect(self._on_analyze_done)
         worker.failed.connect(self._on_analyze_failed)
         worker.start()
 
+    def _on_analyze_progress(self, message: str) -> None:
+        self._analysis_progress.setText(message)
+
+    def _start_similar(self) -> None:
+        """Find the discovered channels that most resemble this one."""
+        self._analyze_btn.setText("Searching...")
+        self._analyze_btn.setEnabled(False)
+        worker = SimilarChannelsWorker(self.channel_id, parent=self)
+        self._track_worker(worker)
+        worker.done.connect(self._on_similar_done)
+        worker.failed.connect(self._on_similar_failed)
+        worker.start()
+
+    def _on_similar_done(self, channels: list) -> None:
+        self._analyze_btn.setEnabled(True)
+        self._analyze_btn.setText("Create Similar Channel")
+        while self._similar_body.count():
+            item = self._similar_body.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not channels:
+            note = QLabel(
+                "No similar channel found yet — run Niche Discovery so there are "
+                "more channels to compare with."
+            )
+            note.setObjectName("smallLabel")
+            note.setWordWrap(True)
+            self._similar_body.addWidget(note)
+            self._similar_box.show()
+            return
+        for channel in channels:
+            channel_id = str(channel.get("channel_id") or "")
+            row = QHBoxLayout()
+            name = QLabel(channel.get("title") or channel_id)
+            name.setObjectName("smallLabel")
+            row.addWidget(name, 1)
+            subs = QLabel(f"{int(channel.get('subscriber_count') or 0):,} subs")
+            subs.setObjectName("smallLabel")
+            row.addWidget(subs)
+            score = QLabel(f"{int(channel.get('similarity') or 0)}% similar")
+            score.setObjectName("growthPositive")
+            row.addWidget(score)
+            open_btn = QPushButton("Scorecard")
+            open_btn.setProperty("variant", "ghost")
+            open_btn.clicked.connect(
+                lambda _=False, cid=channel_id: self.open_scorecard_requested.emit(cid)
+            )
+            row.addWidget(open_btn)
+            holder = QWidget()
+            holder.setLayout(row)
+            self._similar_body.addWidget(holder)
+        self._similar_box.show()
+
+    def _on_similar_failed(self, error: str) -> None:
+        self._analyze_btn.setEnabled(True)
+        self._analyze_btn.setText("Create Similar Channel")
+        self._similar_caption.setText(f"Similar channels — search failed: {error}")
+
     def _on_analyze_done(self, _analysis) -> None:
         self._analyze_btn.setEnabled(True)
         self._analyze_btn.setText("Create Similar Channel")
+        self._analysis_progress.hide()
         self._load()
 
     def _on_analyze_failed(self, error: str) -> None:
         self._analyze_btn.setEnabled(True)
         self._analyze_btn.setText("Create Similar Channel")
+        self._analysis_progress.hide()
         self._analysis_stack.setCurrentIndex(0)
         self._error_label.setText(f"Analysis failed: {error}")
         self._stack.setCurrentIndex(1)
@@ -729,6 +894,12 @@ class AnalysisModal(QDialog):
             btn.setProperty("active", name == tab)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
+        if tab == "thumbnail":
+            # The thumbnail generator lives outside the analysis tabs so it
+            # is reachable without running an AI analysis first.
+            self._analysis_stack.setCurrentIndex(2)
+            return
+        self._analysis_stack.setCurrentIndex(1)
         self._tab_stack.setCurrentIndex(list(TABS).index(tab))
 
     def _set_style(self, style: str) -> None:
@@ -798,8 +969,14 @@ class AnalysisModal(QDialog):
         import base64
 
         _, _, b64 = self._thumb_image.partition(",")
-        with open(path, "wb") as fh:
-            fh.write(base64.b64decode(b64))
+        try:
+            with open(path, "wb") as fh:
+                fh.write(base64.b64decode(b64))
+        except OSError as exc:
+            logger.warning("Could not save the thumbnail: %s", exc)
+            self._thumb_error.setText(f"Could not save the file: {exc}")
+            return
+        self._thumb_error.setText("")
 
     @staticmethod
     def _fmt_duration(seconds: int) -> str:
@@ -808,7 +985,29 @@ class AnalysisModal(QDialog):
         return f"{minutes}:{seconds % 60:02d}"
 
     def closeEvent(self, event) -> None:
+        self._shutdown_workers()
+        super().closeEvent(event)
+
+    def reject(self) -> None:
+        """Close the dialog safely.
+
+        ``QDialog.reject()`` hides the dialog without emitting ``closeEvent``,
+        so the workers have to be joined here as well — a QThread that is
+        destroyed while it is still running aborts the whole process.
+        """
+        self._shutdown_workers()
+        super().reject()
+
+    def _shutdown_workers(self, timeout_ms: int = 5000) -> None:
+        """Stop and join every worker this dialog started."""
         for worker in list(self._workers):
             if worker.isRunning():
-                worker.wait(3000)
-        super().closeEvent(event)
+                worker.requestInterruption()
+                if not worker.wait(timeout_ms):
+                    logger.warning(
+                        "Analysis worker still running after %dms — terminating it", timeout_ms
+                    )
+                    worker.terminate()
+                    worker.wait(1000)
+            if worker in self._workers:
+                self._workers.remove(worker)

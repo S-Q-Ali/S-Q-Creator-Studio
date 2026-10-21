@@ -3,6 +3,118 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.4.2] — 2026-10-20
+
+### Niche Research completed
+
+The research suite had working engines but unreliable numbers, several crash
+paths and only one of ~16 page-to-page handoffs. This release finishes it.
+
+**Fixed (data was wrong by construction)**
+- Keyword demand was overwritten with a constant `100` on every ranking run.
+- Ranked-video lists repeated the same video once per run.
+- A keyword scored in an earlier run was reset to "unscored" by an unrelated
+  research run.
+- Re-discovery wiped the "already analysed" marker of a channel.
+- The keyword-placement half of the SEO score (34 of 100 points) could never
+  fire — no caller ever passed a focus keyword. The Scorecard now has a
+  **Focus keyword** field.
+- The channel score treated subscribers as views, so engagement was always 0
+  and a small channel scored 100 on "growth velocity". Channels are now scored
+  on reach (views per subscriber) and output (average views per video).
+- Tracked items showed a channel id instead of the channel title, and channel
+  uploads always showed `0 views` (flat extraction drops the count).
+- "Last discovered" showed an arbitrary niche, not the newest one.
+
+**Fixed (crashes)**
+- The Agent tab's **Queue** button called a method that did not exist — every
+  click raised `AttributeError`.
+- The Scorecard crashed on the *second* failed lookup (deleted empty-state
+  widget re-added).
+- Closing the AI Analysis modal mid-analysis aborted the process
+  (`QDialog.reject()` bypassed `closeEvent`, so the workers were never joined).
+- Closing the app left the research poller and its workers running.
+- The Niche Discovery niche filter was empty until the format filter was
+  touched.
+
+**Added**
+- **Cross-page handoffs:** Niche Discovery → queue / Scorecard / Track / Open,
+  Scorecard → AI Analysis, Competitors → Scorecard / keyword detail / AI
+  Analysis, AI Analysis → Scorecard. One shared
+  `send_to_queue_requested` bridge feeds the download queue.
+- **A real Dashboard** — metric tiles, top channels, top keywords, a recent
+  activity feed and working quick actions (it was a static intro card).
+- **Export** on every data page: CSV (Excel-ready), JSON (full data) and
+  Markdown (report) for Niche Discovery, Scorecard, Competitors, Keyword
+  Research and AI Analysis.
+- **A cookies.txt setting** (Settings → YouTube cookies.txt). YouTube's bot
+  check blocked the research pages; this is the escape hatch, and it now
+  reaches every engine.
+- **An app-wide hourly poller** — snapshots are recorded even when the
+  Competitors page is not open (VPH and 7-day growth need two snapshots), with
+  a configurable interval (30/60/180 min) and failure counts in the summary.
+- **Thumbnail generator without an AI analysis** — it was gated behind a
+  full chat analysis.
+- **A real "Create Similar Channel"** — a nearest-neighbour search over the
+  discovered channels with a 0-100 similarity score. It used to compare the
+  channel with itself and report 100.
+- **An "AI only" filter** in Niche Discovery (the engine supported it, nothing
+  could switch it on) and the niche **competition / difficulty** badges.
+- **Analysis progress** — the modal shows which provider is being tried.
+
+**Polish**
+- The Competitors sparklines were flat lines for every series above 100
+  (view and subscriber counts) — they now scale to their own range.
+- The untrack button said "Tracking" while it deleted the item.
+- Dead code removed: `trending_engine.get_format_niche_counts`,
+  `keyword_engine.decode_term`, `keyword_engine.get_cached_keywords`,
+  `scorecard_engine.score_label`, `autocomplete.expand_seed`, `db.vacuum`,
+  plus six dead QSS rules.
+
+### Download engine (same release)
+
+### Fixed
+- **YouTube downloads failing everywhere** — every YouTube download died with
+  "Sign in to confirm you're not a bot". Root cause: yt-dlp 2026.x asks
+  YouTube's default `web` player client for a PO token, and only a real browser
+  can mint one, so the request is bot-checked. Every yt-dlp options builder
+  (downloads, TikTok account fetch, YouTube playlist/channel expansion,
+  research client, agent search) now passes `js_runtimes` for
+  deno/node/bun/quickjs so the EJS challenges have a runtime, **and** YouTube
+  downloads now request the PO-token-free `web_embedded` / `mweb` clients
+  first, with `web` kept as the cookie-friendly fallback. Guarded by
+  regression tests.
+- **TikTok profile fetch produced undownloadable links** — expanding a
+  TikTok profile queued the signed CDN media URL that TikTok puts in each
+  listing entry. Those links answer `HTTP 403 Forbidden`, so every video
+  failed. The queue now gets the stable page URL
+  (`tiktok.com/@user/video/<id>`), and CDN media links are no longer
+  accepted as queueable TikTok links.
+- **Download failures showed a useless message** — the extractor error was
+  discarded and every failure surfaced as "Download finished but the file is
+  missing". The real reason (bot check, 403, missing ffmpeg) now reaches the
+  queue row and is written to the app log.
+- **Portable builds shipped without ffmpeg** — "Best available" downloads
+  video and audio as separate streams and yt-dlp needs ffmpeg to merge them.
+  `build_release.bat` now stages `ffmpeg.exe` into `release\portable\bin\`
+  (the engine already looks there), so the portable build works on machines
+  that have no ffmpeg installed.
+- Friendlier, actionable messages for the two flaky upstream failures:
+  YouTube's bot check (wait / Chrome cookies) and TikTok's intermittent
+  "Unable to extract secondary user ID" profile fetch (retry in a few
+  minutes — TikTok-side flakiness that persists on latest yt-dlp 2026.8.19).
+
+
+## [2.4.1] — 2026-09-11
+
+### Fixed
+- **TikTok account (profile) fetch regression** — "Couldn't fetch that account"
+  in the Account tab. Root cause: bundled yt-dlp was too old to parse TikTok's
+  current profile pages ("Unable to extract secondary user ID"). Bundled
+  yt-dlp is now **2026.8.19+**; `yt-dlp>=2026.8.19` is pinned in
+  `requirements.txt` / `pyproject.toml`, and the floor is guarded by a
+  regression test so it can't silently drop again.
+
 ## [2.4.0] — 2026-09-10
 
 ### Added

@@ -382,7 +382,7 @@ class MainWindow(QMainWindow):
             self.links.setPlainText(lines)
         self.tab_links.setChecked(True)
         self.source_stack.setCurrentIndex(0)
-        self.add_links_to_queue()
+        self.add_links()
         if hasattr(self, "btn_nav_queue"):
             self.btn_nav_queue.setChecked(True)
         if hasattr(self, "workspace_stack"):
@@ -545,6 +545,7 @@ class MainWindow(QMainWindow):
 
         # Page 2: Niche Research Container Workspace Page
         self.research_tab = ResearchContainer()
+        self.research_tab.send_to_queue_requested.connect(self._handle_agent_urls)
         self.workspace_stack.addWidget(self.research_tab)
 
         lay.addWidget(self.workspace_stack, 1)
@@ -1203,6 +1204,11 @@ class MainWindow(QMainWindow):
             self.fetcher.wait(2000)
         if self.expander is not None and self.expander.isRunning():
             self.expander.wait(2000)
+        research = getattr(self, "research_tab", None)
+        if research is not None:
+            # Stops the poller and joins the research workers — a running
+            # QThread at shutdown aborts the whole process.
+            research.shutdown()
         self._save_settings()
         self._save_queue()
         event.accept()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader.niche_research.research import competitor_engine as ce
 from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
@@ -115,6 +117,32 @@ class SettingsPage(QWidget):
             body_layout.addWidget(card)
             self._keys[key] = edit
 
+        body_layout.addWidget(self._build_cookies_card())
+
+        interval_card = QFrame()
+        interval_card.setObjectName("panel")
+        interval_layout = QFormLayout(interval_card)
+        interval_layout.setContentsMargins(14, 12, 14, 12)
+        interval_layout.setSpacing(6)
+        self._interval_combo = QComboBox()
+        for minutes in (30, 60, 180):
+            label = "Every 30 minutes" if minutes == 30 else (
+                "Every hour" if minutes == 60 else "Every 3 hours"
+            )
+            self._interval_combo.addItem(label, minutes)
+        current_minutes = ce.snapshot_interval_minutes()
+        idx = self._interval_combo.findData(current_minutes)
+        self._interval_combo.setCurrentIndex(max(idx, 0))
+        interval_layout.addRow("Snapshot interval", self._interval_combo)
+        interval_hint = QLabel(
+            "How often the background poller records a snapshot of your tracked items. "
+            "VPH and 7-day growth need at least two snapshots."
+        )
+        interval_hint.setObjectName("formHint")
+        interval_hint.setWordWrap(True)
+        interval_layout.addRow("", interval_hint)
+        body_layout.addWidget(interval_card)
+
         save_row = QHBoxLayout()
         self._status = QLabel("")
         self._status.setObjectName("statusOk")
@@ -128,10 +156,71 @@ class SettingsPage(QWidget):
         scroll.setWidget(body)
         root.addWidget(scroll, 1)
 
+    # ------------------------------------------------------------------ #
+    # Cookies file
+    # ------------------------------------------------------------------ #
+    def _build_cookies_card(self) -> QFrame:
+        """Cookie file picker — the escape hatch for YouTube bot-checks."""
+        card = QFrame()
+        card.setObjectName("panel")
+        layout = QFormLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(6)
+
+        self._cookies_edit = QLineEdit()
+        self._cookies_edit.setReadOnly(True)
+        self._cookies_edit.setPlaceholderText("No cookies.txt selected")
+        self._cookies_edit.setText(db.get_setting("youtube_cookies_file") or "")
+
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        row.addWidget(self._cookies_edit, 1)
+        browse = QPushButton("Browse…")
+        browse.clicked.connect(self._browse_cookies)
+        row.addWidget(browse)
+        clear = QPushButton("Clear")
+        clear.clicked.connect(self._clear_cookies)
+        row.addWidget(clear)
+        holder = QWidget()
+        holder.setLayout(row)
+
+        layout.addRow("YouTube cookies.txt", holder)
+        hint = QLabel(
+            "Optional. Exports from a logged-in browser in Netscape format. "
+            "Used for every research request — it is the way around YouTube's "
+            "'Sign in to confirm you're not a bot' check."
+        )
+        hint.setObjectName("formHint")
+        hint.setWordWrap(True)
+        layout.addRow("", hint)
+        return card
+
+    def _browse_cookies(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select cookies.txt",
+            "",
+            "Cookie files (*.txt);;All files (*)",
+        )
+        if not path:
+            return
+        self._cookies_edit.setText(path)
+        self._save()
+
+    def _clear_cookies(self) -> None:
+        self._cookies_edit.clear()
+        db.set_setting("youtube_cookies_file", "")
+        self._status.setText("Cookie file cleared.")
+
     def _save(self) -> None:
         for key, edit in self._keys.items():
             db.set_setting(key, edit.text().strip())
         db.set_setting("ai_primary_provider", self._default_provider.currentData() or "aihubmix")
+        db.set_setting("youtube_cookies_file", self._cookies_edit.text().strip())
+        db.set_setting(
+            "snapshot_interval_minutes",
+            str(self._interval_combo.currentData() or 60),
+        )
         self._status.setText("Settings saved.")
         self.reload()
 

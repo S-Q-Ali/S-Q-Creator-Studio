@@ -360,7 +360,8 @@ def save_trending_channels(channels: list[TrendingChannel]) -> None:
             avg_views_per_video = excluded.avg_views_per_video,
             is_newly_created = excluded.is_newly_created,
             is_rapidly_growing = excluded.is_rapidly_growing,
-            ai_score = excluded.ai_score, last_analyzed = excluded.last_analyzed
+            ai_score = excluded.ai_score,
+            last_analyzed = trending_channels.last_analyzed
     """
     now = db.now()
     db.exec_many(
@@ -387,7 +388,7 @@ def save_trending_channels(channels: list[TrendingChannel]) -> None:
                 1 if ch.is_newly_created else 0,
                 1 if ch.is_rapidly_growing else 0,
                 round(ch.ai_score),
-                0,
+                ch.last_analyzed or 0,
             )
             for ch in channels
         ],
@@ -477,13 +478,6 @@ def get_trending_channel_by_id(channel_id: str) -> TrendingChannel | None:
     return _row_to_trending(row) if row else None
 
 
-def get_format_niche_counts() -> list[dict]:
-    return db.all(
-        "SELECT video_format, niche, COUNT(*) AS count FROM trending_channels "
-        "GROUP BY video_format, niche"
-    )
-
-
 def log_discovery(video_format: str, niche: str, channels_found: int, searches_used: int) -> None:
     db.run(
         "INSERT INTO discovery_log (video_format, niche, channels_found, searches_used, discovered_at) "
@@ -507,6 +501,7 @@ def was_niche_discovered_recently(
 
 
 def get_discovery_status() -> list[dict]:
+    """Latest discovery per format+niche, newest first."""
     return db.all(
         """
         SELECT d.video_format, d.niche, d.discovered_at, d.channels_found
@@ -518,6 +513,7 @@ def get_discovery_status() -> list[dict]:
         ON d.video_format = latest.video_format
         AND d.niche = latest.niche
         AND d.discovered_at = latest.max_at
+        ORDER BY d.discovered_at DESC
         """
     )
 

@@ -20,6 +20,79 @@ def _db(isolated_appdata):
     db.close_db()
 
 
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the tracked cards must be actionable
+# --------------------------------------------------------------------------- #
+def test_tracked_cards_offer_drill_down(isolated_appdata, qapp):
+    """Competitors cards were inert: no scorecard, no analysis, no keyword
+    detail. Every tracked item needs a way out of the page."""
+    from PySide6.QtWidgets import QPushButton
+
+    _seed_video()
+    _seed_channel()
+    _seed_keyword()
+
+    page = CompetitorsPage()
+    page.show()
+
+    labels = {b.text() for b in page.findChildren(QPushButton)}
+    assert "Scorecard" in labels
+    assert "Analyze" in labels
+    assert "Details" in labels
+
+
+def test_tracked_video_opens_the_scorecard(isolated_appdata, qapp):
+    _seed_video()
+    page = CompetitorsPage()
+    page.show()
+    got: list = []
+    page.scorecard_requested.connect(got.append)
+
+    from PySide6.QtWidgets import QPushButton
+
+    for btn in page.findChildren(QPushButton):
+        if btn.text() == "Scorecard":
+            btn.click()
+            break
+
+    assert got and "watch?v=vidA" in got[0]
+
+
+def test_tracked_channel_can_be_analysed(isolated_appdata, qapp):
+    _seed_channel()
+    page = CompetitorsPage()
+    page.show()
+    got: list = []
+    page.analyze_requested.connect(got.append)
+
+    from PySide6.QtWidgets import QPushButton
+
+    for btn in page.findChildren(QPushButton):
+        if btn.text() == "Analyze":
+            btn.click()
+            break
+
+    assert got == ["chanB"]
+
+
+def test_tracked_keyword_opens_its_detail(isolated_appdata, qapp):
+    _seed_keyword()
+    page = CompetitorsPage()
+    page.show()
+    got: list = []
+    page.keyword_requested.connect(got.append)
+
+    from PySide6.QtWidgets import QPushButton
+
+    for btn in page.findChildren(QPushButton):
+        if btn.text() == "Details":
+            btn.click()
+            break
+
+    assert got == ["ai tools"]
+
+
+
 def _seed_video() -> None:
     db.run(
         "INSERT INTO tracked_items (kind, ref_id, label, added_at) VALUES (?, ?, ?, ?)",

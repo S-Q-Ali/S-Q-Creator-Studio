@@ -1,17 +1,25 @@
 """Engine helpers, presets and platform-specific download options."""
 
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
+import yt_dlp
+from packaging.version import Version
 
 from s_q_ali_media_downloader.engine import (
     DEFAULT_DELAY,
     DELAY_PRESETS,
     QUALITY_OPTIONS,
+    AccountFetchThread,
     DownloadThread,
     human_size,
     impersonation_summary,
     is_permanent,
+    js_runtime_opts,
     sanitize_filename,
     tidy_error,
+    tiktok_page_url,
     unique_basename,
 )
 
@@ -47,6 +55,17 @@ def test_tidy_error():
     )
     assert "rate limited" in tidy_error(Exception("rehydration failed")).lower()
     assert "ffmpeg" not in tidy_error(Exception("a strange problem")).lower()
+    bot_check = tidy_error(
+        Exception(
+            "Sign in to confirm you're not a bot. Use --cookies-from-browser "
+            "or --cookies for the authentication."
+        )
+    )
+    assert "bot" in bot_check.lower() and "wait" in bot_check.lower()
+    profile_flake = tidy_error(Exception("Unable to extract secondary user ID"))
+    assert "profile" in profile_flake.lower() and "retry" in profile_flake.lower()
+    assert not is_permanent(bot_check)
+    assert not is_permanent(profile_flake)
 
 
 def test_is_permanent():
@@ -54,6 +73,35 @@ def test_is_permanent():
     assert not is_permanent("TikTok refused the request — rate limited.")
     assert is_permanent("video not found")
     assert is_permanent("private video")
+
+
+def test_ytdlp_floor_guards_tiktok_account_fetch():
+    """Regression: bundled yt-dlp must stay recent enough for TikTok profile
+    (account) fetches. TikTok profile extraction broke in yt-dlp <=2026.8.19
+    builds ("Unable to extract secondary user ID"); the 2026.8.19+ extractor
+    fixed it. If the floor drops below that, or the installed copy falls below
+    the documented floor, this test fails so the regression can't silently
+    reappear. Note (2026-10): on yt-dlp 2026.8.19 the same "secondary user
+    ID" error still appears INTERMITTENTLY on TikTok's side (fresh pages
+    sometimes lack the SSR data) — the app retries and surfaces a friendly
+    message; a permanent fix needs a newer yt-dlp release."""
+    project_root = Path(__file__).resolve().parents[1]
+    reqs = (project_root / "requirements.txt").read_text(encoding="utf-8")
+    floor = None
+    for line in reqs.splitlines():
+        line = line.strip()
+        if line.lower().startswith("yt-dlp"):
+            floor = line.split(">=", 1)[1].strip().strip('"')
+            break
+    assert Version(floor) >= Version("2026.8.19"), (
+        f"yt-dlp floor must stay at/above 2026.8.19 (TikTok account fetch fix); got {floor}"
+    )
+
+    installed = Version(yt_dlp.version.__version__)
+    assert installed >= Version(floor), (
+        f"Installed yt-dlp {installed} is older than the documented floor {floor}; "
+        "run `pip install -U 'yt-dlp>=2026.8.19'` (TikTok account fetches break otherwise)."
+    )
 
 
 def test_presets_structure():
@@ -88,3 +136,117 @@ def test_base_opts_platform_behavior():
     assert "impersonate" not in youtube
     assert "impersonate" in tiktok
     assert youtube["noplaylist"] is True
+
+
+def test_js_runtimes_enabled_in_download_opts():
+    """Regression (2026-10): yt-dlp 2026.x runs YouTube web-extraction
+    challenges through a JS runtime (EJS) and enables only deno by default.
+    With no deno installed, every YouTube download died with "Sign in to
+    confirm you're not a bot". All supported runtimes must stay enabled so
+    node/bun get used when present."""
+    runtimes = js_runtime_opts()
+    assert {"deno", "node", "bun", "quickjs"} <= set(runtimes)
+    thread = DownloadThread([], "out", "1080p")
+    assert thread._base_opts("YouTube")["js_runtimes"] == runtimes
+    assert thread._base_opts("TikTok")["js_runtimes"] == runtimes
+
+
+def test_youtube_downloads_use_po_token_free_clients():
+    """Regression (2026-10): YouTube's default "web" player client needs a
+    PO token that only a browser can mint, so every single-video download
+    died with "Sign in to confirm you're not a bot". The embedded and mobile
+    web clients answer without one and must be tried first."""
+    thread = DownloadThread([], "out", "1080p")
+    opts = thread._base_opts("YouTube")
+    clients = opts["extractor_args"]["youtube"]["player_client"]
+    assert clients[0] == "web_embedded"
+    assert "mweb" in clients
+    assert "web" in clients
+    assert "impersonate" not in opts
+    assert "extractor_args" not in thread._base_opts("TikTok")
+
+
+def test_tiktok_page_url_prefers_page_over_cdn():
+    """Regression (2026-10): TikTok profile entries put a signed CDN media
+    URL in "url" (HTTP 403 when downloaded). The page URL must be used."""
+    entry = {
+        "id": "7694797676306615583",
+        "url": "https://v19-webapp-prime.tiktok.com/video/tos/alisg/x/?a=1988",
+        "webpage_url": "https://www.tiktok.com/@tiktok/video/7694797676306615583",
+    }
+    assert (
+        tiktok_page_url(entry, "tiktok")
+        == "https://www.tiktok.com/@tiktok/video/7694797676306615583"
+    )
+    # No webpage_url — the id is rebuilt into a page URL.
+    only_id = {"id": "7694797676306615583", "url": "https://v19-webapp-prime.tiktok.com/x"}
+    assert (
+        tiktok_page_url(only_id, "tiktok")
+        == "https://www.tiktok.com/@tiktok/video/7694797676306615583"
+    )
+    # Nothing usable — no URL is invented.
+    assert tiktok_page_url({"url": "https://v19-webapp-prime.tiktok.com/x"}, "tiktok") == ""
+
+
+def test_account_fetch_thread_returns_page_urls():
+    """The profile expansion must queue downloadable page URLs, not the
+    signed CDN media URLs TikTok puts in each entry."""
+    captured = {}
+
+    class FakeYDL:
+        def __init__(self, opts=None):
+            captured.update(opts or {})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download=False):
+            return {
+                "_type": "playlist",
+                "entries": [
+                    {
+                        "id": "7694797676306615583",
+                        "url": "https://v19-webapp-prime.tiktok.com/video/tos/x/?a=1988",
+                        "webpage_url": (
+                            "https://www.tiktok.com/@tiktok/video/7694797676306615583"
+                        ),
+                    }
+                ],
+            }
+
+    with patch("yt_dlp.YoutubeDL", FakeYDL):
+        thread = AccountFetchThread("tiktok", limit=5)
+        found = []
+        thread.found.connect(lambda urls, name: found.append(urls))
+        thread.run()
+
+    assert found == [["https://www.tiktok.com/@tiktok/video/7694797676306615583"]]
+
+
+def test_download_error_is_not_swallowed():
+    """Regression (2026-10): the extractor error used to be discarded, so
+    every failure surfaced as "Download finished but the file is missing"
+    and the app log never recorded a reason."""
+
+    class Boom(Exception):
+        pass
+
+    class FakeYDL:
+        def __init__(self, opts=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download=False):
+            raise Boom("ERROR: [youtube] abc: Sign in to confirm you're not a bot.")
+
+    thread = DownloadThread([], "out", "Best available")
+    with patch("yt_dlp.YoutubeDL", FakeYDL), pytest.raises(Boom):
+        thread._download_one(1, "https://www.youtube.com/watch?v=abc")

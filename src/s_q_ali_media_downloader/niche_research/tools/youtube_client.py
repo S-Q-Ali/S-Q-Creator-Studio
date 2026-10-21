@@ -10,6 +10,7 @@ metadata).
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -21,7 +22,7 @@ import httpx
 import yt_dlp
 from yt_dlp.utils import DateRange
 
-from s_q_ali_media_downloader.engine import impersonate_target
+from s_q_ali_media_downloader.engine import impersonate_target, js_runtime_opts
 from s_q_ali_media_downloader.niche_research.storage import db
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,23 @@ def get_api_key() -> str | None:
     return (value or "").strip() or None
 
 
+def get_cookies_file() -> str | None:
+    """Path of the configured Netscape ``cookies.txt``, if it is usable.
+
+    YouTube bot-checks ("Sign in to confirm you're not a bot") block the
+    research pages on most IPs. A cookies.txt exported from a logged-in
+    browser is the escape hatch — it is configured once in Settings and used
+    by every request.
+    """
+    path = (db.get_setting("youtube_cookies_file") or "").strip()
+    if not path:
+        return None
+    if not os.path.isfile(path):
+        logger.warning("Configured cookies file is missing: %s", path)
+        return None
+    return path
+
+
 def parse_video_id(url_or_id: str) -> str | None:
     if re.fullmatch(r"[A-Za-z0-9_-]{11}", url_or_id):
         return url_or_id
@@ -111,12 +129,14 @@ def _base_opts(cookiefile: str | None = None, extra: dict | None = None) -> dict
         "ignoreerrors": True,
         "retries": 2,
         "socket_timeout": 30,
+        "js_runtimes": js_runtime_opts(),
     }
     target, _label = impersonate_target()
     if target is not None:
         opts["impersonate"] = target
-    if cookiefile:
-        opts["cookiefile"] = cookiefile
+    cookies = cookiefile or get_cookies_file()
+    if cookies:
+        opts["cookiefile"] = cookies
     if extra:
         opts.update(extra)
     return opts
@@ -574,12 +594,24 @@ def fetch_videos(
 
 
 def fetch_channel(
-    channel_id: str, *, cookiefile: str | None = None, uploads_limit: int = 30, api_key: str | None = None
+    channel_id: str,
+    *,
+    cookiefile: str | None = None,
+    uploads_limit: int = 30,
+    api_key: str | None = None,
+    uploads_with_stats: bool = False,
+    stats_limit: int = 10,
 ) -> ChannelInfo:
-    """Fetch channel metadata plus its most recent uploads (flat).
+    """Fetch channel metadata plus its most recent uploads.
 
     Accepts either a bare channel id (``UC...``) or any full channel URL such as
     ``https://www.youtube.com/@handle`` or ``.../channel/UC...``.
+
+    Uploads are extracted flat (one request per channel) because discovery
+    scans hundreds of channels. Flat entries carry no view count, so callers
+    that display upload statistics (the scorecard, the AI analysis) pass
+    ``uploads_with_stats=True`` to extract the newest ``stats_limit`` uploads
+    with their real numbers.
     """
     key = api_key or get_api_key()
     if key:
@@ -594,10 +626,12 @@ def fetch_channel(
         url = f"https://www.youtube.com/{channel_id}" if channel_id.startswith("@") else channel_id
     else:
         url = f"https://www.youtube.com/channel/{channel_id}"
-    opts = _base_opts(
-        cookiefile=cookiefile,
-        extra={"extract_flat": True, "playlist_items": f"1-{uploads_limit}"},
-    )
+    if uploads_with_stats:
+        items = max(1, min(stats_limit, uploads_limit))
+        extra = {"extract_flat": False, "playlist_items": f"1-{items}"}
+    else:
+        extra = {"extract_flat": True, "playlist_items": f"1-{uploads_limit}"}
+    opts = _base_opts(cookiefile=cookiefile, extra=extra)
     return _to_channel_info(_extract(url, opts))
 
 

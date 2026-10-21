@@ -197,7 +197,7 @@ def test_analyze_channel_runs_and_persists(isolated_appdata, monkeypatch):
     monkeypatch.setattr(
         ai,
         "fetch_channel",
-        lambda channel_id, cookiefile=None: ChannelInfo(
+        lambda channel_id, cookiefile=None, **kwargs: ChannelInfo(
             channel_id=channel_id,
             title="Analyzable",
             subscriber_count=5,
@@ -227,7 +227,7 @@ def test_load_channel_analysis_data_recent_videos(isolated_appdata, monkeypatch)
     monkeypatch.setattr(
         ai,
         "fetch_channel",
-        lambda channel_id, cookiefile=None: ChannelInfo(
+        lambda channel_id, cookiefile=None, **kwargs: ChannelInfo(
             channel_id=channel_id,
             title="Recent-y",
             uploads=[

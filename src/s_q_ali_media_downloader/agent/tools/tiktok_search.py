@@ -152,7 +152,7 @@ class TikTokSearchTool:
     # ------------------------------------------------------------------
     def _ydl_opts(self, flat: bool = True) -> dict:
         """Common yt-dlp options: impersonation + optional cookies file."""
-        from s_q_ali_media_downloader.engine import impersonate_target
+        from s_q_ali_media_downloader.engine import impersonate_target, js_runtime_opts
 
         opts: dict = {
             "skip_download": True,
@@ -160,6 +160,7 @@ class TikTokSearchTool:
             "no_warnings": True,
             "ignoreerrors": True,
             "socket_timeout": self.timeout,
+            "js_runtimes": js_runtime_opts(),
         }
         if flat:
             opts["extract_flat"] = True

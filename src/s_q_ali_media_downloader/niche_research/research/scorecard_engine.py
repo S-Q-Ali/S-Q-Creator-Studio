@@ -35,7 +35,7 @@ ACTIONABLE_CHECK_IDS = {
     "keywordTags",
     "tripleKeyword",
 }
-PERFORMANCE_CHECK_IDS = {"engagement", "velocity"}
+PERFORMANCE_CHECK_IDS = {"engagement", "velocity", "channelReach", "channelOutput"}
 
 
 @dataclass
@@ -286,31 +286,164 @@ def _fmt_views_per_day(views_per_day: float) -> str:
     return f"{round(views_per_day)} views/day since publish"
 
 
-def score_label(score: float) -> str:
-    if score >= 90:
-        return "A"
-    if score >= 80:
-        return "B"
-    if score >= 70:
-        return "C"
-    if score >= 55:
-        return "D"
-    if score >= 40:
-        return "E"
-    return "F"
 
 
-def compute_channel_seo_score(channel: ChannelInfo) -> SeoResult:
-    return compute_seo_score(
-        {
-            "title": channel.title,
-            "description": channel.description,
-            "tags": channel.channel_tags or [],
-            "view_count": max(1, channel.subscriber_count),
-            "like_count": None,
-            "comment_count": None,
-            "published_at": "",
-        }
+def compute_channel_seo_score(channel: ChannelInfo, focus_keyword: str = "") -> SeoResult:
+    """Channel SEO score.
+
+    A channel has no per-video likes or comments, so the video scorer's
+    engagement check would always be 0 and its velocity check would be
+    computed from the subscriber count (which handed a small channel a free
+    100). The channel score therefore uses the channel's own numbers: reach
+    (views per subscriber) and output (average views per video).
+    """
+    title = channel.title or ""
+    description = channel.description or ""
+    tags = channel.channel_tags or []
+    kw = (focus_keyword or "").strip()
+
+    checks: list[SeoCheck] = []
+
+    title_len = len(title.strip())
+    title_ok = 3 <= title_len <= 30
+    checks.append(
+        SeoCheck(
+            id="titleLength",
+            label="Channel name length (3–30 chars)",
+            passed=title_ok,
+            score=100 if title_ok else score_char(title_len, 5, 30),
+            weight=12,
+            detail=f"{title_len} chars",
+        )
+    )
+
+    desc_len = len(description.strip())
+    checks.append(
+        SeoCheck(
+            id="descriptionLength",
+            label="Description ≥ 300 chars",
+            passed=desc_len >= 300,
+            score=100 if desc_len >= 300 else score_char(desc_len, 100, 300),
+            weight=12,
+            detail=f"{desc_len} chars",
+        )
+    )
+
+    tag_count = len(tags)
+    checks.append(
+        SeoCheck(
+            id="tagCount",
+            label="At least 5 tags",
+            passed=tag_count >= 5,
+            score=100 if tag_count >= 5 else score_char(tag_count, 2, 5),
+            weight=12,
+            detail=f"{tag_count} tags",
+        )
+    )
+
+    if kw:
+        kw_title = contains_keyword(title, kw)
+        kw_desc = contains_keyword(description, kw)
+        kw_tags = any(norm(t) == norm(kw) for t in tags)
+        checks.append(
+            SeoCheck(
+                id="keywordTitle",
+                label="Keyword in channel name",
+                passed=bool(kw_title),
+                score=100 if kw_title else 0,
+                weight=10,
+                detail=f'"{kw}" found in name' if kw_title else f'"{kw}" not in name',
+            )
+        )
+        checks.append(
+            SeoCheck(
+                id="keywordDescription",
+                label="Keyword in description",
+                passed=bool(kw_desc),
+                score=100 if kw_desc else 0,
+                weight=8,
+                detail=f'"{kw}" found in description' if kw_desc else f'"{kw}" not in description',
+            )
+        )
+        checks.append(
+            SeoCheck(
+                id="keywordTags",
+                label="Keyword in tags",
+                passed=bool(kw_tags),
+                score=100 if kw_tags else 0,
+                weight=8,
+                detail=f'"{kw}" present in a tag' if kw_tags else f'"{kw}" not in tags',
+            )
+        )
+        triple = bool(kw_title and kw_desc and kw_tags)
+        checks.append(
+            SeoCheck(
+                id="tripleKeyword",
+                label="Triple keyword (name + desc + tags)",
+                passed=triple,
+                score=100 if triple else 0,
+                weight=8,
+                detail=(
+                    "Keyword used in all three"
+                    if triple
+                    else "Use the keyword in name, description, and tags"
+                ),
+            )
+        )
+
+    subs = max(0, channel.subscriber_count or 0)
+    views = max(0, channel.view_count or 0)
+    videos = max(1, channel.video_count or 1)
+
+    if subs:
+        views_per_sub = views / subs
+        reach = round(min(100, (views_per_sub / 10) * 100))
+        reach_detail = f"{round(views_per_sub):,} views per subscriber"
+    else:
+        reach = 100 if views else 0
+        reach_detail = "no subscriber count available"
+    checks.append(
+        SeoCheck(
+            id="channelReach",
+            label="Reach (views per subscriber)",
+            passed=reach >= 50,
+            score=reach,
+            weight=15,
+            detail=reach_detail,
+        )
+    )
+
+    avg_views = views / videos
+    output = round(min(100, (avg_views / 100_000) * 100))
+    checks.append(
+        SeoCheck(
+            id="channelOutput",
+            label="Output (average views per video)",
+            passed=output >= 50,
+            score=output,
+            weight=15,
+            detail=f"{round(avg_views):,} views per video across {videos} videos",
+        )
+    )
+
+    actionable = [c for c in checks if c.id in ACTIONABLE_CHECK_IDS]
+    performance = [c for c in checks if c.id in PERFORMANCE_CHECK_IDS]
+
+    def section_pct(section: list[SeoCheck]) -> float:
+        total_w = sum(c.weight for c in section)
+        if total_w == 0:
+            return 0.0
+        return sum(c.score * c.weight for c in section) / total_w
+
+    actionable_pct = section_pct(actionable)
+    performance_pct = section_pct(performance)
+    total = round((actionable_pct + performance_pct) / 2)
+
+    return SeoResult(
+        total=total,
+        actionable_pct=round(actionable_pct),
+        performance_pct=round(performance_pct),
+        checks=checks,
     )
 
 
@@ -375,19 +508,24 @@ def save_video_snapshot(video: VideoInfo) -> None:
     db.run(
         """
         INSERT INTO videos (
-            video_id, channel_id, title, description, published_at, duration_seconds,
-            thumbnail_url, default_language, view_count, like_count, comment_count,
-            tags, category_id, last_fetched
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            video_id, channel_id, channel_title, title, description, published_at,
+            duration_seconds, thumbnail_url, default_language, view_count,
+            like_count, comment_count, tags, category_id, last_fetched
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(video_id) DO UPDATE SET
             view_count = excluded.view_count,
             like_count = excluded.like_count,
             comment_count = excluded.comment_count,
+            channel_title = CASE
+                WHEN excluded.channel_title <> '' THEN excluded.channel_title
+                ELSE videos.channel_title
+            END,
             last_fetched = excluded.last_fetched
         """,
         (
             video.video_id,
             video.channel_id,
+            video.channel_title or "",
             video.title,
             video.description,
             video.published_at,
@@ -475,7 +613,9 @@ def _is_tracked(kind: str, ref_id: str) -> bool:
     )
 
 
-def lookup_video(url: str, *, cookiefile: str | None = None) -> VideoLookupResult:
+def lookup_video(
+    url: str, *, cookiefile: str | None = None, focus_keyword: str = ""
+) -> VideoLookupResult:
     video_id = parse_video_id(url)
     if not video_id:
         raise ValueError("Could not parse a YouTube video ID from that input")
@@ -491,6 +631,7 @@ def lookup_video(url: str, *, cookiefile: str | None = None) -> VideoLookupResul
             "like_count": video.like_count,
             "comment_count": video.comment_count,
             "published_at": video.published_at,
+            "focus_keyword": (focus_keyword or "").strip(),
         }
     )
     vph = compute_vph(video_id)
@@ -530,17 +671,19 @@ def lookup_video(url: str, *, cookiefile: str | None = None) -> VideoLookupResul
     )
 
 
-def lookup_channel(url: str, *, cookiefile: str | None = None) -> ChannelLookupResult:
+def lookup_channel(
+    url: str, *, cookiefile: str | None = None, focus_keyword: str = ""
+) -> ChannelLookupResult:
     channel_id = parse_channel_id(url)
     if not channel_id and (url.strip().startswith("@") or "youtube.com" in url.lower()):
         # Bare id not found but this looks like a channel reference (handle URL etc.)
         channel_id = url
     if not channel_id:
         raise ValueError("Could not parse a YouTube channel ID from that input")
-    info = fetch_channel(channel_id, cookiefile=cookiefile)
+    info = fetch_channel(channel_id, cookiefile=cookiefile, uploads_with_stats=True)
     save_channel_snapshot(info)
 
-    seo = compute_channel_seo_score(info)
+    seo = compute_channel_seo_score(info, focus_keyword=(focus_keyword or "").strip())
 
     recent_videos = []
     for entry in info.uploads:

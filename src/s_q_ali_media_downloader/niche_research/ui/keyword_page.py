@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from s_q_ali_media_downloader.niche_research.research import keyword_engine as ke
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
+from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,12 @@ class KeywordResearchPage(QWidget):
         self._research_btn.clicked.connect(self.start_research)
         form.addWidget(self._seed_edit, 1)
         form.addWidget(self._research_btn)
+        self._export_btn = ExportButton("keyword-research", "Keyword research")
+        self._export_btn.exported.connect(
+            lambda path: self._hint.setText(f"Exported to {path}")
+        )
+        self._export_btn.failed.connect(lambda message: self._hint.setText(message))
+        form.addWidget(self._export_btn)
         root.addLayout(form)
 
         # Status bar
@@ -277,6 +284,8 @@ class KeywordResearchPage(QWidget):
     # ------------------------------------------------------------------ #
     def _render_results(self, out: ke.ResearchOutput) -> None:
         meta_items = [str(len(out.results))]
+        if out.related_count > len(out.results):
+            meta_items.append(f"{out.related_count} related in total")
         if out.ranked > 0:
             meta_items.append(f"competition scored for top {out.ranked}")
         if out.truncated:
@@ -324,6 +333,21 @@ class KeywordResearchPage(QWidget):
 
         self._table.resizeColumnsToContents()
         self._stack.setCurrentWidget(self._results_page)
+
+        self._export_btn.set_payload(
+            [
+                {
+                    "keyword": r.display_term,
+                    "term": r.term,
+                    "demand": r.demand_score,
+                    "competition": r.competition_score,
+                    "competition_label": r.competition_label,
+                    "overall": r.overall_score,
+                    "source": r.source,
+                }
+                for r in out.results
+            ]
+        )
 
     def _render_tag_row(self, tags: list[str], title: str) -> None:
         card = QFrame()
@@ -424,6 +448,11 @@ class KeywordResearchPage(QWidget):
 
     def selected_term(self) -> str | None:
         return self._detail_term
+
+    def stop_workers(self) -> None:
+        """Stop and join the research worker (called when the app closes)."""
+        w.stop_worker(self._worker)
+        self._worker = None
 
 
 # --------------------------------------------------------------------------- #

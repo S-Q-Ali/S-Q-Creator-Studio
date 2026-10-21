@@ -26,15 +26,6 @@ def test_contains_keyword():
     assert se.contains_keyword("", "") is False
 
 
-def test_score_label_letters():
-    assert se.score_label(95) == "A"
-    assert se.score_label(85) == "B"
-    assert se.score_label(75) == "C"
-    assert se.score_label(60) == "D"
-    assert se.score_label(45) == "E"
-    assert se.score_label(20) == "F"
-
-
 def test_save_channel_snapshot_keeps_unknown_counts_null():
     db.configure(None)
     channel = ChannelInfo(channel_id="UCxyz", video_count=0, view_count=0, subscriber_count=1000)
@@ -155,8 +146,121 @@ def test_channel_seo_score():
     result = se.compute_channel_seo_score(channel)
     assert 0 <= result.total <= 100
     ids = [c.id for c in result.checks]
-    # channel has no keyword, but velocity is fed by the subscriber count
-    assert "velocity" in ids
+    # A channel has no per-video engagement, so the channel score uses the
+    # channel's own numbers instead of the video scorer's checks.
+    assert "engagement" not in ids
+    assert "velocity" not in ids
+    assert "channelReach" in ids
+    assert "channelOutput" in ids
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the focus keyword path must be reachable
+# --------------------------------------------------------------------------- #
+def test_lookup_video_with_focus_keyword_adds_placement_checks(
+    isolated_appdata, monkeypatch
+):
+    """The four keyword checks (34 of the actionable weight) must appear when
+    the caller supplies a focus keyword."""
+
+    def fake_parse_video_id(url):
+        return "vid123"
+
+    def fake_fetch_video(video_id, cookiefile=None):
+        return VideoInfo(
+            video_id="vid123",
+            channel_id="UCchan",
+            channel_title="Chan",
+            title="Great Video About Ai Tools",
+            description="An awesome description " * 10,
+            published_at="2026-08-20T10:00:00Z",
+            duration_seconds=612,
+            thumbnail_url="https://img/t.jpg",
+            view_count=50_000,
+            like_count=3_000,
+            comment_count=900,
+            tags=["ai tools", "ai", "tools", "great", "five"],
+        )
+
+    monkeypatch.setattr(se, "parse_video_id", fake_parse_video_id)
+    monkeypatch.setattr(se, "fetch_video", fake_fetch_video)
+    monkeypatch.setattr(se, "fetch_channel", lambda *a, **k: ChannelInfo(channel_id="UCchan"))
+
+    result = se.lookup_video(
+        "https://youtube.com/watch?v=vid123", focus_keyword="ai tools"
+    )
+
+    ids = [c.id for c in result.seo.checks]
+    assert {"keywordTitle", "keywordDescription", "keywordTags", "tripleKeyword"} <= set(ids)
+    title_check = next(c for c in result.seo.checks if c.id == "keywordTitle")
+    assert title_check.passed is True
+    db.close_db()
+
+
+def test_lookup_video_without_focus_keyword_has_no_placement_checks(
+    isolated_appdata, monkeypatch
+):
+    def fake_parse_video_id(url):
+        return "vid123"
+
+    def fake_fetch_video(video_id, cookiefile=None):
+        return VideoInfo(
+            video_id="vid123",
+            channel_id="UCchan",
+            title="A title",
+            description="d",
+            view_count=10,
+            like_count=1,
+            comment_count=0,
+            tags=[],
+        )
+
+    monkeypatch.setattr(se, "parse_video_id", fake_parse_video_id)
+    monkeypatch.setattr(se, "fetch_video", fake_fetch_video)
+    monkeypatch.setattr(se, "fetch_channel", lambda *a, **k: ChannelInfo(channel_id="UCchan"))
+
+    result = se.lookup_video("https://youtube.com/watch?v=vid123")
+
+    ids = [c.id for c in result.seo.checks]
+    assert "keywordTitle" not in ids
+    db.close_db()
+
+
+def test_channel_score_uses_the_channels_own_numbers():
+    """Subscribers must not be scored as views, and the channel must not
+    collect a free 100 on "growth velocity"."""
+    channel = ChannelInfo(
+        channel_id="UCc",
+        title="My Tech Channel",
+        description="x" * 400,
+        channel_tags=["tech", "ai", "gadgets", "more", "tags"],
+        subscriber_count=50_000,
+        video_count=200,
+        view_count=10_000_000,
+    )
+    result = se.compute_channel_seo_score(channel)
+    ids = [c.id for c in result.checks]
+    assert "engagement" not in ids
+    reach = next(c for c in result.checks if c.id == "channelReach")
+    output = next(c for c in result.checks if c.id == "channelOutput")
+    assert reach.score == 100  # 200 views per subscriber
+    assert output.score == 50  # 50k average views per video
+
+
+def test_channel_score_with_focus_keyword_adds_placement_checks():
+    channel = ChannelInfo(
+        channel_id="UCc",
+        title="Tech Channel",
+        description="x" * 400,
+        channel_tags=["tech"],
+        subscriber_count=1_000,
+        video_count=10,
+        view_count=10_000,
+    )
+    result = se.compute_channel_seo_score(channel, focus_keyword="tech")
+    ids = [c.id for c in result.checks]
+    assert {"keywordTitle", "keywordDescription", "keywordTags", "tripleKeyword"} <= set(ids)
+
 
 
 # --------------------------------------------------------------------------- #
@@ -231,7 +335,7 @@ def test_lookup_video_flow(isolated_appdata, monkeypatch):
             tags=["ai", "tools", "great", "five"],
         )
 
-    def fake_fetch_channel(channel_id, cookiefile=None):
+    def fake_fetch_channel(channel_id, cookiefile=None, **kwargs):
         return ChannelInfo(channel_id=channel_id, title="Chan", thumbnail_url="https://img/c.jpg")
 
     monkeypatch.setattr(se, "parse_video_id", fake_parse_video_id)
@@ -272,7 +376,7 @@ def test_lookup_channel_flow(isolated_appdata, monkeypatch):
     def fake_parse_channel_id(url):
         return "UCchan" if "channel" in url else None
 
-    def fake_fetch_channel(channel_id, cookiefile=None):
+    def fake_fetch_channel(channel_id, cookiefile=None, **kwargs):
         return ChannelInfo(
             channel_id=channel_id,
             title="My Channel",
@@ -309,7 +413,7 @@ def test_lookup_channel_handle_url_passthrough(isolated_appdata, monkeypatch):
     def fake_parse_channel_id(url):
         return None
 
-    def fake_fetch_channel(channel_id, cookiefile=None):
+    def fake_fetch_channel(channel_id, cookiefile=None, **kwargs):
         assert channel_id == "https://www.youtube.com/@MrBeast"
         return ChannelInfo(channel_id="UCmrbeast", title="MrBeast", subscriber_count=1)
 

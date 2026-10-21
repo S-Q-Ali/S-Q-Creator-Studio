@@ -70,24 +70,3 @@ def _add_dedup(results: dict[str, str], value: str) -> None:
     key = " ".join(value.lower().split())
     if key:
         results.setdefault(key, value)
-
-
-def expand_seed(
-    seed: str,
-    *,
-    hl: str = "en",
-    gl: str = "us",
-    retries: int = 3,
-) -> list[str]:
-    """Expand a seed by appending a-z / 0-9 prefixes and question words."""
-    results: dict[str, str] = {}
-
-    for suggestion in fetch_suggestions(seed, hl=hl, gl=gl, retries=retries):
-        _add_dedup(results, suggestion)
-    for prefix in [*ALPHABET, *DIGITS]:
-        for suggestion in fetch_suggestions(f"{seed} {prefix}", hl=hl, gl=gl, retries=retries):
-            _add_dedup(results, suggestion)
-    for qw in QUESTION_WORDS:
-        for suggestion in fetch_suggestions(f"{qw} {seed}", hl=hl, gl=gl, retries=retries):
-            _add_dedup(results, suggestion)
-    return list(results.values())

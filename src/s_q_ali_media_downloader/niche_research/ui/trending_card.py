@@ -35,6 +35,8 @@ class TrendingCardData:
     video_format: str = "longform"
     niche: str = ""
     rpm: dict | None = None  # {"min":..,"max":..,"avg":..}
+    niche_competition: str = ""
+    niche_difficulty: str = ""
 
 
 def _selectable(label: QLabel) -> QLabel:
@@ -60,6 +62,10 @@ def _stat_block(value_text: str, key_text: str) -> QWidget:
 
 class TrendingChannelCard(QFrame):
     analyze_requested = Signal(str)
+    queue_requested = Signal(str)
+    scorecard_requested = Signal(str)
+    track_requested = Signal(str)
+    open_requested = Signal(str)
 
     def __init__(self, data: TrendingCardData, parent: QWidget | None = None):
         super().__init__(parent)
@@ -121,6 +127,14 @@ class TrendingChannelCard(QFrame):
             badges.addWidget(w.make_badge("Rapid", "badgeRapid"))
         if data.ai_score is not None and data.ai_score >= 70:
             badges.addWidget(w.make_badge("AI", "badgeAi"))
+        if data.niche_competition:
+            badges.addWidget(
+                w.make_badge(f"Comp. {data.niche_competition}", "badgeScoreMid")
+            )
+        if data.niche_difficulty:
+            badges.addWidget(
+                w.make_badge(f"Diff. {data.niche_difficulty}", "badgeScoreMid")
+            )
         badges.addStretch(1)
         outer.addLayout(badges)
 
@@ -157,6 +171,24 @@ class TrendingChannelCard(QFrame):
         analyze_btn = QPushButton("Create Similar Channel")
         analyze_btn.clicked.connect(lambda: self.analyze_requested.emit(data.channel_id))
         outer.addWidget(analyze_btn)
+
+        # Action row — a discovered channel has to be actionable, otherwise
+        # the user has to copy the id by hand to use it anywhere else.
+        actions = QHBoxLayout()
+        actions.setSpacing(6)
+        for label, signal, tooltip in (
+            ("Queue", self.queue_requested, "Queue this channel's recent videos for download"),
+            ("Scorecard", self.scorecard_requested, "Score this channel on the Scorecard page"),
+            ("Track", self.track_requested, "Track this channel on the Competitors page"),
+            ("Open", self.open_requested, "Open this channel on YouTube"),
+        ):
+            btn = QPushButton(label)
+            btn.setProperty("variant", "outline")
+            btn.setToolTip(tooltip)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _=False, s=signal: s.emit(data.channel_id))
+            actions.addWidget(btn)
+        outer.addLayout(actions)
 
     def data(self) -> TrendingCardData:
         return self._data

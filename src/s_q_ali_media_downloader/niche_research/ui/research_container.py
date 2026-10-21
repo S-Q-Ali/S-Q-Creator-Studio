@@ -8,7 +8,7 @@ fires hourly snapshot refreshes on the Competitors page.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader.niche_research.research import competitor_engine, dashboard_engine
+from s_q_ali_media_downloader.niche_research.ui import widgets as w
 from s_q_ali_media_downloader.niche_research.ui.analysis_modal import AnalysisModal
 from s_q_ali_media_downloader.niche_research.ui.competitors_page import CompetitorsPage, NichePoller
 from s_q_ali_media_downloader.niche_research.ui.keyword_page import KeywordResearchPage
@@ -39,6 +41,14 @@ SIDEBAR = (
 
 
 class ResearchContainer(QWidget):
+    """Sidebar + stacked research pages.
+
+    ``send_to_queue_requested`` is the single bridge from the research tab
+    to the app's download queue; the Agent tab uses the same bridge.
+    """
+
+    send_to_queue_requested = Signal(list)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("researchContainer")
@@ -71,12 +81,25 @@ class ResearchContainer(QWidget):
             self.stack.addWidget(page)
         root.addWidget(self.stack, 1)
 
-        # Poller: hourly snapshot refresh on the Competitors page.
-        self._poller = NichePoller(self)
+        # Poller: hourly snapshot refresh — runs app-wide, not only while the
+        # Competitors page is open, so VPH and growth actually accumulate.
+        self._poller = NichePoller(
+            self, interval_ms=competitor_engine.snapshot_interval_minutes() * 60 * 1000
+        )
         self._poller.snapshot_requested.connect(self._on_poll_tick)
 
         self.trending_page.analyze_requested.connect(self._open_analysis)
+        self.trending_page.queue_urls_requested.connect(self.send_to_queue_requested)
+        self.trending_page.scorecard_requested.connect(
+            lambda cid: self._open_scorecard(f"https://www.youtube.com/channel/{cid}", "channel")
+        )
+        self.trending_page.tracked.connect(self._on_channel_tracked)
+        self.scorecard_page.analyze_requested.connect(self._open_analysis)
+        self.competitors_page.scorecard_requested.connect(self._open_scorecard)
+        self.competitors_page.analyze_requested.connect(self._open_analysis)
+        self.competitors_page.keyword_requested.connect(self._open_keyword)
         self._sync_update_btn()
+        self.refresh_dashboard()
 
     def _build_sidebar(self) -> QFrame:
         rail = QFrame()
@@ -125,61 +148,167 @@ class ResearchContainer(QWidget):
 
     def _build_dashboard(self) -> QWidget:
         page = QWidget()
+        page.setObjectName("researchPage")
         box = QVBoxLayout(page)
         box.setContentsMargins(24, 20, 24, 20)
-        box.setSpacing(10)
+        box.setSpacing(14)
 
+        header = QHBoxLayout()
+        title_box = QVBoxLayout()
+        title_box.setSpacing(2)
         title = QLabel("Research Dashboard")
         title.setObjectName("headerTitle")
-        box.addWidget(title)
+        self._dash_subtitle = QLabel("Live view of your research")
+        self._dash_subtitle.setObjectName("headerSubtitle")
+        title_box.addWidget(title)
+        title_box.addWidget(self._dash_subtitle)
+        header.addLayout(title_box, 1)
+        self._dash_refresh = QPushButton("🔄  Refresh")
+        self._dash_refresh.setProperty("variant", "outline")
+        self._dash_refresh.clicked.connect(self.refresh_dashboard)
+        header.addWidget(self._dash_refresh)
+        box.addLayout(header)
 
-        card = QFrame()
-        card.setObjectName("emptyState")
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(28, 24, 28, 24)
-        card_layout.setSpacing(8)
-        icon = QLabel("🚀")
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        card_layout.addWidget(icon)
-        cap = QLabel("Everything you need to find your next viral channel")
-        cap.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Metric tiles
+        self._dash_metrics: dict[str, QLabel] = {}
+        tiles = QHBoxLayout()
+        tiles.setSpacing(10)
+        for key, label in (
+            ("channelsDiscovered", "Channels discovered"),
+            ("trackedChannels", "Channels tracked"),
+            ("trackedVideos", "Videos tracked"),
+            ("trackedKeywords", "Keywords tracked"),
+            ("keywordsResearched", "Keywords researched"),
+            ("videosScored", "Videos scored"),
+        ):
+            tile = QFrame()
+            tile.setObjectName("card")
+            tile_layout = QVBoxLayout(tile)
+            tile_layout.setContentsMargins(14, 10, 14, 10)
+            tile_layout.setSpacing(2)
+            value = QLabel("0")
+            value.setObjectName("statTileValue")
+            cap = QLabel(label)
+            cap.setObjectName("statTileLabel")
+            tile_layout.addWidget(value)
+            tile_layout.addWidget(cap)
+            tiles.addWidget(tile, 1)
+            self._dash_metrics[key] = value
+        box.addLayout(tiles)
+
+        # Top channels + top keywords
+        columns = QHBoxLayout()
+        columns.setSpacing(12)
+        self._dash_top_channels = self._dash_list("Top channels")
+        self._dash_top_keywords = self._dash_list("Top keywords")
+        columns.addWidget(self._dash_top_channels, 1)
+        columns.addWidget(self._dash_top_keywords, 1)
+        box.addLayout(columns)
+
+        # Recent activity
+        activity = QFrame()
+        activity.setObjectName("card")
+        activity_layout = QVBoxLayout(activity)
+        activity_layout.setContentsMargins(14, 12, 14, 12)
+        activity_layout.setSpacing(6)
+        cap = QLabel("Recent activity")
         cap.setObjectName("sectionLabel")
-        card_layout.addWidget(cap)
+        activity_layout.addWidget(cap)
+        self._dash_activity = QVBoxLayout()
+        self._dash_activity.setSpacing(4)
+        activity_layout.addLayout(self._dash_activity)
+        box.addWidget(activity)
 
-        intro = QLabel(
-            "Niche Discovery finds channels trending in any niche • Keyword Research "
-            "scores SEO terms • Scorecard audits any channel or video • Competitors tracks "
-            "the rivals you care about • AI Analysis builds strategies and scripts, and "
-            "generates thumbnails."
-        )
-        intro.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        intro.setObjectName("smallLabel")
-        intro.setWordWrap(True)
-        card_layout.addWidget(intro)
-        box.addWidget(card)
-
-        for index, key in enumerate(("discovery", "keywords", "scorecard")):
-            hint = QFrame()
-            hint.setObjectName("svgCard")
-            hint_layout = QHBoxLayout(hint)
-            hint_layout.setContentsMargins(12, 12, 12, 12)
-            guide = QLabel(
-                [
-                    "🔥  Start here — run Niche Discovery to surface channels.",
-                    "🔍  Score keywords before you plan content around them.",
-                    "🏆  Audit a channel or video with the SEO Scorecard.",
-                ][index]
-            )
-            guide.setObjectName("svgMeta")
-            hint_layout.addWidget(guide)
-            box.addWidget(hint)
-
-        quick = QPushButton("Open Niche Discovery")
-        quick.setFixedWidth(180)
-        quick.clicked.connect(lambda: self.show_page("trending"))
-        box.addWidget(quick, 0, Qt.AlignmentFlag.AlignCenter)
+        # Quick actions (the guide cards are buttons now, not static labels)
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
+        for label, key in (
+            ("🔥  Niche Discovery", "trending"),
+            ("🔍  Keyword Research", "keywords"),
+            ("🏆  Scorecard", "scorecard"),
+            ("👥  Competitors", "competitors"),
+            ("⚙️  Settings", "settings"),
+        ):
+            btn = QPushButton(label)
+            btn.setProperty("variant", "outline")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda _=False, k=key: self.show_page(k))
+            actions.addWidget(btn)
+        box.addLayout(actions)
         box.addStretch(1)
         return page
+
+    def _dash_list(self, title: str) -> QFrame:
+        frame = QFrame()
+        frame.setObjectName("card")
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(4)
+        cap = QLabel(title)
+        cap.setObjectName("sectionLabel")
+        layout.addWidget(cap)
+        body = QVBoxLayout()
+        body.setSpacing(4)
+        layout.addLayout(body)
+        frame.setProperty("bodyLayout", body)
+        return frame
+
+    def refresh_dashboard(self) -> None:
+        """Reload the dashboard from the database."""
+        data = dashboard_engine.get_dashboard_data()
+        metrics = data["metrics"]
+        for key, label in self._dash_metrics.items():
+            label.setText(str(metrics.get(key, 0)))
+
+        self._fill_dash_list(
+            self._dash_top_channels,
+            [
+                f"{row['title'] or row['channel_id']} — {int(row['viral_score'] or 0)} viral"
+                for row in data["topChannels"]
+            ],
+            empty="No channels discovered yet — run Niche Discovery.",
+        )
+        self._fill_dash_list(
+            self._dash_top_keywords,
+            [
+                f"{row['display_term'] or row['term']} — {int(row['score'] or 0)} overall"
+                for row in data["topKeywords"]
+            ],
+            empty="No keywords researched yet.",
+        )
+
+        while self._dash_activity.count():
+            item = self._dash_activity.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        activity = data["activity"]
+        if not activity:
+            note = QLabel("Nothing has happened yet — start with Niche Discovery.")
+            note.setObjectName("smallLabel")
+            self._dash_activity.addWidget(note)
+        for entry in activity:
+            row = QLabel(f"{entry['label']}  ·  {w.time_ago(entry['ts'])}")
+            row.setObjectName("smallLabel")
+            self._dash_activity.addWidget(row)
+
+    def _fill_dash_list(self, frame: QFrame, items: list[str], empty: str) -> None:
+        body = frame.property("bodyLayout")
+        if body is None:
+            return
+        while body.count():
+            item = body.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not items:
+            note = QLabel(empty)
+            note.setObjectName("smallLabel")
+            note.setWordWrap(True)
+            body.addWidget(note)
+            return
+        for text in items:
+            label = QLabel(text)
+            label.setObjectName("smallLabel")
+            body.addWidget(label)
 
     def show_page(self, key: str) -> None:
         order = {k: i for i, (k, _) in enumerate(SIDEBAR)}
@@ -192,6 +321,8 @@ class ResearchContainer(QWidget):
             self.competitors_page.refresh_dashboard()
         elif key == "trending":
             self.trending_page.reload(keep_page=True)
+        elif key == "dashboard":
+            self.refresh_dashboard()
         self._sync_update_btn()
 
     def _sync_update_btn(self) -> None:
@@ -212,16 +343,60 @@ class ResearchContainer(QWidget):
             self.competitors_page.refresh_now()
 
     def _on_poll_tick(self) -> None:
-        if self.current_page() == "competitors":
-            self.competitors_page.refresh_now()
+        """The hourly snapshot refresh — app-wide, not page-dependent."""
+        self.competitors_page.refresh_now()
 
     def _open_analysis(self, channel_id: str) -> None:
         if not channel_id or self._analysis_modal is not None:
             return
         modal = AnalysisModal(channel_id, parent=self)
         self._analysis_modal = modal
+        modal.open_scorecard_requested.connect(
+            lambda cid: self._open_scorecard(
+                f"https://www.youtube.com/channel/{cid}", "channel"
+            )
+        )
         modal.finished.connect(lambda *args: setattr(self, "_analysis_modal", None))
         modal.exec()
 
+    def _open_scorecard(self, url: str, mode: str = "video") -> None:
+        """Open the Scorecard on a URL, with the input prefilled."""
+        if not url:
+            return
+        page = self.scorecard_page
+        page.set_mode(mode)
+        page.prefill(url)
+        self.show_page("scorecard")
+
+    def _open_keyword(self, term: str) -> None:
+        """Open a tracked keyword's detail view."""
+        if not term:
+            return
+        self.keyword_page.show_detail(term)
+        self.show_page("keywords")
+
+    def _on_channel_tracked(self, channel_id: str) -> None:
+        """A channel tracked from Discovery shows up on Competitors."""
+        self.competitors_page.refresh_dashboard()
+
     def stop_poller(self) -> None:
         self._poller.stop()
+
+    def shutdown(self) -> None:
+        """Stop the poller and every page worker.
+
+        Called when the app closes: a QThread that is destroyed while it is
+        still running aborts the whole process.
+        """
+        self.stop_poller()
+        for page in (
+            self.trending_page,
+            self.keyword_page,
+            self.scorecard_page,
+            self.competitors_page,
+        ):
+            stop = getattr(page, "stop_workers", None)
+            if callable(stop):
+                stop()
+        if self._analysis_modal is not None:
+            self._analysis_modal.reject()

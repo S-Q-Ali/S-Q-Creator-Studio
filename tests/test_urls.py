@@ -26,6 +26,20 @@ def test_tiktok_non_media_rejected():
     assert not is_tiktok_url("https://example.com/video/123")
 
 
+def test_tiktok_cdn_media_urls_rejected():
+    """Regression (2026-10): TikTok profile listings hand out signed CDN
+    media URLs. They contain "/video/" but answer HTTP 403 when downloaded,
+    so they must never reach the download queue."""
+    cdn = (
+        "https://v19-webapp-prime.tiktok.com/video/tos/alisg/tos-alisg-ve-37c799/"
+        "oERJRrAyfAIQJlbgQDRqNiBecEEVFEyR0WHEjy/?a=1988&mime_type=video_mp4"
+        "&expire=1792620888&signature=54266c3f9d21a91434259e17410722f0"
+    )
+    assert not is_tiktok_url(cdn)
+    # The page URL for the same video is still accepted.
+    assert is_tiktok_url("https://www.tiktok.com/@user/video/7694797676306615583")
+
+
 def test_profile_urls():
     assert is_profile_url("https://www.tiktok.com/@user")
     assert is_profile_url("https://www.tiktok.com/@user?lang=en")

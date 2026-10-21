@@ -53,3 +53,32 @@ def test_extract_flat_is_not_passed(mock_ydl_cls):
     assert len(found_urls[0]) == 20
     assert all(url.startswith("https://www.youtube.com/watch?v=") for url in found_urls[0])
     assert found_label[0] == "Test Channel"
+
+
+@patch("yt_dlp.YoutubeDL")
+def test_js_runtimes_enabled(mock_ydl_cls):
+    """Regression (2026-10): without an enabled JS runtime (node/bun here,
+    deno absent) yt-dlp 2026.x bot-checks YouTube extraction, so channel /
+    playlist expansion must pass js_runtimes."""
+    captured_opts = {}
+
+    class FakeYDL:
+        def __init__(self, opts=None):
+            captured_opts.update(opts or {})
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download=False):
+            return {"_type": "playlist", "title": "T", "entries": [{"id": "abc"}]}
+
+    mock_ydl_cls.side_effect = FakeYDL
+
+    thread = YouTubeFetchThread("https://www.youtube.com/@somechannel", limit=5)
+    thread.run()
+
+    runtimes = captured_opts.get("js_runtimes") or {}
+    assert {"deno", "node", "bun", "quickjs"} <= set(runtimes)

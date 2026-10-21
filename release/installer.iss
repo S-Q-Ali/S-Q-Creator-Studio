@@ -1,8 +1,12 @@
-; S-Q Creator Studio — Inno Setup script (v2.2.0)
+; S-Q Creator Studio — Inno Setup script
 ; Per-user install (no admin), bundles ffmpeg.exe for merging.
+; Version is injected from src/__init__.py at build time via /DMyAppVersion.
+
+#ifndef MyAppVersion
+  #define MyAppVersion "2.4.0"
+#endif
 
 #define MyAppName "S-Q Creator Studio"
-#define MyAppVersion "2.2.0"
 #define MyAppPublisher "S-Q-Ali"
 #define MyAppURL "https://github.com/S-Q-Ali/Bulk-Video-Downloader"
 #define MyAppExeName "S-Q Creator Studio.exe"
@@ -22,7 +26,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=.
-OutputBaseFilename=S-Q-Creator-Studio-Setup-2.2.0
+OutputBaseFilename=S-Q-Creator-Studio-Setup-{#MyAppVersion}
 SetupIconFile=..\src\s_q_ali_media_downloader\resources\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64

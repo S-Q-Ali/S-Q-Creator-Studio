@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from s_q_ali_media_downloader.niche_research.research import scorecard_engine as se
 from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui import widgets as w
+from s_q_ali_media_downloader.niche_research.ui.export_button import ExportButton
 from s_q_ali_media_downloader.niche_research.ui.theme import research_style
 
 logger = logging.getLogger(__name__)
@@ -32,23 +33,37 @@ class ScorecardWorker(QThread):
     done = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, mode: str, url: str, *, parent: QWidget | None = None):
+    def __init__(
+        self,
+        mode: str,
+        url: str,
+        *,
+        focus_keyword: str = "",
+        parent: QWidget | None = None,
+    ):
         super().__init__(parent)
         self.mode = mode
         self.url = url
+        self.focus_keyword = focus_keyword
 
     def run(self) -> None:
         try:
             if self.mode == "video":
-                self.done.emit(se.lookup_video(self.url))
+                self.done.emit(
+                    se.lookup_video(self.url, focus_keyword=self.focus_keyword)
+                )
             else:
-                self.done.emit(se.lookup_channel(self.url))
+                self.done.emit(
+                    se.lookup_channel(self.url, focus_keyword=self.focus_keyword)
+                )
         except Exception as exc:
             logger.warning("Scorecard lookup failed", exc_info=True)
             self.failed.emit(str(exc))
 
 
 class ScorecardPage(QWidget):
+    analyze_requested = Signal(str)
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("researchPage")
@@ -103,7 +118,30 @@ class ScorecardPage(QWidget):
         self._score_btn = QPushButton("Score")
         self._score_btn.clicked.connect(self._run_lookup)
         form.addWidget(self._score_btn)
+        self._export_btn = ExportButton("scorecard", "SEO Scorecard")
+        self._export_btn.exported.connect(
+            lambda path: self._status.setText(f"Exported to {path}")
+        )
+        self._export_btn.failed.connect(
+            lambda message: self._status.setText(message)
+        )
+        form.addWidget(self._export_btn)
         root.addLayout(form)
+
+        # Focus keyword — enables the keyword-placement checks (title,
+        # description, tags). Without it those four checks cannot run.
+        kw_row = QHBoxLayout()
+        kw_row.setSpacing(8)
+        kw_label = QLabel("Focus keyword")
+        kw_label.setObjectName("statKey")
+        self._keyword_edit = QLineEdit()
+        self._keyword_edit.setPlaceholderText(
+            "Optional — checks keyword placement in title, description and tags"
+        )
+        self._keyword_edit.returnPressed.connect(self._run_lookup)
+        kw_row.addWidget(kw_label)
+        kw_row.addWidget(self._keyword_edit, 1)
+        root.addLayout(kw_row)
 
         # Status bar
         status = QFrame()
@@ -126,9 +164,19 @@ class ScorecardPage(QWidget):
         self._scroll.setWidget(self._content)
         root.addWidget(self._scroll, 1)
 
-        self._empty = QFrame()
-        self._empty.setObjectName("emptyState")
-        empty_layout = QVBoxLayout(self._empty)
+        self._empty = self._build_empty_state()
+        self._content_layout.addWidget(self._empty)
+
+    def _build_empty_state(self) -> QFrame:
+        """A fresh empty-state frame.
+
+        The frame is rebuilt on every placeholder render: a shared instance
+        would be deleted by `_clear_content` and then re-added, which raises
+        "Internal C++ object already deleted" on the second failure.
+        """
+        empty = QFrame()
+        empty.setObjectName("emptyState")
+        empty_layout = QVBoxLayout(empty)
         empty_layout.setContentsMargins(40, 40, 40, 40)
         icon = QLabel("📊")
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -137,7 +185,7 @@ class ScorecardPage(QWidget):
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint.setObjectName("sectionLabel")
         empty_layout.addWidget(hint)
-        self._content_layout.addWidget(self._empty)
+        return empty
 
     def _set_mode(self, mode: str) -> None:
         if mode == self._mode:
@@ -155,6 +203,14 @@ class ScorecardPage(QWidget):
         )
         self._render_placeholder()
 
+    def set_mode(self, mode: str) -> None:
+        """Public mode switch (used by the discovery -> scorecard handoff)."""
+        self._set_mode(mode)
+
+    def prefill(self, url: str) -> None:
+        """Put a URL in the input without running the lookup."""
+        self._url_edit.setText(url or "")
+
     # ------------------------------------------------------------------ #
     # Lookup
     # ------------------------------------------------------------------ #
@@ -165,7 +221,12 @@ class ScorecardPage(QWidget):
         self._status.setText("Fetching metadata via yt-dlp…")
         self._score_btn.setEnabled(False)
         self._score_btn.setText("Fetching...")
-        self._worker = ScorecardWorker(self._mode, url, parent=self)
+        self._worker = ScorecardWorker(
+            self._mode,
+            url,
+            focus_keyword=self._keyword_edit.text().strip(),
+            parent=self,
+        )
         self._worker.done.connect(self._on_done)
         self._worker.failed.connect(self._on_failed)
         self._worker.start()
@@ -193,6 +254,7 @@ class ScorecardPage(QWidget):
 
     def _render_placeholder(self) -> None:
         self._clear_content()
+        self._empty = self._build_empty_state()
         self._content_layout.addWidget(self._empty)
 
     def _render_result(self, result) -> None:
@@ -201,6 +263,37 @@ class ScorecardPage(QWidget):
             self._render_video(result)
         else:
             self._render_channel(result)
+        self._export_btn.set_payload(self._export_rows(result))
+
+    def _export_rows(self, result) -> list[dict]:
+        """The rows this page shows, flattened for the export."""
+        if result.kind == "video":
+            video = dict(result.video)
+            video["views"] = video.get("view_count")
+            video["likes"] = video.get("like_count")
+            video["comments"] = video.get("comment_count")
+            video["tags"] = video.get("tags") or []
+            rows = [video]
+        else:
+            rows = [dict(result.channel or {})]
+        seo = result.seo
+        if seo is not None:
+            rows[0]["seo_total"] = seo.total
+            rows[0]["seo_actionable_pct"] = seo.actionable_pct
+            rows[0]["seo_performance_pct"] = seo.performance_pct
+            rows[0]["seo_checks"] = [
+                f"{c.id}={c.score} ({c.detail})" for c in seo.checks
+            ]
+        if getattr(result, "vph", None) is not None:
+            rows[0]["vph"] = result.vph.vph
+        for video_row in getattr(result, "recent_videos", []) or []:
+            rows.append(dict(video_row))
+        return rows
+
+    def stop_workers(self) -> None:
+        """Stop and join the lookup worker (called when the app closes)."""
+        w.stop_worker(self._worker)
+        self._worker = None
 
     def _render_video(self, result) -> None:
         row = QHBoxLayout()
@@ -308,6 +401,14 @@ class ScorecardPage(QWidget):
                 )
             )
         info.addWidget(track)
+
+        analyze = QPushButton("Analyze channel")
+        analyze.setProperty("variant", "outline")
+        analyze.setToolTip("Run the AI channel analysis for this channel")
+        analyze.clicked.connect(
+            lambda: self.analyze_requested.emit(result.channel.get("channel_id", ""))
+        )
+        info.addWidget(analyze)
         info.addStretch(1)
         row.addLayout(info, 1)
         row_wrap = QWidget()

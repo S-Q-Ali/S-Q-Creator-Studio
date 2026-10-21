@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from PySide6.QtWidgets import QLabel, QPushButton
 
 from s_q_ali_media_downloader.niche_research.storage import db
 from s_q_ali_media_downloader.niche_research.ui.competitors_page import NichePoller
@@ -36,6 +37,94 @@ def test_container_sidebar_navigation(qapp):
 def test_container_has_poller(qapp):
     container = ResearchContainer()
     assert isinstance(container._poller, NichePoller)
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_container_forwards_queue_urls(qapp):
+    """The research tab must be able to hand video URLs to the download
+    queue through one shared signal."""
+    container = ResearchContainer()
+    got: list = []
+    container.send_to_queue_requested.connect(got.append)
+
+    container.trending_page.queue_urls_requested.emit(
+        ["https://www.youtube.com/watch?v=abc"]
+    )
+
+    assert got == [["https://www.youtube.com/watch?v=abc"]]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_container_opens_the_scorecard_for_a_channel(qapp):
+    """Discovery -> Scorecard handoff: the scorecard page must open with the
+    channel prefilled in channel mode."""
+    container = ResearchContainer()
+    container.trending_page.scorecard_requested.emit("UCchan")
+
+    assert container.current_page() == "scorecard"
+    assert container.scorecard_page._mode == "channel"
+    assert "UCchan" in container.scorecard_page._url_edit.text()
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_dashboard_shows_live_metrics(qapp):
+    """The dashboard was a static intro card — it must show real numbers."""
+    from s_q_ali_media_downloader.niche_research.storage import db
+
+    db.run(
+        "INSERT INTO trending_channels (channel_id, title, category_name, discovered_at, "
+        "viral_score, subscriber_count, niche, video_format) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        ("UCa", "Alpha", "Tech", 1, 90, 1000, "tech_ai", "longform"),
+    )
+    container = ResearchContainer()
+    container.refresh_dashboard()
+
+    assert container._dash_metrics["channelsDiscovered"].text() == "1"
+    labels = [label.text() for label in container.dashboard_page.findChildren(QLabel)]
+    assert any("Alpha" in text for text in labels)
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_dashboard_quick_actions_navigate(qapp):
+    """The guide cards are buttons now, not static labels."""
+    container = ResearchContainer()
+    buttons = [
+        b
+        for b in container.dashboard_page.findChildren(QPushButton)
+        if "Niche Discovery" in b.text()
+    ]
+    assert buttons
+    buttons[0].click()
+    assert container.current_page() == "trending"
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_poller_refreshes_regardless_of_the_visible_page(qapp):
+    """The poller only ran while the Competitors tab was open, so VPH and
+    growth never accumulated for most users."""
+    container = ResearchContainer()
+    calls: list = []
+    container.competitors_page.refresh_now = lambda: calls.append(1)
+
+    container.show_page("dashboard")
+    container._on_poll_tick()
+
+    assert calls == [1]
+    container.stop_poller()
+    container.deleteLater()
+
+
+def test_poller_interval_follows_the_setting(qapp):
+    from s_q_ali_media_downloader.niche_research.storage import db
+
+    db.set_setting("snapshot_interval_minutes", "30")
+    container = ResearchContainer()
+    assert container._poller._timer.interval() == 30 * 60 * 1000
     container.stop_poller()
     container.deleteLater()
 
@@ -134,6 +223,7 @@ def test_container_analysis_modal_not_stacked(qapp, monkeypatch):
         def __init__(self, channel_id, parent=None):
             self.channel_id = channel_id
             self.finished = _FakeSignal()
+            self.open_scorecard_requested = _FakeSignal()
 
         def exec(self):
             calls.append(self.channel_id)

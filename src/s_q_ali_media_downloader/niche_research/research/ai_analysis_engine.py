@@ -492,11 +492,80 @@ def get_analysis(channel_id: str) -> dict[str, Any]:
     }
 
 
-def is_analyzed(channel_id: str) -> bool:
-    row = db.get(
-        "SELECT COUNT(*) AS count FROM channel_scripts WHERE channel_id = ?", (channel_id,)
+def _scale_similarity(a: float, b: float) -> float:
+    """1.0 when two numbers are equal, 0.0 when they differ by their max."""
+    a = float(a or 0)
+    b = float(b or 0)
+    if a <= 0 or b <= 0:
+        return 0.0
+    lo, hi = sorted((a, b))
+    if hi == lo:
+        return 1.0
+    return max(0.0, 1.0 - (hi - lo) / hi)
+
+
+def find_similar_channels(channel_id: str, limit: int = 5) -> list[dict[str, Any]]:
+    """The discovered channels that most resemble this one.
+
+    "Create Similar Channel" used to compare the channel with itself and
+    report a similarity of 100. This searches the locally discovered
+    channels instead and scores every candidate on niche, format, subscriber
+    scale and viral score.
+    """
+    rows = db.all(
+        "SELECT channel_id, title, thumbnail_url, subscriber_count, view_count, "
+        "video_count, viral_score, niche, video_format FROM trending_channels"
     )
-    return bool(row and row["count"] > 0)
+    target = next((r for r in rows if r["channel_id"] == channel_id), None)
+    if target is None:
+        return []
+
+    scored: list[dict[str, Any]] = []
+    for row in rows:
+        if row["channel_id"] == channel_id:
+            continue
+        score = 0.0
+        if row["niche"] and row["niche"] == target["niche"]:
+            score += 40
+        if row["video_format"] == target["video_format"]:
+            score += 20
+        score += 25 * _scale_similarity(row["subscriber_count"], target["subscriber_count"])
+        score += 15 * _scale_similarity(row["viral_score"], target["viral_score"])
+        scored.append(
+            {
+                "channel_id": row["channel_id"],
+                "title": row["title"] or row["channel_id"],
+                "thumbnail_url": row["thumbnail_url"] or "",
+                "subscriber_count": row["subscriber_count"] or 0,
+                "view_count": row["view_count"] or 0,
+                "video_count": row["video_count"] or 0,
+                "viral_score": row["viral_score"] or 0,
+                "niche": row["niche"] or "",
+                "video_format": row["video_format"] or "",
+                "similarity": round(min(100.0, score)),
+            }
+        )
+
+    scored.sort(key=lambda r: r["similarity"], reverse=True)
+    return scored[:limit]
+
+
+def is_analyzed(channel_id: str) -> bool:
+    """True when a stored analysis exists for this channel.
+
+    The script count alone was too narrow: a model that returned no scripts
+    still produced a strategy and ideas, but the modal kept offering "Ready to
+    Analyze" — so the user paid for the same analysis twice.
+    """
+    if db.get(
+        "SELECT 1 FROM similar_channel_analysis WHERE source_channel_id = ? LIMIT 1",
+        (channel_id,),
+    ):
+        return True
+    for table in ("channel_content_ideas", "channel_scripts", "channel_growth_blueprints"):
+        if db.get(f"SELECT 1 FROM {table} WHERE channel_id = ? LIMIT 1", (channel_id,)):
+            return True
+    return False
 
 
 def load_channel_analysis_data(
@@ -509,7 +578,7 @@ def load_channel_analysis_data(
 
     if progress:
         progress("Fetching channel...")
-    channel = fetch_channel(channel_id, cookiefile=cookiefile)
+    channel = fetch_channel(channel_id, cookiefile=cookiefile, uploads_with_stats=True)
     trending = get_trending_channel_by_id(channel_id)
 
     recent: list[dict[str, Any]] = []

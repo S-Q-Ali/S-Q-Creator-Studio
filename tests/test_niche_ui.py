@@ -1,6 +1,6 @@
 """Offscreen tests for the Niche Research UI (theme, widgets, trending page)."""
 
-from PySide6.QtWidgets import QFrame, QLabel
+from PySide6.QtWidgets import QFrame, QLabel, QPushButton
 
 from s_q_ali_media_downloader.niche_research.research import trending_engine as te
 from s_q_ali_media_downloader.niche_research.storage import db
@@ -20,6 +20,28 @@ def test_format_helpers():
     assert w.format_number(1_820_000) == "1.8M"
     assert w.format_number(64_500) == "64.5K"
     assert w.format_number(450) == "450"
+
+
+def test_sparkline_scales_big_series(qapp):
+    """View counts (millions) used to clamp to the top of the chart, so every
+    Competitors sparkline was a flat line."""
+    from PySide6.QtGui import QImage
+
+    from s_q_ali_media_downloader.niche_research.ui.widgets import Sparkline
+
+    def render(points):
+        spark = Sparkline(points, width=100, height=40)
+        image = QImage(spark.size(), QImage.Format.Format_ARGB32)
+        image.fill(0)
+        spark.render(image)
+        return image
+
+    flat = render([1_000_000, 1_000_000])
+    rising = render([1_000_000, 2_000_000])
+    assert flat != rising
+    # A 0-100 series keeps the fixed scale
+    scaled = render([0, 50, 100])
+    assert scaled.size().width() == 100
 
 
 def test_earnings_format():
@@ -260,6 +282,95 @@ def test_trending_page_niche_combo_width(isolated_appdata, qapp):
     # every niche name fits inside the combo button + popup
     assert widest + 48 <= combo.minimumWidth()
     assert len(niches.LONGFORM_NICHES) == combo.count() - 1
+    db.close_db()
+
+
+def test_trending_page_niche_combo_is_populated_at_startup(isolated_appdata, qapp):
+    """The niche filter used to stay empty until the format combo was
+    touched, because only _on_format_changed populated it."""
+    db.configure(None)
+    page = TrendingChannelsPage()
+    combo = page._niche_combo
+    assert combo.count() >= 1
+    assert combo.itemText(0) == "All Niches"
+    db.close_db()
+
+
+def test_ai_only_filter_reaches_the_engine(isolated_appdata, qapp, monkeypatch):
+    """The engine supported `ai_only` but nothing could switch it on."""
+    db.configure(None)
+    seen = {}
+
+    def fake_get(fmt, niche, limit=20, offset=0, ai_only=False):
+        seen["ai_only"] = ai_only
+        return []
+
+    monkeypatch.setattr(te, "get_trending_channels", fake_get)
+    page = TrendingChannelsPage()
+
+    page._ai_only_check.setChecked(True)
+
+    assert seen["ai_only"] is True
+    db.close_db()
+
+
+def test_trending_card_shows_niche_competition_and_difficulty(qapp):
+    """Niche.competition and Niche.difficulty were in the catalog but never
+    rendered."""
+    from s_q_ali_media_downloader.niche_research.ui.trending_card import (
+        TrendingCardData,
+        TrendingChannelCard,
+    )
+
+    card = TrendingChannelCard(
+        TrendingCardData(
+            channel_id="UCx",
+            title="Chan",
+            niche_competition="med",
+            niche_difficulty="easy",
+        )
+    )
+    badges = [
+        b.text() for b in card.findChildren(QLabel) if b.text().startswith(("Comp.", "Diff."))
+    ]
+    assert "Comp. med" in badges
+    assert "Diff. easy" in badges
+
+
+def test_trending_card_exposes_its_actions(qapp):
+    """A discovered channel must be actionable: queue, score, track, open."""
+    from s_q_ali_media_downloader.niche_research.ui.trending_card import (
+        TrendingCardData,
+        TrendingChannelCard,
+    )
+
+    card = TrendingChannelCard(TrendingCardData(channel_id="UCx", title="Chan"))
+    seen: dict = {}
+    card.queue_requested.connect(lambda cid: seen.setdefault("queue", cid))
+    card.scorecard_requested.connect(lambda cid: seen.setdefault("scorecard", cid))
+    card.track_requested.connect(lambda cid: seen.setdefault("track", cid))
+    card.open_requested.connect(lambda cid: seen.setdefault("open", cid))
+
+    buttons = {b.text(): b for b in card.findChildren(QPushButton)}
+    buttons["Queue"].click()
+    buttons["Scorecard"].click()
+    buttons["Track"].click()
+    buttons["Open"].click()
+
+    assert seen == {"queue": "UCx", "scorecard": "UCx", "track": "UCx", "open": "UCx"}
+
+
+def test_trending_page_track_action_tracks_the_channel(isolated_appdata, qapp):
+    """Tracking from the discovery card must land in tracked_items so the
+    Competitors page can show it."""
+    db.configure(None)
+    page = TrendingChannelsPage()
+    page._track_channel("UCtrack", "Tracked Channel")
+    row = db.get(
+        "SELECT * FROM tracked_items WHERE kind='channel' AND ref_id='UCtrack'"
+    )
+    assert row is not None
+    assert row["label"] == "Tracked Channel"
     db.close_db()
 
 

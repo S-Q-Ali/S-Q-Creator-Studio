@@ -61,10 +61,6 @@ def test_competition_labels_and_overall():
     assert ke.overall_score(0, 50) == 0
 
 
-def test_decode_term_url_encoded():
-    assert ke.decode_term("ai%20tools") == "ai tools"
-
-
 # --------------------------------------------------------------------------- #
 # rank_keyword persistence + 24h cache
 # --------------------------------------------------------------------------- #
@@ -231,12 +227,8 @@ def test_keyword_reads(isolated_appdata):
         country="us",
     )
 
-    cached = ke.get_cached_keywords()
-    assert len(cached) == 1
-    assert cached[0]["term"] == "great term"
-
-    by_search = ke.get_cached_keywords("great")
-    assert len(by_search) == 1
+    cached = ke.get_keyword("great term")
+    assert cached["term"] == "great term"
 
     single = ke.get_keyword("great term")
     assert single["score"] == 70
@@ -261,3 +253,92 @@ def test_get_ranked_videos_joins_videos(isolated_appdata):
     assert rows[0]["view_count"] == 777
     assert rows[0]["position"] == 1
     db.close_db()
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): demand, duplicate snapshots, score preservation
+# --------------------------------------------------------------------------- #
+def test_rank_keyword_uses_the_supplied_demand(isolated_appdata, monkeypatch):
+    """The demand computed from the autocomplete ranks must survive ranking."""
+    db.configure(None)
+    monkeypatch.setattr(ke, "search_videos", lambda *a, **k: [_video("v1", 1_000)])
+
+    result = ke.rank_keyword("ai tools", ke.ResearchOptions(), demand=37)
+
+    assert result.demand_score == 37
+    row = db.get("SELECT demand_score FROM keywords WHERE term = ?", ("ai tools",))
+    assert row["demand_score"] == 37
+    db.close_db()
+
+
+def test_research_keyword_keeps_the_autocomplete_demand(isolated_appdata, monkeypatch):
+    """A term ranked third in the suggestion list has a demand of 86, not 100."""
+
+    def fake_suggestions(query, hl="en", gl="us"):
+        return ["first", "second", "ai tools"] if query == "ai" else []
+
+    monkeypatch.setattr(ke, "fetch_suggestions", fake_suggestions)
+    monkeypatch.setattr(ke, "search_videos", lambda *a, **k: [_video("v", 900)])
+
+    out = ke.research_keyword("ai", ke.ResearchOptions(rank_top=3, max_results=10))
+
+    scored = next(r for r in out.results if r.term == "ai tools")
+    assert scored.demand_score == 86
+    row = db.get("SELECT demand_score FROM keywords WHERE term = ?", ("ai tools",))
+    assert row["demand_score"] == 86
+    db.close_db()
+
+
+def test_get_ranked_videos_returns_only_the_latest_snapshot(isolated_appdata):
+    """Two ranking runs must not produce the same video twice."""
+    db.configure(None)
+    ke._save_video_for_ranking(_video("vid01", 777))
+    db.exec_many(
+        "INSERT OR REPLACE INTO rankings (term, video_id, position, ts) VALUES (?, ?, ?, ?)",
+        [("kw", "vid01", 1, 1_000_000), ("kw", "vid01", 1, 2_000_000)],
+    )
+
+    rows = ke.get_ranked_videos("kw")
+
+    assert len(rows) == 1
+    assert rows[0]["view_count"] == 777
+    db.close_db()
+
+
+def test_research_keyword_does_not_reset_a_previously_scored_keyword(
+    isolated_appdata, monkeypatch
+):
+    """An unrelated research run must not wipe a keyword's competition score.
+
+    The keyword is deliberately *not* among the top-ranked terms, so it is
+    never re-scored — only the final bulk upsert touches it."""
+
+    def fake_suggestions(query, hl="en", gl="us"):
+        if query == "other":
+            return ["a1", "a2", "a3", "a4", "a5", "ai tools"]
+        return []
+
+    monkeypatch.setattr(ke, "fetch_suggestions", fake_suggestions)
+    monkeypatch.setattr(ke, "search_videos", lambda *a, **k: [])
+
+    db.configure(None)
+    ke._upsert_keyword(
+        "ai tools",
+        "ai tools",
+        score=60,
+        demand_score=80,
+        competition_score=40,
+        competition_label="Medium",
+        source="autocomplete",
+        language="en",
+        country="us",
+    )
+
+    ke.research_keyword("other", ke.ResearchOptions(rank_top=1))
+
+    row = db.get("SELECT * FROM keywords WHERE term = ?", ("ai tools",))
+    assert row["competition_score"] == 40
+    assert row["competition_label"] == "Medium"
+    assert row["score"] == 60
+    db.close_db()
+

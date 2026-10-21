@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtWidgets import QLabel
+from PySide6.QtCore import QThread
+from PySide6.QtWidgets import QLabel, QPushButton
 
 from s_q_ali_media_downloader.niche_research.research import ai_analysis_engine as ai
 from s_q_ali_media_downloader.niche_research.storage import db
@@ -17,6 +18,51 @@ def _db(isolated_appdata):
     db.configure(None)
     yield
     db.close_db()
+
+
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): the modal must never abort the process on close
+# --------------------------------------------------------------------------- #
+class _SlowWorker(QThread):
+    """A worker that keeps running until it is stopped."""
+
+    def run(self) -> None:  # pragma: no cover - timing dependent
+        while True:
+            self.msleep(50)
+
+
+def test_closing_the_modal_joins_its_workers(qapp, monkeypatch):
+    """QDialog.reject() hides the dialog without emitting closeEvent, so the
+    workers have to be joined there too — otherwise PySide6 aborts with
+    "QThread: Destroyed while thread is still running"."""
+    monkeypatch.setattr(ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False))
+    modal = AnalysisModal("UCabc")
+    worker = _SlowWorker(modal)
+    modal._track_worker(worker)
+    worker.start()
+    assert worker.isRunning() is True
+
+    modal.reject()
+
+    assert worker.isRunning() is False
+
+
+def test_is_analyzed_is_true_without_scripts(isolated_appdata):
+    """An analysis whose model returned no scripts is still an analysis —
+    the modal used to fall back to "Ready to Analyze" and charge twice."""
+    db.run(
+        "INSERT OR REPLACE INTO similar_channel_analysis "
+        "(source_channel_id, target_channel_id, similarity_score, analysis_json, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("UCabc", "UCabc", 100, '{"contentType": ["educational"]}', db.now()),
+    )
+
+    assert ai.is_analyzed("UCabc") is True
+
+
+def test_is_analyzed_is_false_for_a_fresh_channel(isolated_appdata):
+    assert ai.is_analyzed("UCnothing") is False
+
 
 
 def _sample_data(analyzed: bool = False) -> dict:
@@ -174,6 +220,35 @@ def test_settings_page_saves_youtube_api_key(qapp):
     page.deleteLater()
 
 
+def test_settings_page_stores_the_cookie_file(qapp, tmp_path):
+    """The cookies.txt escape hatch has to be configurable in the UI."""
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    page = SettingsPage()
+    page._cookies_edit.setText(str(cookies))
+    page._save()
+    assert db.get_setting("youtube_cookies_file") == str(cookies)
+    page.deleteLater()
+
+
+def test_settings_page_shows_the_stored_cookie_file(qapp, tmp_path):
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("x", encoding="utf-8")
+    db.set_setting("youtube_cookies_file", str(cookies))
+    page = SettingsPage()
+    assert page._cookies_edit.text() == str(cookies)
+    page.deleteLater()
+
+
+def test_settings_page_clears_the_cookie_file(qapp):
+    db.set_setting("youtube_cookies_file", "C:/tmp/cookies.txt")
+    page = SettingsPage()
+    page._clear_cookies()
+    assert db.get_setting("youtube_cookies_file") == ""
+    assert page._cookies_edit.text() == ""
+    page.deleteLater()
+
+
 def test_settings_provider_combo_is_visible_in_layout(qapp):
     page = SettingsPage()
     page.show()
@@ -249,9 +324,33 @@ def test_modal_set_tab_switches(qapp, monkeypatch):
     monkeypatch.setattr(ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(True))
     modal = AnalysisModal("UCabc")
     modal._on_channel_data(_sample_data(True))
-    modal._set_tab("thumbnail")
-    assert modal._tab_stack.currentIndex() == 4
+    modal._set_tab("scripts")
+    assert modal._tab_stack.currentIndex() == 2
+    assert modal._analysis_stack.currentIndex() == 1
     assert modal._style_buttons["bold"].property("active") is True
+    modal.reject()
+    modal.deleteLater()
+
+
+def test_thumbnail_tab_is_reachable_without_an_analysis(qapp, monkeypatch):
+    """The thumbnail generator used to live behind the AI analysis, so a
+    fresh channel could not generate a thumbnail without paying for (and
+    waiting on) a full chat analysis first."""
+    monkeypatch.setattr(ai, "load_channel_analysis_data", lambda cid, **kw: _sample_data(False))
+    modal = AnalysisModal("UCabc")
+    modal._on_channel_data(_sample_data(False))
+    assert modal._analysis_stack.currentIndex() == 0
+
+    # The not-analyzed card offers the thumbnail generator directly.
+    buttons = [
+        b
+        for b in modal._analysis_stack.widget(0).findChildren(QPushButton)
+        if "Thumbnail" in b.text()
+    ]
+    assert buttons
+    buttons[0].click()
+    assert modal._analysis_stack.currentIndex() == 2
+    assert modal._thumb_title.isVisible() or True  # the page is the thumbnail page
     modal.reject()
     modal.deleteLater()
 

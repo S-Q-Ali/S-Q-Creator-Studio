@@ -144,14 +144,7 @@ QLabel#statKey {{
 }}
 
 /* ---- Badges ---- */
-QPushButton#badge, QLabel#badge {{
-    border: none;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    background-color: transparent;
-}}
+
 QLabel#badgeScoreHigh {{
     color: {GREEN};
     background-color: {CHIP_GREEN_BG};
@@ -493,7 +486,6 @@ QFrame#modalPanel {{
     border-radius: 12px;
 }}
 QLabel#modalHeader {{ font-size: 17px; font-weight: 600; color: {c["text_primary"]}; }}
-QLabel#modalSubHeader {{ font-size: 12px; color: {c["text_secondary"]}; }}
 QPushButton#tabBtn {{
     background-color: {c["card_bg"]};
     color: {c["text_secondary"]};
@@ -513,16 +505,8 @@ QLabel#statTileLabel {{ font-size: 11px; color: {c["text_secondary"]}; }}
 QFrame#svgCard {{ background-color: {c["panel_bg"]}; border: 1px solid {c["card_border"]}; border-radius: 10px; }}
 QLabel#svgMeta {{ font-size: 11px; color: {c["text_secondary"]}; text-transform: uppercase; font-weight: 600; letter-spacing: 0.4px; }}
 QLabel#svgBody {{ font-size: 13px; color: {c["text_primary"]}; }}
-QFrame#thumbPreview {{
-    background-color: {c["panel_bg"]};
-    border: 1px solid {c["card_border"]};
-    border-radius: 8px;
-}}
 
 /* ---- Settings ---- */
-QLabel#settingsTitle {{ font-size: 15px; font-weight: 600; color: {c["text_primary"]}; }}
-QLabel#settingsHint {{ font-size: 12px; color: {c["text_secondary"]}; }}
-QLabel#formLabel {{ font-size: 13px; font-weight: 500; color: {c["text_primary"]}; }}
 QLabel#formHint {{ font-size: 11px; color: {c["text_secondary"]}; }}
 
 /* ---- Tooltips ---- */

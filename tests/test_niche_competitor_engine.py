@@ -28,6 +28,67 @@ def _configure_db(isolated_appdata):
     db.close_db()
 
 
+# --------------------------------------------------------------------------- #
+# Regression (2026-10): tracked items must show a real channel title
+# --------------------------------------------------------------------------- #
+def test_tracked_video_shows_the_channel_title(isolated_appdata):
+    _track("video", "vid123", "My Vlog")
+    db.run(
+        """
+        INSERT INTO videos (
+            video_id, title, thumbnail_url, channel_id, channel_title,
+            published_at, view_count, like_count, comment_count, last_fetched
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "vid123",
+            "My Vlog",
+            "http://x/thumb.jpg",
+            "chan1",
+            "Chan One",
+            "2026-01-01",
+            1_000,
+            10,
+            1,
+            db.now(),
+        ),
+    )
+
+    videos = ce.get_tracked_videos()
+
+    assert videos[0]["channelTitle"] == "Chan One"
+
+
+def test_tracked_keyword_ranked_videos_show_the_channel_title(isolated_appdata):
+    _track("keyword", "ai tools", "AI Tools")
+    db.run(
+        """
+        INSERT INTO keywords (
+            term, display_term, score, demand_score, competition_score,
+            competition_label, source, first_seen, last_checked
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        ("ai tools", "AI Tools", 82, 90, 25, "Low", "search", db.now(), db.now()),
+    )
+    db.run(
+        "INSERT INTO rankings (term, video_id, position, ts) VALUES (?, ?, ?, ?)",
+        ("ai tools", "vidA", 1, _now_ms()),
+    )
+    db.run(
+        """
+        INSERT INTO videos (video_id, title, channel_id, channel_title, view_count, last_fetched)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        ("vidA", "Some Video", "chanX", "Chan X", 500, db.now()),
+    )
+
+    keywords = ce.get_tracked_keywords()
+
+    ranked = keywords[0]["rankedVideos"]
+    assert ranked[0]["channelTitle"] == "Chan X"
+
+
+
 def test_get_tracked_videos_includes_vph_series(isolated_appdata):
     _track("video", "vid123", "My Vlog")
     db.run(
@@ -227,7 +288,7 @@ def test_refresh_snapshots_snapshots_all_kinds(isolated_appdata, monkeypatch):
         called_videos.append(video_id)
         return _video(video_id)
 
-    def fake_fetch_channel(channel_id, cookiefile=None):
+    def fake_fetch_channel(channel_id, cookiefile=None, **kwargs):
         called_channels.append(channel_id)
         return _channel(channel_id)
 
@@ -265,10 +326,42 @@ def test_refresh_snapshots_snapshots_all_kinds(isolated_appdata, monkeypatch):
     progress: list[str] = []
     counts = ce.refresh_snapshots(progress=progress.append)
 
-    assert counts == {"videos": 1, "channels": 1, "keywords": 1}
+    assert counts["videos"] == 1
+    assert counts["channels"] == 1
+    assert counts["keywords"] == 1
+    assert counts["failed"] == 0
     assert called_videos == ["vidA"]
     assert called_channels == ["chanB"]
     assert progress  # progress fired at least once
+
+
+def test_refresh_snapshots_counts_failures(isolated_appdata, monkeypatch):
+    """A tracked item that cannot be fetched must be reported, not silently
+    skipped."""
+    _track("video", "vidA", "Video A")
+    _track("video", "vidB", "Video B")
+
+    def boom(video_id, cookiefile=None):
+        if video_id == "vidB":
+            raise RuntimeError("gone")
+        return _video(video_id)
+
+    monkeypatch.setattr(ce, "fetch_video", boom)
+
+    counts = ce.refresh_snapshots()
+
+    assert counts["videos"] == 1
+    assert counts["failed"] == 1
+    assert counts["failures"]["videos"] == 1
+
+
+def test_snapshot_interval_setting(isolated_appdata):
+    db.set_setting("snapshot_interval_minutes", "30")
+    assert ce.snapshot_interval_minutes() == 30
+    db.set_setting("snapshot_interval_minutes", "nonsense")
+    assert ce.snapshot_interval_minutes() == 60
+    db.set_setting("snapshot_interval_minutes", "180")
+    assert ce.snapshot_interval_minutes() == 180
 
 
 def _video(video_id: str):

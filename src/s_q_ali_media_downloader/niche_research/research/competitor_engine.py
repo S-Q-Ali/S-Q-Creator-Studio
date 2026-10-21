@@ -28,13 +28,56 @@ from s_q_ali_media_downloader.niche_research.tools.youtube_client import (
 logger = logging.getLogger(__name__)
 
 
+SNAPSHOT_INTERVALS = (30, 60, 180)
+
+
+def snapshot_interval_minutes() -> int:
+    """How often the background poller records a snapshot."""
+    raw = (db.get_setting("snapshot_interval_minutes") or "60").strip()
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = 60
+    return value if value in SNAPSHOT_INTERVALS else 60
+
+
+def track_item(kind: str, ref_id: str, label: str = "") -> bool:
+    """Track an item (video / channel / keyword).
+
+    Returns True when the item was not tracked before.
+    """
+    if not ref_id:
+        return False
+    existing = db.get(
+        "SELECT 1 FROM tracked_items WHERE kind=? AND ref_id=?", (kind, ref_id)
+    )
+    db.run(
+        "INSERT OR IGNORE INTO tracked_items (kind, ref_id, label, added_at) VALUES (?, ?, ?, ?)",
+        (kind, ref_id, label or ref_id, db.now()),
+    )
+    return existing is None
+
+
+def untrack_item(kind: str, ref_id: str) -> None:
+    db.run("DELETE FROM tracked_items WHERE kind=? AND ref_id=?", (kind, ref_id))
+
+
+def is_tracked(kind: str, ref_id: str) -> bool:
+    return (
+        db.get(
+            "SELECT 1 FROM tracked_items WHERE kind=? AND ref_id=?", (kind, ref_id)
+        )
+        is not None
+    )
+
+
 def get_tracked_videos() -> list[dict[str, Any]]:
     """Latest stats + VPH series for every tracked 'video' item."""
     rows = db.all(
         """
         SELECT t.ref_id AS videoId, t.label, t.added_at,
-               v.title, v.thumbnail_url, v.channel_id, v.published_at,
-               v.view_count, v.like_count, v.comment_count
+               v.title, v.thumbnail_url, v.channel_id, v.channel_title,
+               v.published_at, v.view_count, v.like_count, v.comment_count
         FROM tracked_items t
         LEFT JOIN videos v ON v.video_id = t.ref_id
         WHERE t.kind = 'video'
@@ -49,7 +92,7 @@ def get_tracked_videos() -> list[dict[str, Any]]:
                 "videoId": r["videoId"],
                 "title": r["title"],
                 "thumbnailUrl": r["thumbnail_url"],
-                "channelTitle": r["channel_id"],
+                "channelTitle": r["channel_title"] or r["channel_id"] or "",
                 "publishedAt": r["published_at"],
                 "viewCount": r["view_count"] or 0,
                 "likeCount": r["like_count"],
@@ -145,6 +188,16 @@ def get_tracked_keywords() -> list[dict[str, Any]]:
                 [v["video_id"] for v in ranked],
             )
         }
+        channel_titles = {
+            row["video_id"]: row["channel_title"]
+            for row in db.all(
+                """
+                SELECT video_id, channel_title FROM videos
+                WHERE video_id IN ({})
+                """.format(",".join("?" for _ in ranked)),
+                [v["video_id"] for v in ranked],
+            )
+        }
         out.append(
             {
                 "term": term,
@@ -158,7 +211,7 @@ def get_tracked_keywords() -> list[dict[str, Any]]:
                     {
                         "videoId": v["video_id"],
                         "title": titles.get(v["video_id"], v["video_id"]),
-                        "channelTitle": "",
+                        "channelTitle": channel_titles.get(v["video_id"]) or "",
                         "position": v["position"] or 0,
                         "ts": v["ts"],
                     }
@@ -189,8 +242,13 @@ def refresh_snapshots(
 
     Stores a video_snapshot / channel_snapshot / keyword_snapshot per tracked
     item so VPH and score history accumulate over time.
+
+    The result reports both successes and failures per kind, so the UI can
+    say "3 videos snapshotted, 1 failed" instead of silently skipping the
+    items that could not be fetched.
     """
     counts = {"videos": 0, "channels": 0, "keywords": 0}
+    failures = {"videos": 0, "channels": 0, "keywords": 0}
 
     video_ids = [
         r["ref_id"]
@@ -203,6 +261,7 @@ def refresh_snapshots(
             se.save_video_snapshot(fetch_video(video_id, cookiefile=cookiefile))
             counts["videos"] += 1
         except Exception as exc:
+            failures["videos"] += 1
             logger.warning("video snapshot failed for %s: %s", video_id, exc)
 
     channel_ids = [
@@ -216,6 +275,7 @@ def refresh_snapshots(
             se.save_channel_snapshot(fetch_channel(channel_id, cookiefile=cookiefile))
             counts["channels"] += 1
         except Exception as exc:
+            failures["channels"] += 1
             logger.warning("channel snapshot failed for %s: %s", channel_id, exc)
 
     terms = [
@@ -236,6 +296,9 @@ def refresh_snapshots(
             )
             counts["keywords"] += 1
         except Exception as exc:
+            failures["keywords"] += 1
             logger.warning("keyword snapshot failed for %s: %s", term, exc)
 
+    counts["failed"] = sum(failures.values())
+    counts["failures"] = failures  # type: ignore[assignment]
     return counts

@@ -127,6 +127,37 @@ def test_scorecard_renders_channel(isolated_appdata, qapp):
     db.close_db()
 
 
+def test_scorecard_offers_channel_analysis(isolated_appdata, qapp):
+    """A scored channel must be analysable without leaving the page."""
+    db.configure(None)
+    result = se.ChannelLookupResult(
+        channel={
+            "channel_id": "UCchan",
+            "title": "My Channel",
+            "description": "hello",
+            "thumbnail_url": "",
+            "subscriber_count": 123_456,
+            "video_count": 200,
+            "view_count": 5_000_000,
+        },
+        seo=se.compute_channel_seo_score(ChannelInfo(channel_id="UCchan", title="My Channel")),
+        recent_videos=[],
+        tracked=False,
+    )
+    page = ScorecardPage()
+    page.show()
+    got: list = []
+    page.analyze_requested.connect(got.append)
+    page._on_done(result)
+    qapp.processEvents()
+
+    buttons = {b.text(): b for b in page._content.findChildren(QPushButton)}
+    assert "Analyze channel" in buttons
+    buttons["Analyze channel"].click()
+    assert got == ["UCchan"]
+    db.close_db()
+
+
 def test_scorecard_placeholder_and_failure(isolated_appdata, qapp):
     db.configure(None)
     page = ScorecardPage()
@@ -135,6 +166,41 @@ def test_scorecard_placeholder_and_failure(isolated_appdata, qapp):
     page._on_failed("bad url")
     assert "Lookup failed" in page._status.text()
     assert page._score_btn.isEnabled() is True
+    db.close_db()
+
+
+def test_scorecard_survives_repeated_failures(isolated_appdata, qapp):
+    """The shared empty-state widget used to be deleted and then re-added,
+    so the second failure raised "Internal C++ object already deleted"."""
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    db.configure(None)
+    page = ScorecardPage()
+    page.show()
+    for _ in range(4):
+        page._on_failed("bad url")
+        # Process the deferred widget deletions, like the running event loop does.
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        qapp.processEvents()
+    assert page._score_btn.isEnabled() is True
+    assert "Lookup failed" in page._status.text()
+    db.close_db()
+
+
+def test_scorecard_survives_repeated_mode_switches(isolated_appdata, qapp):
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    db.configure(None)
+    page = ScorecardPage()
+    page.show()
+    for _ in range(3):
+        page._set_mode("channel")
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        qapp.processEvents()
+        page._set_mode("video")
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        qapp.processEvents()
+    assert page._mode == "video"
     db.close_db()
 
 
@@ -157,3 +223,30 @@ def test_fmt_duration():
     assert _fmt_duration(612) == "10:12"
     assert _fmt_duration(3661) == "1:01:01"
     assert _fmt_duration(0) == "0:00"
+
+
+def test_focus_keyword_reaches_the_lookup(isolated_appdata, qapp, monkeypatch):
+    """The focus keyword must be forwarded to the engine, otherwise the
+    keyword-placement checks can never run."""
+    db.configure(None)
+    seen = {}
+
+    def fake_lookup_video(url, *, cookiefile=None, focus_keyword=""):
+        seen["url"] = url
+        seen["keyword"] = focus_keyword
+        return _video_result()
+
+    monkeypatch.setattr(se, "lookup_video", fake_lookup_video)
+
+    page = ScorecardPage()
+    page.show()
+    page._url_edit.setText("https://youtube.com/watch?v=vid1")
+    page._keyword_edit.setText("tech")
+    page._run_lookup()
+    page._worker.wait(5000)
+    qapp.processEvents()
+
+    assert seen["url"] == "https://youtube.com/watch?v=vid1"
+    assert seen["keyword"] == "tech"
+    db.close_db()
+

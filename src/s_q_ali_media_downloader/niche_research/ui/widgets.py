@@ -8,7 +8,7 @@ import os
 import queue
 import threading
 
-from PySide6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import QLabel, QLayout, QSizePolicy, QWidget
 
@@ -23,6 +23,23 @@ from s_q_ali_media_downloader.niche_research.ui.theme import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def stop_worker(worker: QThread | None, timeout_ms: int = 3000) -> None:
+    """Stop and join a worker thread.
+
+    A QThread that is destroyed while it is still running aborts the whole
+    process, so a worker that refuses to stop within the grace period is
+    terminated.
+    """
+    if worker is None:
+        return
+    if worker.isRunning():
+        worker.requestInterruption()
+        if not worker.wait(timeout_ms):
+            logger.warning("Worker still running after %dms — terminating it", timeout_ms)
+            worker.terminate()
+            worker.wait(1000)
 
 
 # --------------------------------------------------------------------------- #
@@ -402,9 +419,14 @@ class Sparkline(QWidget):
             return
 
         pts = []
+        # 0-100 series keep the fixed scale; bigger series (view counts,
+        # subscriber counts) are scaled to their own maximum, otherwise every
+        # point would clamp to the top and the chart would be a flat line.
+        top = max(float(p) for p in points)
+        scale = max(100.0, top)
         for i, value in enumerate(points):
             x = i * (width - 4) / (len(points) - 1) + 2
-            norm = max(0.0, min(1.0, value / 100.0))
+            norm = max(0.0, min(1.0, float(value) / scale))
             y = height - 4 - norm * (height - 10)
             pts.append((x, y))
 
