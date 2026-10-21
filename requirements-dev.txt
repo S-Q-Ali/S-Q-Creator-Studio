@@ -3,3 +3,7 @@ pytest>=8
 ruff>=0.6
 pyinstaller>=6.10
 pip-audit>=2.7
+# The Social Discovery feature drives a real browser. The package is small;
+# the browser itself is not needed - channel="msedge" uses the one Windows
+# already has, and the Playwright browser is only the fallback.
+playwright>=1.44

@@ -33,6 +33,11 @@ dev = [
     "ruff>=0.6",
     "pyinstaller>=6.10",
 ]
+# The Social Discovery feature drives a real browser. Without it the feature
+# explains what to install; the rest of the app does not need it.
+social = [
+    "playwright>=1.44",
+]
 
 [project.urls]
 Homepage = "https://github.com/S-Q-Ali/Bulk-Video-Downloader"
