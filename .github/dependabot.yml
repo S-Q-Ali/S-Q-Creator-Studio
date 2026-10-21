@@ -15,6 +15,13 @@ updates:
       python-dependencies:
         patterns:
           - "*"
+    ignore:
+      # 0.16 and newer break yt-dlp's request handler, which silently
+      # disables the TLS impersonation the TikTok fetches need - the app
+      # downloads nothing and says nothing about why.
+      - dependency-name: "curl_cffi"
+      # 6.12 aborts during teardown in some conditions.
+      - dependency-name: "PySide6"
 
   - package-ecosystem: github-actions
     directory: "/"
