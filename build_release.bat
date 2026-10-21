@@ -162,9 +162,15 @@ echo  Step 3 of 3 — Optional: Build Inno Setup Installer
 echo ============================================================
 echo.
 
+rem Inno Setup: a per-user install, or the machine-wide one. The paths are
+rem checked with GOTO rather than a chain of IFs, because "%ProgramFiles(x86)%"
+rem expands to a path with a bracket in it, which a batch IF cannot parse.
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
-if not exist "%ISCC%" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
-if not exist "%ISCC%" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if exist "%ISCC%" goto :have_iscc
+set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if exist "%ISCC%" goto :have_iscc
+set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+:have_iscc
 set "STAGING=release\staging\bin"
 
 if not exist "%ISCC%" (
