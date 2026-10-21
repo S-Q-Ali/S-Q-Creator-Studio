@@ -24,11 +24,15 @@ and let the AI agent (Groq) handle the cases that need judgement.
 
 - **One browser per run, in a worker thread.** Playwright's sync API runs in
   the worker; the UI never blocks. The browser is closed in a `finally`.
-- **Edge first, bundled Chromium as the fallback.** `channel="msedge"` first
-  (zero install, and CI's `windows-latest` has Edge), then the Playwright
-  browser if Edge is missing. Playwright is an optional dependency: the
-  feature reports "not installed" with the install command instead of
-  crashing the app.
+- **Chromium ships with the app** (decided 2026-10-21). The installer
+  carries the Playwright *headless shell* (~277 MB) — the headless shell
+  and not the full Chromium (~436 MB), because the feature only ever runs
+  headless. The app points `PLAYWRIGHT_BROWSERS_PATH` at the shipped copy
+  before Playwright starts, so the feature works on a machine that has
+  neither Edge nor Chrome. The browsers Windows already has stay the
+  fallback for a source checkout.
+- **Playwright stays an optional dependency.** The app starts without it
+  and the feature explains what to install instead of crashing.
 - **The channel's own links are the only "self-claim" evidence.** On the
   About page, `event=channel_header` links belong to the creator;
   `event=video_description` links belong to other creators whose videos are

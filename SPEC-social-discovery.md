@@ -65,6 +65,9 @@ Rules that make this honest:
   Source: https://console.groq.com/docs/models
 - 3–9 HTTP probes with the verifier's existing 2 s politeness delay.
 - The whole run is one channel: a couple of seconds plus the probes.
+- The installer carries the Playwright headless shell (~277 MB) so the
+  feature works without Edge or Chrome; the full Chromium is not shipped
+  because the feature only runs headless.
 
 ## Privacy
 

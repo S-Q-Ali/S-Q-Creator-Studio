@@ -21,14 +21,20 @@ thread-safe, so one session belongs to exactly one worker thread.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Self
 
 logger = logging.getLogger(__name__)
 
 #: The browsers to try, in order. ``None`` means the Playwright-managed
-#: Chromium, which has to be downloaded.
+#: Chromium, which has to be shipped with the app.
 BROWSER_CHANNELS: tuple[str | None, ...] = ("msedge", "chrome", None)
+
+#: Where the shipped browser lives, relative to the app.
+BROWSER_DIR_NAME = "browsers"
 
 #: How long a single navigation may take.
 DEFAULT_TIMEOUT_MS = 30_000
@@ -87,6 +93,36 @@ class Page:
         return needle.lower() in self.text.lower()
 
 
+def bundled_browsers_dir() -> Path | None:
+    """The browser folder that ships with the app, if it is there.
+
+    The installer carries Chromium (the headless shell), so the feature
+    works on a machine that has no Edge and no Chrome. Playwright looks
+    for browsers in its own cache, so the environment variable has to
+    point at the shipped copy before Playwright starts.
+    """
+    candidates: list[Path] = []
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(sys.executable).resolve().parent / BROWSER_DIR_NAME)
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / BROWSER_DIR_NAME)
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def use_bundled_browsers() -> Path | None:
+    """Point Playwright at the shipped browser. Returns the folder used."""
+    folder = bundled_browsers_dir()
+    if folder is None:
+        return None
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(folder)
+    logger.info("using the bundled browser in %s", folder)
+    return folder
+
+
 class BrowserSession:
     """One browser, one context, many pages."""
 
@@ -131,7 +167,13 @@ class BrowserSession:
 
         self._playwright = sync_playwright().start()
         errors: list[str] = []
-        for channel in BROWSER_CHANNELS:
+        bundled = use_bundled_browsers()
+        # The shipped Chromium matches this Playwright version, so it is
+        # tried before the browsers Windows may or may not have.
+        channels: tuple[str | None, ...] = (
+            ((None,) if bundled is not None else ()) + BROWSER_CHANNELS
+        )
+        for channel in channels:
             try:
                 self._browser = self._playwright.chromium.launch(
                     channel=channel, headless=self.headless

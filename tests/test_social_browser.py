@@ -8,6 +8,8 @@ needs a browser is skipped when the machine has none.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from s_q_ali_media_downloader.agent.tools import browser as br
@@ -87,3 +89,36 @@ def test_a_missing_playwright_is_reported_clearly(monkeypatch):
         br.BrowserSession().start()
 
     assert "playwright" in str(excinfo.value).lower()
+
+
+# --------------------------------------------------------------------------- #
+# The browser that ships with the app
+# --------------------------------------------------------------------------- #
+def test_the_browser_folder_is_looked_for_next_to_the_exe(tmp_path, monkeypatch):
+    """The installer carries Chromium, so the feature works on a machine that
+    has no Edge and no Chrome."""
+    (tmp_path / "browsers").mkdir()
+    monkeypatch.setattr(br.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(br.sys, "executable", str(tmp_path / "S-Q Creator Studio.exe"))
+
+    assert br.bundled_browsers_dir() == tmp_path / "browsers"
+
+
+def test_the_shipped_browser_is_pointed_at(monkeypatch, tmp_path):
+    """Playwright looks for browsers in its own cache; the app has to point
+    it at the copy it ships."""
+    browsers = tmp_path / "browsers"
+    (browsers / "chromium_headless_shell-1248").mkdir(parents=True)
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: browsers)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+
+    assert br.use_bundled_browsers() == browsers
+    assert os.environ["PLAYWRIGHT_BROWSERS_PATH"] == str(browsers)
+
+
+def test_without_a_shipped_browser_the_environment_is_left_alone(monkeypatch):
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: None)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+
+    assert br.use_bundled_browsers() is None
+    assert "PLAYWRIGHT_BROWSERS_PATH" not in os.environ
