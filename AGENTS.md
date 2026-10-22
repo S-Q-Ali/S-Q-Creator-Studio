@@ -1,4 +1,4 @@
-# Agent Skills + Graphify
+# Agent Skills + Graphify + Ponytail
 
 This project uses skills installed under `.opencode/skills/` and a knowledge graph at `graphify-out/`.
 
@@ -10,6 +10,34 @@ This project uses skills installed under `.opencode/skills/` and a knowledge gra
 - Never skip required steps such as spec, plan, or test when a skill demands them.
 - Shared reference checklists live at `.opencode/references/` (skills reference them via `../../references/`).
 
+## Working Style — Ponytail
+
+Adapted from [Ponytail](https://github.com/DietrichGebert/ponytail) (MIT), vendored under
+`.opencode/skills/ponytail*/` with the commands in `.opencode/command/`.
+
+Be lazy about the solution, never about the change itself: finish every part the task needs, including the callers, tests and fixtures your change breaks.
+
+Take the first option that fully works:
+
+1. Does it need to exist? Skip features nobody asked for, and name them in one line.
+2. Already in this codebase? Use it the way the surrounding code does.
+3. Standard library or a platform feature? Use it, unless the project has its own.
+4. An installed dependency? Use it. Never add a dependency for a few lines.
+5. Can it be one line a reader gets at a glance? One line.
+6. Otherwise: the minimum code that works.
+
+- No abstraction, wrapper, option, config or "for later" code nobody asked for. Deletion beats addition. Keep the structure the codebase already has.
+- The shortest working diff wins, once you know everything it must touch. A one-liner that needs decoding is not short.
+- Comment only the why the code cannot show, in one line.
+- Bug fix: grep every caller of the function you touch, then fix the root cause once in the shared code.
+- Code you move or merge keeps its error handling and validation.
+- New non-trivial logic (a branch, a loop, a parser, money or security) leaves one small test behind. Trivial changes need none.
+- A deliberate shortcut gets a comment in this form: `shortcut: <the limit>, <when to upgrade>`.
+
+Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, anything the user asked for.
+
+End a reply with one or two lines: what was skipped or not checked, and any risk the user must know.
+
 ## Intent to Skill Mapping
 
 Map the user's intent to the matching skill automatically:
@@ -17,8 +45,10 @@ Map the user's intent to the matching skill automatically:
 - Feature / new functionality: `spec-driven-development`, then `incremental-implementation` + `test-driven-development`
 - Planning / breakdown: `planning-and-task-breakdown`
 - Bug / failure / unexpected behavior: `debugging-and-error-recovery`
-- Code review: `code-review-and-quality`
-- Refactoring / simplification: `code-simplification`
+- Code review: `code-review-and-quality`, or `ponytail-review` for a change and `ponytail-audit` for the whole repo
+- Refactoring / simplification: `ponytail` + `code-simplification`
+- What can be deleted or merged: `ponytail-audit`
+- Deliberate shortcuts taken and deferred: `ponytail-debt`
 - API or interface design: `api-and-interface-design`
 - UI work / design language: `frontend-design` (craft/anti-slop, Anthropic) + `frontend-ui-engineering` (component engineering, Addy pack)
 - Design system / theme / tokens / brand: `theme-factory` (palette+type) + `brand-guidelines` (token-system pattern only — never Anthropic brand data)

@@ -22,6 +22,23 @@ ruff check src tests  # lint
 Everything must pass before a PR is merged. CI runs lint, tests, and a
 `pip-audit` dependency scan on Windows.
 
+## How the agent works here
+
+`AGENTS.md` is the house style: the smallest change that fully solves the
+task, and never a shortcut around validation, error handling, security or
+accessibility. It is adapted from [Ponytail](https://github.com/DietrichGebert/ponytail)
+(MIT), whose skills live in `.opencode/skills/ponytail*/` and whose
+commands are in `.opencode/command/`:
+
+| Command | What it does |
+|---|---|
+| `/ponytail lite\|full\|ultra\|off` | Set the intensity for the session. |
+| `/ponytail-review` | Review a change like the senior dev who gets paged when it breaks. |
+| `/ponytail-audit` | The same check for the whole repo, most important first. |
+| `/ponytail-debt` | List the `shortcut:` comments you deferred, so "later" does not become "never". |
+
+The same six are skills, so they can be invoked by name as well.
+
 ## Code layout
 
 - `src/s_q_ali_media_downloader/engine.py` — download engine and URL helpers (no UI code).
