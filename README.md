@@ -29,7 +29,7 @@ Bulk-download **TikTok** and **YouTube** videos and find a creator's Facebook, I
 
 ### Installer (recommended)
 
-Download `S-Q-Creator-Studio-Setup-2.5.1.exe` from the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases).
+Download `S-Q-Creator-Studio-Setup-2.6.0.exe` from the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases).
 
 - Per-user install — **no administrator rights needed**.
 - Bundles `ffmpeg.exe`, so audio-only extraction and format merging work out of the box.
