@@ -75,7 +75,7 @@ echo.
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [ERROR] PyInstaller build failed with code %ERRORLEVEL%.
-    call :failed
+    call :failed || exit /b 1
 )
 
 echo.
@@ -119,7 +119,7 @@ if exist "%PORTABLE%" (
             if exist "%PORTABLE%" (
                 echo [ERROR] Could not remove "%PORTABLE%" either.
                 echo           Close the app and run this script again.
-                call :failed
+                call :failed || exit /b 1
             )
         )
     )
@@ -129,7 +129,7 @@ xcopy /e /i /q /y "%DISTPATH%\%APP_NAME%\*" "%PORTABLE%\"
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Failed to copy build to %PORTABLE%.
-    call :failed
+    call :failed || exit /b 1
 )
 
 rem Locate ffmpeg once: PATH first, then the winget install folder.
@@ -216,7 +216,7 @@ rem MyAppSource tells the installer which folder the build landed in.
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Inno Setup compilation failed.
-    call :failed
+    call :failed || exit /b 1
 )
 
 echo Installer built: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe
@@ -230,10 +230,12 @@ rem moment it ends, and the message goes with it. The window is kept
 rem open here so the reason can be read. The build server does not need
 rem it.
 if not defined GITHUB_ACTIONS pause
-rem exit without the /b: it ends the whole script. Inside a called
-rem subroutine 'exit /b 1' would only end the subroutine, and the build
-rem would carry on and report success.
-exit 1
+rem 'exit /b 1' returns to the caller, which turns it into the end of
+rem the script with 'call :failed || exit /b 1'. The two-step is the
+rem safe one: it does not depend on how 'exit' behaves inside a
+rem parenthesised block, and a release build that fails must never
+rem look like one that succeeded.
+exit /b 1
 
 :done
 echo.
