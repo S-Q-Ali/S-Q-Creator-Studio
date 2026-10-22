@@ -79,9 +79,30 @@ jobs:
           $version = $tag.TrimStart("v")
           $sha = (Get-FileHash -Algorithm SHA256 $setup).Hash
           $name = Split-Path -Leaf $setup
+
+          # The changelog holds the notes for this version: the section
+          # that starts with its heading, up to the next one.
+          $changelog = ""
+          if (Test-Path "CHANGELOG.md") {
+              $all = Get-Content "CHANGELOG.md" -Raw
+              $pattern = "(?ms)^## \[$([regex]::Escape($version))\].*?(?=^## \[|\z)"
+              $found = [regex]::Match($all, $pattern)
+              if ($found.Success) {
+                  $changelog = $found.Value.Trim()
+              }
+          }
+
           $lines = @(
             "## S-Q Creator Studio $version",
-            "",
+            ""
+          )
+          if ($changelog) {
+              $lines += $changelog
+              $lines += ""
+              $lines += "---"
+              $lines += ""
+          }
+          $lines += @(
             "The installer for this release.",
             "",
             "SHA-256 of ``$name``:",
