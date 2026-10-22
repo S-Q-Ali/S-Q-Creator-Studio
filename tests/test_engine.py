@@ -74,6 +74,8 @@ def test_is_permanent():
     assert not is_permanent("TikTok refused the request — rate limited.")
     assert is_permanent("video not found")
     assert is_permanent("private video")
+    assert is_permanent("this format needs ffmpeg to merge. pick a lower quality.")
+    assert is_permanent(tidy_error(Exception("needs ffmpeg to merge audio and video")))
 
 
 def test_ytdlp_floor_guards_tiktok_account_fetch():

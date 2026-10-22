@@ -117,6 +117,7 @@ PERMANENT_SIGNS = (
     "account",
     "region",
     "copyright",
+    "this format needs ffmpeg",
 )
 
 
