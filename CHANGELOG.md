@@ -3,6 +3,22 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **A channel title could run as a formula in your spreadsheet.** The AI
+  Finder's CSV export wrote the cells by hand and skipped the guard the
+  exporter has, so a title beginning with `=` or `+` was evaluated when the
+  file was opened in Excel. It goes through the exporter now, like the
+  Social Discovery export always did.
+
+### Changed
+
+- **The release lives in one folder.** `release/` holds the build script,
+  the installer definition, a README that says what a local build needs,
+  and everything the build produces. `build_release.bat` was at the root.
+
 ## [2.6.0] — 2026-10-22
 
 ### Removed
