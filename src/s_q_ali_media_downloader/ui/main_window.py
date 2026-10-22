@@ -607,8 +607,13 @@ class MainWindow(QMainWindow):
                         "error": job.error,
                     }
                 )
-            with open(queue_file(), "w", encoding="utf-8") as handle:
+            # Atomic write: temp file first, then move into place. A crash
+            # mid-write never leaves queue.json half-written.
+            queue_path = queue_file()
+            tmp_path = queue_file() + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump({"version": 1, "items": items}, handle)
+            os.replace(tmp_path, queue_path)
         except (OSError, TypeError, ValueError):
             pass
 
