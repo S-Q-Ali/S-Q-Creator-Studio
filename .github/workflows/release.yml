@@ -50,11 +50,16 @@ jobs:
       - name: Check the build
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "release\portable\*.exe" | Select-Object -First 1
-          if (-not $exe) { throw "the portable build is missing" }
+          # The build lands in release\portable, or in release\portable-new
+          # when the old one was in use.
+          $portable = @("release\portable", "release\portable-new") |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $portable) { throw "the portable build is missing" }
+          $exe = Get-ChildItem "$portable\*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "the portable build has no executable" }
           $setup = Get-ChildItem "release\S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1
           if (-not $setup) { throw "the installer is missing" }
-          if (-not (Test-Path "release\portable\browsers")) { throw "the browser was not shipped" }
+          if (-not (Test-Path "$portable\browsers")) { throw "the browser was not shipped" }
           Write-Output "portable: $($exe.Name)  $([math]::Round($exe.Length/1MB,1)) MB"
           Write-Output "installer: $($setup.Name)  $([math]::Round($setup.Length/1MB,1)) MB"
           Write-Output "sha256: $((Get-FileHash -Algorithm SHA256 $setup.FullName).Hash)"

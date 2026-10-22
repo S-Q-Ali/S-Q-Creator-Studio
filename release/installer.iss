@@ -6,7 +6,13 @@
 ; which release\build.bat fills in.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.5.1"
+  #define MyAppVersion "2.6.0"
+#endif
+
+; The folder the build was copied into. It is "portable", unless the old
+; one was in use and the build went into "portable-new" instead.
+#ifndef MyAppSource
+  #define MyAppSource "portable"
 #endif
 
 #define MyAppName "S-Q Creator Studio"
@@ -48,9 +54,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "portable\S-Q Creator Studio.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "portable\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "portable\browsers\*"; DestDir: "{app}\browsers"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyAppSource}\S-Q Creator Studio.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppSource}\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyAppSource}\browsers\*"; DestDir: "{app}\browsers"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "staging\bin\ffmpeg.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 
 [Icons]

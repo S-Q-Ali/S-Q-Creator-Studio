@@ -24,7 +24,10 @@ set "ICON=src\s_q_ali_media_downloader\resources\icon.ico"
 set "WORKPATH=build\pkg"
 set "DISTPATH=build\out"
 set "APP_NAME=S-Q Creator Studio"
+rem The folder the build is copied into. It is "portable", or
+rem "portable-new" when the old one is in use.
 set "PORTABLE=release\portable"
+set "APPSOURCE=portable"
 
 rem Read the app version from src/__init__.py so the setup name and
 rem installer metadata never drift from the packaged app (single source).
@@ -72,7 +75,7 @@ echo.
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [ERROR] PyInstaller build failed with code %ERRORLEVEL%.
-    exit /b %ERRORLEVEL%
+    call :failed
 )
 
 echo.
@@ -102,10 +105,23 @@ if exist "%PORTABLE%" (
     )
     rmdir /s /q "%EMPTY_DIR%" >nul 2>nul
     if exist "%PORTABLE%" (
-        echo [ERROR] Could not remove the old portable build.
-        echo           Close the running app (or anything holding its files)
-        echo           and run this script again.
-        exit /b 1
+        rem The files are locked - a running copy of the app, most likely.
+        rem Windows will not delete them and will not even rename the
+        rem folder, so the build goes into a fresh one and the installer
+        ; is told to read from there. The running app keeps its files.
+        echo           The old build is in use - the app is probably running.
+        echo           Building into release\portable-new instead.
+        set "PORTABLE=release\portable-new"
+        set "APPSOURCE=portable-new"
+        if exist "%PORTABLE%" (
+            rem A leftover from an earlier build; nobody is running it.
+            rmdir /s /q "%PORTABLE%" >nul 2>nul
+            if exist "%PORTABLE%" (
+                echo [ERROR] Could not remove "%PORTABLE%" either.
+                echo           Close the app and run this script again.
+                call :failed
+            )
+        )
     )
 )
 mkdir "%PORTABLE%"
@@ -113,7 +129,7 @@ xcopy /e /i /q /y "%DISTPATH%\%APP_NAME%\*" "%PORTABLE%\"
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Failed to copy build to %PORTABLE%.
-    exit /b %ERRORLEVEL%
+    call :failed
 )
 
 rem Locate ffmpeg once: PATH first, then the winget install folder.
@@ -195,14 +211,23 @@ if defined FFMPEG_EXE (
 )
 
 echo Running Inno Setup compiler...
-"%ISCC%" /DMyAppVersion=%APP_VERSION% "release\installer.iss"
+rem MyAppSource tells the installer which folder the build landed in.
+"%ISCC%" /DMyAppVersion=%APP_VERSION% /DMyAppSource=%APPSOURCE% "release\installer.iss"
 
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Inno Setup compilation failed.
-    exit /b %ERRORLEVEL%
+    call :failed
 )
 
 echo Installer built: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe
+
+:failed
+rem A build that was started by double-clicking closes its window the
+rem moment it ends, and the message goes with it. The window is kept
+rem open here so the reason can be read. The build server does not need
+rem it.
+if not defined GITHUB_ACTIONS pause
+exit /b 1
 
 :done
 echo.
