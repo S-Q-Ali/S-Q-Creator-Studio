@@ -221,13 +221,19 @@ if %ERRORLEVEL% neq 0 (
 
 echo Installer built: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe
 
+rem Step past the failure subroutine: the build is done.
+goto :done
+
 :failed
 rem A build that was started by double-clicking closes its window the
 rem moment it ends, and the message goes with it. The window is kept
 rem open here so the reason can be read. The build server does not need
 rem it.
 if not defined GITHUB_ACTIONS pause
-exit /b 1
+rem exit without the /b: it ends the whole script. Inside a called
+rem subroutine 'exit /b 1' would only end the subroutine, and the build
+rem would carry on and report success.
+exit 1
 
 :done
 echo.
