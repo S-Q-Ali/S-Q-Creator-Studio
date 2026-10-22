@@ -40,7 +40,7 @@ social = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/S-Q-Ali/Bulk-Video-Downloader"
+Homepage = "https://github.com/S-Q-Ali/S-Q-Creator-Studio"
 
 [project.scripts]
 s-q-ali-media-downloader = "s_q_ali_media_downloader.app:main"

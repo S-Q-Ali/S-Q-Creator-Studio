@@ -8,7 +8,7 @@
 
 #define MyAppName "S-Q Creator Studio"
 #define MyAppPublisher "S-Q-Ali"
-#define MyAppURL "https://github.com/S-Q-Ali/Bulk-Video-Downloader"
+#define MyAppURL "https://github.com/S-Q-Ali/S-Q-Creator-Studio"
 #define MyAppExeName "S-Q Creator Studio.exe"
 
 [Setup]
