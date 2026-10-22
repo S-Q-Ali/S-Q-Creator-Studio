@@ -1,6 +1,5 @@
 """PySide6 Desktop User Interface Tab for YouTube Discovery & Social Inspection Agent."""
 
-import csv
 
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices
@@ -31,6 +30,7 @@ from s_q_ali_media_downloader.agent.schema import (
     SocialStatus,
     TikTokSearchResult,
 )
+from s_q_ali_media_downloader.core.exporter import to_csv, write_export
 from s_q_ali_media_downloader.theme import C
 from s_q_ali_media_downloader.ui.social_discovery_page import SocialDiscoveryPage
 
@@ -788,67 +788,65 @@ class AgentTabWidget(QWidget):
         )
         if not path:
             return
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            if is_tiktok_mode:
-                writer.writerow(
-                    [
-                        "Nickname",
-                        "Handle",
-                        "Followers",
-                        "TikTok URL",
-                        "YouTube Status",
-                        "YouTube URL",
-                        "Flag",
-                    ]
-                )
-                for profile in self.search_result.profiles:
-                    writer.writerow(
-                        [
-                            profile.nickname,
-                            f"@{profile.handle}",
-                            profile.followers_formatted,
-                            profile.profile_url,
-                            profile.youtube.status.value,
-                            profile.youtube.verified_url or "",
-                            profile.opportunity_flag,
-                        ]
-                    )
-            else:
-                writer.writerow(
-                    [
-                        "Channel Title",
-                        "Handle",
-                        "Subscribers",
-                        "YouTube URL",
-                        "Facebook Status",
-                        "Facebook URL",
-                        "Instagram Status",
-                        "Instagram URL",
-                        "TikTok Status",
-                        "TikTok URL",
-                        "Has No Social Pages",
-                        "Flag",
-                    ]
-                )
-                for ch in self.search_result.channels:
-                    writer.writerow(
-                        [
-                            ch.title,
-                            ch.handle,
-                            ch.subscribers_formatted,
-                            ch.youtube_url,
-                            ch.facebook.status.value,
-                            ch.facebook.verified_url or "",
-                            ch.instagram.status.value,
-                            ch.instagram.verified_url or "",
-                            ch.tiktok.status.value,
-                            ch.tiktok.verified_url or "",
-                            "YES" if ch.has_no_socials else "NO",
-                            ch.opportunity_flag,
-                        ]
-                    )
-        self.lbl_status.setText(f"Saved {len(self.search_result.channels if not is_tiktok_mode else self.search_result.profiles)} rows to {path}")
+        # The exporter is the one that writes CSV: it neutralises a cell
+        # that starts with a formula, and the channel titles come from
+        # YouTube. A spreadsheet would otherwise run them.
+        if is_tiktok_mode:
+            columns = [
+                "Nickname",
+                "Handle",
+                "Followers",
+                "TikTok URL",
+                "YouTube Status",
+                "YouTube URL",
+                "Flag",
+            ]
+            rows = [
+                {
+                    "Nickname": profile.nickname,
+                    "Handle": f"@{profile.handle}",
+                    "Followers": profile.followers_formatted,
+                    "TikTok URL": profile.profile_url,
+                    "YouTube Status": profile.youtube.status.value,
+                    "YouTube URL": profile.youtube.verified_url or "",
+                    "Flag": profile.opportunity_flag,
+                }
+                for profile in self.search_result.profiles
+            ]
+        else:
+            columns = [
+                "Channel Title",
+                "Handle",
+                "Subscribers",
+                "YouTube URL",
+                "Facebook Status",
+                "Facebook URL",
+                "Instagram Status",
+                "Instagram URL",
+                "TikTok Status",
+                "TikTok URL",
+                "Has No Social Pages",
+                "Flag",
+            ]
+            rows = [
+                {
+                    "Channel Title": ch.title,
+                    "Handle": ch.handle,
+                    "Subscribers": ch.subscribers_formatted,
+                    "YouTube URL": ch.youtube_url,
+                    "Facebook Status": ch.facebook.status.value,
+                    "Facebook URL": ch.facebook.verified_url or "",
+                    "Instagram Status": ch.instagram.status.value,
+                    "Instagram URL": ch.instagram.verified_url or "",
+                    "TikTok Status": ch.tiktok.status.value,
+                    "TikTok URL": ch.tiktok.verified_url or "",
+                    "Has No Social Pages": "YES" if ch.has_no_socials else "NO",
+                    "Flag": ch.opportunity_flag,
+                }
+                for ch in self.search_result.channels
+            ]
+        write_export(path, to_csv(rows, columns))
+        self.lbl_status.setText(f"Saved {len(rows)} rows to {path}")
 
     def _export_json(self):
         if not self.search_result:

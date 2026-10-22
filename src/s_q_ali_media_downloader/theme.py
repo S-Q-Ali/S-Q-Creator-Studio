@@ -38,7 +38,6 @@ STATUS_COLORS = {
     "Paused": "#FFB020",
     "Completed": "#2DD4BF",
     "Failed": "#F2547D",
-    "Skipped": "#8B83A0",
 }
 
 # --------------------------------------------------------------------------- #
@@ -75,8 +74,6 @@ DENSITY = {
         "gap": 7,
     },
 }
-
-CURRENT_DENSITY = "comfortable"
 
 
 def stylesheet(density: str = "comfortable") -> str:
@@ -331,10 +328,6 @@ QLabel[role="statusText"] {{
 }}
 
 /* ---------- usage notice ---------- */
-#NoticeBar {{
-    background: #241C14;
-    border-top: 1px solid #3E2F1C;
-}}
 QLabel[role="notice"] {{
     color: {C['amber']};
     font-size: {body - 2}px;
@@ -343,20 +336,7 @@ QLabel[role="notice"] {{
     background: transparent;
 }}
 
-/* ---------- social bar ---------- */
-#SocialBar {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 #141020, stop:1 #17121F);
-    border-top: 1px solid {C['border']};
-}}
-QLabel[role="follow"] {{
-    color: {C['accent']};
-    font-size: {body}px;
-    font-weight: 800;
-    letter-spacing: 3px;
-    background: transparent;
-}}
-
+/* ---------- tooltips ---------- */
 QToolTip {{
     background: {C['raised']};
     color: {C['text']};
@@ -366,7 +346,6 @@ QToolTip {{
 
 /* ---------- settings page ---------- */
 #SettingsPage, #SettingsHost {{ background: {C['bg']}; }}
-QLabel[role="cardHint"] {{ color: {C['faint']}; font-size: {caption}px; }}
 
 /* ---------- tables ---------- */
 QTableWidget {{
@@ -433,9 +412,7 @@ def apply_density(window: QWidget, compact: bool) -> None:
     user's: the Settings page offers "follow the window" and two fixed
     choices.
     """
-    global CURRENT_DENSITY
     name = "compact" if compact else "comfortable"
-    CURRENT_DENSITY = name
     tokens = DENSITY[name]
 
     app = QApplication.instance()

@@ -1,6 +1,9 @@
 ; S-Q Creator Studio — Inno Setup script
 ; Per-user install (no admin), bundles ffmpeg.exe for merging.
 ; Version is injected from src/__init__.py at build time via /DMyAppVersion.
+;
+; The installer is built from release\portable\ and release\staging\,
+; which release\build.bat fills in.
 
 #ifndef MyAppVersion
   #define MyAppVersion "2.5.1"

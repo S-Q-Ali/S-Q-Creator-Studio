@@ -43,13 +43,6 @@ VERDICT_TEXT = {
     "unknown": "? Unknown",
 }
 
-VERDICT_COLOR = {
-    "found": "#22C55E",
-    "not_found": "#6E667E",
-    "no_match": "#F97316",
-    "unknown": "#EAB308",
-}
-
 
 class SocialDiscoveryWorker(QThread):
     """Runs the discovery for a list of channels, one after the other."""
@@ -97,6 +90,7 @@ class SocialDiscoveryPage(QWidget):
         super().__init__(parent)
         self.worker: SocialDiscoveryWorker | None = None
         self._results: list[DiscoveryResult] = []
+        self._last_clicked: tuple[int, int] | None = None
         self._build()
 
     # ------------------------------------------------------------------ #
@@ -306,6 +300,16 @@ class SocialDiscoveryPage(QWidget):
             parts.append("click the cell again to open the account")
         self.detail_label.setText("  ·  ".join(parts))
 
+        # The first click shows the account; a second click on the same cell
+        # opens it. The hint says so, and it is what a link is expected to
+        # do.
+        cell = (row, column)
+        if outcome.url and self._last_clicked == cell:
+            QDesktopServices.openUrl(QUrl(outcome.url))
+            self._last_clicked = None
+        else:
+            self._last_clicked = cell
+
     # ------------------------------------------------------------------ #
     # Export
     # ------------------------------------------------------------------ #
@@ -345,9 +349,3 @@ class SocialDiscoveryPage(QWidget):
             self.status_label.setText(f"Could not write the export: {exc}")
             return
         self.status_label.setText(f"Saved {len(self._results)} rows to {path}")
-
-
-def _open_link(url: str) -> None:
-    """Open an account in the browser."""
-    if url:
-        QDesktopServices.openUrl(QUrl(url))

@@ -176,7 +176,7 @@ def propose(
     key = (api_key or groq_key() or "").strip()
     if not key:
         raise JudgeUnavailable(
-            "No Groq API key configured. Add one in Niche Research > Settings."
+            "No Groq API key configured. Add one in Settings > AI Keys."
         )
 
     payload = {

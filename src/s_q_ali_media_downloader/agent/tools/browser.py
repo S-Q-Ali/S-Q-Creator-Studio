@@ -52,13 +52,9 @@ CONSENT_SELECTORS = (
 #: Collects every link and says whether it belongs to an item the page
 #: *lists* (a video on a channel page, a post on a profile). Only the
 #: links that do not belong to a listed item are the page's own — a
-#: channel's About page carries the links of the videos it lists, and
-#: those belong to other creators.
-_LINK_JS = """els => els.map(e => [
-  e.href,
-  !!(e.closest('ytd-channel-video-player-renderer, ytd-rich-item-renderer, '
-             + 'ytd-video-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer'))
-])"""
+#: The links on a rendered page. A channel's About page carries the links of
+#: the videos it lists, and those belong to other creators.
+_LINK_JS = "els => els.map(e => e.href)"
 
 #: The page's own description of itself. A rendered profile page carries the
 #: account's name, its handle and its follower count here, which is far more
@@ -102,12 +98,7 @@ class Page:
     title: str = ""
     text: str = ""
     links: list[str] = field(default_factory=list)
-    own_links: list[str] = field(default_factory=list)
     meta: dict[str, str] = field(default_factory=dict)
-
-    def contains(self, needle: str) -> bool:
-        """Case-insensitive search in the rendered text."""
-        return needle.lower() in self.text.lower()
 
 
 def bundled_browsers_dir() -> Path | None:
@@ -301,14 +292,10 @@ class BrowserSession:
         except Exception:
             text = ""
         links: list[str] = []
-        own_links: list[str] = []
         try:
-            pairs = page.eval_on_selector_all("a[href]", _LINK_JS)
-            for href, in_item in pairs or []:
-                href = str(href)
-                links.append(href)
-                if not in_item:
-                    own_links.append(href)
+            hrefs = page.eval_on_selector_all("a[href]", _LINK_JS)
+            for href in hrefs or []:
+                links.append(str(href))
         except Exception:
             links = []
         meta: dict[str, str] = {}
@@ -325,6 +312,5 @@ class BrowserSession:
             title=title or "",
             text=text or "",
             links=links,
-            own_links=own_links,
             meta=meta,
         )

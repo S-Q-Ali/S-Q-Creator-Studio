@@ -50,11 +50,6 @@ class PlatformOutcome:
     def is_found(self) -> bool:
         return self.verdict == Verdict.FOUND.value
 
-    @property
-    def is_suggested(self) -> bool:
-        """Proposed by the agent, but not confirmed by the account itself."""
-        return self.verdict == Verdict.UNKNOWN.value and self.source == SOURCE_MODEL
-
 
 @dataclass
 class DiscoveryResult:

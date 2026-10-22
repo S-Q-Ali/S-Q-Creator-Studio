@@ -378,7 +378,7 @@ def test_orchestrator_surfaces_note_when_zero_profiles(monkeypatch):
 
 def test_note_when_no_cookiefile_provided():
     tool = TikTokSearchTool()
-    note = tool._build_no_results_note(tags=["sometag"], had_keywords=False)
+    note = tool._build_no_results_note(tags=["sometag"])
     assert "No cookies.txt was provided" in note
     assert "@handles" in note
 
@@ -387,7 +387,7 @@ def test_note_when_cookiefile_failed_to_load(tmp_path):
     tool = TikTokSearchTool(cookiefile=str(tmp_path / "missing.txt"))
     assert tool.cookie_count == 0
     assert tool.cookiefile is not None
-    note = tool._build_no_results_note(tags=[], had_keywords=True)
+    note = tool._build_no_results_note(tags=[])
     assert "failed to load" in note
     assert "No cookies.txt was provided" not in note
 
@@ -397,6 +397,6 @@ def test_note_when_cookiefile_loaded_but_blocked(tmp_path):
     _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc")])
     tool = TikTokSearchTool(cookiefile=str(p))
     assert tool.cookie_count == 1
-    note = tool._build_no_results_note(tags=["tech"], had_keywords=False)
+    note = tool._build_no_results_note(tags=["tech"])
     assert "1 cookies" in note
     assert "listing stayed blocked" in note

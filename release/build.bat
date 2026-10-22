@@ -4,9 +4,15 @@ rem ============================================================
 rem  S-Q Creator Studio — Canonical Release Build Script
 rem  Produces a one-directory build in build\out\, then copies
 rem  it to release\portable\ ready for the Inno Setup installer.
+rem
+rem  Everything about the release lives in this folder: this script,
+rem  installer.iss, and the portable\ staging\ and the installers
+rem  themselves. Run it from anywhere - it moves to the repository
+rem  root first, because every path below is relative to it.
 rem ============================================================
 
-set "ROOT=%~dp0"
+cd /d "%~dp0.."
+set "ROOT=%~dp0..\"
 set "VENV=%ROOT%source\venv"
 rem The build uses the project's virtualenv when there is one. A build
 rem machine (CI) has no source\venv - it installs the dependencies into
@@ -24,10 +30,10 @@ rem Read the app version from src/__init__.py so the setup name and
 rem installer metadata never drift from the packaged app (single source).
 set "VERFILE=%TEMP%\sq_creator_ver.tmp"
 if exist "%VERFILE%" del /q "%VERFILE%"
-"%PYTHON_EXE%" -c "import io,sys; sys.path.insert(0, r'%~dp0src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
+"%PYTHON_EXE%" -c "import io,sys; sys.path.insert(0, r'%ROOT%src'); import s_q_ali_media_downloader; print(s_q_ali_media_downloader.__version__)" > "%VERFILE%"
 set /p APP_VERSION=<"%VERFILE%"
 del /q "%VERFILE%" 2>nul
-if not defined APP_VERSION set "APP_VERSION=2.5.1"
+if not defined APP_VERSION set "APP_VERSION=2.6.0"
 
 echo.
 echo ============================================================

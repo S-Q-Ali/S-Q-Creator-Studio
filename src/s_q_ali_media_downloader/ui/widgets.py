@@ -1,7 +1,7 @@
 """Reusable widgets: queue cards, chips and small drawing helpers."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -22,32 +22,6 @@ def shorten(text, limit=95):
     if len(text) <= limit:
         return text
     return text[: limit - 1] + "…"
-
-
-def glyph_icon(glyph, size=18):
-    pm = QPixmap(size, size)
-    pm.fill(Qt.transparent)
-    painter = QPainter(pm)
-    painter.setRenderHint(QPainter.Antialiasing)
-    white = QColor("#FFFFFF")
-    if glyph == "play":
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(white)
-        path = QPainterPath()
-        path.moveTo(size * 0.3, size * 0.22)
-        path.lineTo(size * 0.8, size * 0.5)
-        path.lineTo(size * 0.3, size * 0.78)
-        path.closeSubpath()
-        painter.drawPath(path)
-    else:
-        font = QFont("Segoe UI")
-        font.setPixelSize(int(size * 0.78))
-        font.setBold(True)
-        painter.setFont(font)
-        painter.setPen(white)
-        painter.drawText(pm.rect(), Qt.AlignCenter, glyph)
-    painter.end()
-    return QIcon(pm)
 
 
 def shield_pixmap(size=15, colour="#FFB020"):

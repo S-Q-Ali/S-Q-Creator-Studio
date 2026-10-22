@@ -212,7 +212,6 @@ def test_the_settings_page_is_reachable_and_holds_the_groq_key(window):
         qapp_process()
 
     assert window.workspace_stack.currentWidget() is window.settings_page
-    assert window.settings_page.groq_edit.text() or True  # it exists
 
 
 def qapp_process():

@@ -5,6 +5,7 @@ import logging
 import httpx
 
 from s_q_ali_media_downloader.agent.schema import ChannelMetadata
+from s_q_ali_media_downloader.core.format import format_count
 from s_q_ali_media_downloader.core.youtube_client import (
     ChannelInfo,
     search_channels,
@@ -169,8 +170,4 @@ class YouTubeSearchTool:
     @staticmethod
     def format_subs(subs: int) -> str:
         """Formats integer subscriber count (e.g. 1820000 -> 1.8M)."""
-        if subs >= 1_000_000:
-            return f"{subs / 1_000_000:.1f}M"
-        if subs >= 1_000:
-            return f"{subs / 1_000:.1f}K"
-        return str(subs)
+        return format_count(subs)

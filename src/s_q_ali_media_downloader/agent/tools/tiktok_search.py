@@ -19,16 +19,13 @@ import yt_dlp
 
 from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
 from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+from s_q_ali_media_downloader.core.format import format_count
 
 logger = logging.getLogger(__name__)
 
 SEARCH_URL = "https://www.tiktok.com/search?q={query}"
 TAG_URL = "https://www.tiktok.com/tag/{tag}"
 PROFILE_URL = "https://www.tiktok.com/@{handle}"
-
-# Handles harvested from embedded JSON (works even without yt-dlp).
-UNIQUE_ID_PATTERN = re.compile(r'"uniqueId"\s*:\s*"([A-Za-z0-9\._]{2,30})"')
-AT_HANDLE_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})/")
 
 # Seed profiles: @handle tokens or full profile URLs typed by the user.
 SEED_URL_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})")
@@ -49,11 +46,7 @@ EXCLUDED_HANDLES = {
 
 
 def format_followers(count: int) -> str:
-    if count >= 1_000_000:
-        return f"{count / 1_000_000:.1f}M"
-    if count >= 1_000:
-        return f"{count / 1_000:.1f}K"
-    return str(count)
+    return format_count(count)
 
 
 class TikTokSearchTool:
@@ -117,7 +110,7 @@ class TikTokSearchTool:
                 handles += self._discover_via_ytdlp(SEARCH_URL.format(query=base))
 
         if not handles:
-            self.search_note = self._build_no_results_note(tags, bool(keywords))
+            self.search_note = self._build_no_results_note(tags)
             logger.warning(self.search_note)
 
         # Dedupe, filter, cap
@@ -211,7 +204,7 @@ class TikTokSearchTool:
                 logger.warning(f"TikTok profile enrichment failed for @{profile.handle}: {e}")
         return profiles
 
-    def _build_no_results_note(self, tags: list[str], had_keywords: bool) -> str:
+    def _build_no_results_note(self, tags: list[str]) -> str:
         note = (
             "TikTok returned 0 profiles. TikTok blocks anonymous #tag/search "
             "listing; the signed listing API was also empty."

@@ -178,9 +178,17 @@ def impersonation_summary():
     return (target is not None, label)
 
 
-def default_output_dir():
+def app_storage_dir():
+    """Where the app keeps its data: the queue, the settings, the downloads.
+
+    One place decides this, so the folders cannot drift apart.
+    """
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    return os.path.join(base, APP_NAME, "storage", "downloads")
+    return os.path.join(base, APP_NAME, "storage")
+
+
+def default_output_dir():
+    return os.path.join(app_storage_dir(), "downloads")
 
 
 def is_tiktok_url(url):

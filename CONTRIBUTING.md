@@ -29,7 +29,7 @@ Everything must pass before a PR is merged. CI runs lint, tests, and a
 - `src/s_q_ali_media_downloader/app.py` — application entry point.
 - `src/s_q_ali_media_downloader/ui/` — `main_window.py` (window + wiring) and `widgets.py` (cards, chips, drawing helpers).
 - `src/s_q_ali_media_downloader/agent/` — AI Channel Finder: discovery orchestrator, typed schemas, social verification tools.
-- `src/s_q_ali_media_downloader/niche_research/` — Research suite (keyword/trending/scorecard pages, engines, storage); themes under `ui/theme.py`.
+- `src/s_q_ali_media_downloader/core/` — the parts that are not a feature: the secret store (API keys, sealed with DPAPI), the YouTube client, the exporter.
 - `tests/` — pytest suite. Keep it green; add tests alongside new behaviour.
 
 ## Guidelines
@@ -42,11 +42,11 @@ Everything must pass before a PR is merged. CI runs lint, tests, and a
   installer outputs) or virtual environments — see `.gitignore`.
 - Do not commit secrets, API keys, session exports, or personal `opencode.json`
   files (all ignored).
-- Use the single dark ink-plum/cyan palette for any UI work — `theme.py` for
-  the downloader, `niche_research/ui/theme.py` for the research suite. There is
-  no second light/research theme anymore.
-- Research QSS: any selector you add must render inside
-  `research_style()` and is covered by `tests/test_qss_parses.py`.
+- Use the single dark ink-plum/cyan palette for any UI work — `theme.py` holds
+  the palette and the one stylesheet, and it has a compact variant that the
+  app switches to on a small screen. There is no second theme anymore.
+- Any selector you add to the stylesheet must parse cleanly — that is
+  covered by `tests/test_qss_parses.py`.
 
 ## Pull requests
 
@@ -57,7 +57,11 @@ Everything must pass before a PR is merged. CI runs lint, tests, and a
 
 ## Releases
 
-Maintainers cut releases by tagging (`v2.1.0`, …). The tag triggers the CI
+Everything about a release lives in `release/` — the build script, the
+installer definition, and a README that says how to run it.
+
+Maintainers cut releases by tagging (`v2.6.1`, …). The tag triggers the CI
 release pipeline: lint, tests, pip-audit, then a portable build published as a
-GitHub Release asset. The Inno installer is produced locally with
-`build_release.bat` (PyInstaller + Inno Setup) and uploaded alongside it.
+GitHub Release asset, with the Inno installer built the same way. To build it
+on your own machine instead, run `release\build.bat` — see `release/README.md`
+for what it needs.

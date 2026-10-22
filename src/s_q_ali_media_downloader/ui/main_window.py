@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from PySide6.QtCore import QSettings, Qt, QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -27,7 +27,6 @@ from PySide6.QtWidgets import (
 from s_q_ali_media_downloader import __version__
 from s_q_ali_media_downloader.engine import (
     ACCOUNT_LIMITS,
-    APP_NAME,
     APP_TITLE,
     INLINE_RETRIES,
     MAX_ACCOUNT_VIDEOS,
@@ -36,6 +35,7 @@ from s_q_ali_media_downloader.engine import (
     AccountFetchThread,
     DownloadThread,
     YouTubeFetchThread,
+    app_storage_dir,
     default_output_dir,
     impersonation_summary,
     is_profile_url,
@@ -77,8 +77,7 @@ def resource(name):
 
 
 def storage_dir():
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    return os.path.join(base, APP_NAME, "storage")
+    return app_storage_dir()
 
 
 def queue_file():
@@ -92,7 +91,6 @@ class MainWindow(QMainWindow):
         self.resize(1240, 840)
         self.setMinimumSize(1060, 720)
 
-        self.settings = QSettings(ORG, APP_NAME)
         self.jobs = []
         self.cards = {}
         self.thread = None

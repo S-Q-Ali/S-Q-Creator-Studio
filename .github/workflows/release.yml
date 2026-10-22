@@ -45,7 +45,7 @@ jobs:
 
       - name: Build the portable app and the installer
         shell: cmd
-        run: build_release.bat
+        run: release\build.bat
 
       - name: Check the build
         shell: pwsh
