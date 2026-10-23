@@ -18,7 +18,7 @@ import re
 import yt_dlp
 
 from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
-from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
+from s_q_ali_media_downloader.agent.tools.tiktok_api import EXCLUDED_HANDLES, TikTokApiSession
 from s_q_ali_media_downloader.core.format import format_count
 
 logger = logging.getLogger(__name__)
@@ -30,19 +30,6 @@ PROFILE_URL = "https://www.tiktok.com/@{handle}"
 # Seed profiles: @handle tokens or full profile URLs typed by the user.
 SEED_URL_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})")
 SEED_AT_PATTERN = re.compile(r"(?<![\w@])@([A-Za-z0-9\._]{2,30})")
-
-# Non-profile handles that appear in embedded payloads.
-EXCLUDED_HANDLES = {
-    "tiktok",
-    "foryou",
-    "following",
-    "explore",
-    "live",
-    "upload",
-    "login",
-    "signup",
-    "discover",
-}
 
 
 def format_followers(count: int) -> str:
