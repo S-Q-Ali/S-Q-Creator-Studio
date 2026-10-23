@@ -685,7 +685,9 @@ class DownloadThread(QThread):
         opts.update(
             {
                 "format": QUALITY_OPTIONS[self.quality],
-                "outtmpl": os.path.join(self.output_dir, TEMP_PREFIX + "%(id)s.%(ext)s"),
+                "outtmpl": os.path.join(
+                    self.output_dir, f"{TEMP_PREFIX}%(id)s-{uid}.%(ext)s"
+                ),
                 "merge_output_format": "mp4",
                 "ignoreerrors": False,
                 "retries": 0,
@@ -775,17 +777,28 @@ class DownloadThread(QThread):
     def _try_with_inline(self, uid, url, position):
         tries = 1 + INLINE_RETRIES
         error = "Unknown error"
-        for n in range(1, tries + 1):
-            ok, size, error = self._attempt(uid, url)
-            if ok:
-                return (True, size, "", False)
-            if is_permanent(error):
-                return (False, "—", error, True)
-            if n < tries:
-                self.job_retrying.emit(uid, n, INLINE_RETRIES)
-                self.log.emit(f"{position} failed — retry {n} of {INLINE_RETRIES}…")
-                self._sleep(random.uniform(*INLINE_RETRY_WAIT))
-        return (False, "—", error, False)
+        try:
+            for n in range(1, tries + 1):
+                ok, size, error = self._attempt(uid, url)
+                if ok:
+                    return (True, size, "", False)
+                if is_permanent(error):
+                    return (False, "—", error, True)
+                if n < tries:
+                    self.job_retrying.emit(uid, n, INLINE_RETRIES)
+                    self.log.emit(f"{position} failed — retry {n} of {INLINE_RETRIES}…")
+                    self._sleep(random.uniform(*INLINE_RETRY_WAIT))
+            return (False, "—", error, False)
+        finally:
+            # A failed download may leave __amd_<id>-<uid>.part behind.
+            # Remove only this job's temp files; a parallel job's files
+            # have a different uid in the name.
+            for name in _listdir(self.output_dir):
+                if name.startswith(TEMP_PREFIX) and f"-{uid}." in name:
+                    try:
+                        os.remove(os.path.join(self.output_dir, name))
+                    except OSError:
+                        pass
 
     def _run_pool(self, items, inline, label, final):
         total = len(items)

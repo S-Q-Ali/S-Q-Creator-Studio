@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import os
+import types
 import pytest
 import yt_dlp
 from packaging.version import Version
@@ -22,8 +24,8 @@ from s_q_ali_media_downloader.engine import (
     tidy_error,
     tiktok_page_url,
     unique_basename,
+    TEMP_PREFIX,
 )
-
 
 def test_sanitize_filename():
     assert sanitize_filename("") == "untitled"
@@ -76,6 +78,63 @@ def test_is_permanent():
     assert is_permanent("private video")
     assert is_permanent("this format needs ffmpeg to merge. pick a lower quality.")
     assert is_permanent(tidy_error(Exception("needs ffmpeg to merge audio and video")))
+
+
+def test_download_temp_name_includes_job_uid(tmp_path, monkeypatch):
+    """Two jobs downloading the same URL must not share one temp file."""
+    import s_q_ali_media_downloader.engine as engine_module
+
+    captured = {}
+
+    class FakeYDL:
+        def __init__(self, opts):
+            captured["outtmpl"] = opts.get("outtmpl")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def extract_info(self, url, download=True):
+            raise RuntimeError("stop before downloading")
+
+    thread = DownloadThread(
+        jobs=[], output_dir=str(tmp_path), quality="1080p"
+    )
+    monkeypatch.setattr(
+        engine_module,
+        "yt_dlp",
+        types.SimpleNamespace(YoutubeDL=FakeYDL),
+    )
+    try:
+        thread._download_one(7, "https://www.youtube.com/watch?v=abc123")
+    except RuntimeError:
+        pass
+    assert "-7." in captured["outtmpl"], captured["outtmpl"]
+
+
+def test_failed_download_removes_only_its_own_temp_files(tmp_path, monkeypatch):
+    thread = DownloadThread(
+        jobs=[], output_dir=str(tmp_path), quality="1080p"
+    )
+    uid = 7
+    other_uid = 99
+    vid = "abc123"
+    own = tmp_path / f"{TEMP_PREFIX}{vid}-{uid}.part"
+    other = tmp_path / f"{TEMP_PREFIX}{vid}-{other_uid}.part"
+    own.write_text("partial")
+    other.write_text("partial")
+
+    monkeypatch.setattr(
+        thread,
+        "_attempt",
+        lambda uid_arg, url: (False, "\u2014", "boom"),
+    )
+    thread._try_with_inline(uid, "https://www.youtube.com/watch?v=abc123", "pass 1")
+
+    assert not own.exists(), "this job's temp file should be removed on failure"
+    assert other.exists(), "another job's temp file must not be touched"
 
 
 def test_ytdlp_floor_guards_tiktok_account_fetch():
