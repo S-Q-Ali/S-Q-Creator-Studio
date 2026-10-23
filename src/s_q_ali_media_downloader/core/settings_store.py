@@ -24,8 +24,6 @@ import os
 import sqlite3
 import sys
 import threading
-import time
-from collections.abc import Iterable, Sequence
 from ctypes import wintypes
 from typing import Any
 
@@ -236,47 +234,3 @@ def close_store() -> None:
                 pass
             _conn = None
         _db_path = None
-
-
-# --------------------------------------------------------------------------
-# The plain SQL helpers. The store owns the connection, so anything that needs
-# to read or write a row goes through here rather than opening its own.
-# --------------------------------------------------------------------------
-
-
-def run(sql: str, params: Sequence[Any] = ()) -> sqlite3.Cursor:
-    """Run a statement and commit it."""
-    conn = _connect()
-    with _env_lock:
-        cur = conn.execute(sql, params)
-        conn.commit()
-        return cur
-
-
-def all(sql: str, params: Sequence[Any] = ()) -> list[dict[str, Any]]:
-    """Run a query and return every row as a dict."""
-    conn = _connect()
-    with _env_lock:
-        rows = conn.execute(sql, params).fetchall()
-    return [dict(row) for row in rows]
-
-
-def get(sql: str, params: Sequence[Any] = ()) -> dict[str, Any] | None:
-    """Run a query and return the first row as a dict, or ``None``."""
-    conn = _connect()
-    with _env_lock:
-        row = conn.execute(sql, params).fetchone()
-    return dict(row) if row else None
-
-
-def exec_many(sql: str, seq: Iterable[Sequence[Any]]) -> None:
-    """Run one statement for every item in ``seq``."""
-    conn = _connect()
-    with _env_lock:
-        conn.executemany(sql, seq)
-        conn.commit()
-
-
-def now() -> int:
-    """Current unix time in milliseconds."""
-    return int(time.time() * 1000)

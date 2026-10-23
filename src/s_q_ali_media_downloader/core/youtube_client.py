@@ -112,19 +112,6 @@ def get_cookies_file() -> str | None:
     return path
 
 
-def parse_video_id(url_or_id: str) -> str | None:
-    if re.fullmatch(r"[A-Za-z0-9_-]{11}", url_or_id):
-        return url_or_id
-    match = VIDEO_ID_RE.search(url_or_id)
-    return match.group(1) if match else None
-
-
-def parse_channel_id(url_or_id: str) -> str | None:
-    if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", url_or_id):
-        return url_or_id
-    match = CHANNEL_ID_RE.search(url_or_id)
-    return match.group(1) if match else None
-
 
 YOUTUBE_HOSTS = frozenset(
     {
@@ -647,50 +634,6 @@ def search_channels(
     return out
 
 
-def fetch_video(video_id: str, *, cookiefile: str | None = None, api_key: str | None = None) -> VideoInfo:
-    """Fetch full metadata for a single video."""
-    key = api_key or get_api_key()
-    if key:
-        with httpx.Client(timeout=20.0) as client:
-            try:
-                videos = _fetch_videos_via_api(client, [video_id], key)
-                if videos:
-                    return videos[0]
-            except YoutubeApiError as exc:
-                logger.warning("API video fetch failed (%s); falling back", exc)
-    info = _extract(
-        f"https://www.youtube.com/watch?v={video_id}", _base_opts(cookiefile=cookiefile)
-    )
-    return _to_video_info(info)
-
-
-def fetch_videos(
-    video_ids: Iterable[str],
-    *,
-    cookiefile: str | None = None,
-    progress: Callable[[str], None] | None = None,
-    api_key: str | None = None,
-) -> list[VideoInfo]:
-    """Fetch many videos. Preservation of input order; per-item error tolerance."""
-    ids = [v for v in dict.fromkeys(video_ids) if v]
-    by_id: dict[str, VideoInfo] = {}
-    key = api_key or get_api_key()
-    if key:
-        with httpx.Client(timeout=20.0) as client:
-            try:
-                for v in _fetch_videos_via_api(client, ids, key):
-                    by_id[v.video_id] = v
-            except YoutubeApiError as exc:
-                logger.warning("API video batch failed (%s); falling back", exc)
-    missing = [vid for vid in ids if vid not in by_id]
-    for i, video_id in enumerate(missing, start=1):
-        if progress:
-            progress(f"Fetching video {i}/{len(missing)}: {video_id}")
-        try:
-            by_id[video_id] = fetch_video(video_id, cookiefile=cookiefile, api_key=key)
-        except YoutubeApiError:
-            logger.debug("Skipping un-fetchable video %s", video_id)
-    return [by_id[vid] for vid in ids if vid in by_id]
 
 
 def fetch_channel(

@@ -16,26 +16,6 @@ def _isolated_db(isolated_appdata):
     db.close_store()
 
 
-def test_parse_video_id():
-    cases = {
-        "dQw4w9WgXcQ": "dQw4w9WgXcQ",
-        "https://www.youtube.com/watch?v=dQw4w9WgXcQ": "dQw4w9WgXcQ",
-        "https://youtu.be/dQw4w9WgXcQ?t=30": "dQw4w9WgXcQ",
-        "https://www.youtube.com/shorts/dQw4w9WgXcQ": "dQw4w9WgXcQ",
-        "https://www.youtube.com/embed/dQw4w9WgXcQ": "dQw4w9WgXcQ",
-        "not a video": None,
-    }
-    for url, expected in cases.items():
-        assert yc.parse_video_id(url) == expected
-
-
-def test_parse_channel_id():
-    cid = "UCisZ2efLJn1Dxvn4th6mwlA"
-    assert yc.parse_channel_id(cid) == cid
-    assert yc.parse_channel_id(f"https://www.youtube.com/channel/{cid}") == cid
-    assert yc.parse_channel_id(f"https://www.youtube.com/channel/{cid}/videos") == cid
-    assert yc.parse_channel_id("UCtooshort") is None
-    assert yc.parse_channel_id("https://www.youtube.com/@handle") is None
 
 
 # --------------------------------------------------------------------------- #
@@ -301,42 +281,6 @@ def test_daterange_skipped_when_no_window(monkeypatch):
     assert "daterange" not in captured["opts"]
 
 
-def test_rate_limit_mapping_for_bot_check(monkeypatch):
-    class BoomYDL:
-        def __init__(self, opts):
-            self.opts = opts
-
-        def extract_info(self, url, download=False):
-            raise ydl_utils.DownloadError("ERROR: [youtube] Sign in to confirm you're not a bot")
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    monkeypatch.setattr(yt_dlp, "YoutubeDL", BoomYDL)
-    with pytest.raises(yc.RateLimitError):
-        yc.fetch_video("abc")
-
-
-def test_not_found_mapping(monkeypatch):
-    class NotFoundYDL:
-        def __init__(self, opts):
-            self.opts = opts
-
-        def extract_info(self, url, download=False):
-            raise ydl_utils.DownloadError("ERROR: [youtube] abc: Video unavailable")
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    monkeypatch.setattr(yt_dlp, "YoutubeDL", NotFoundYDL)
-    with pytest.raises(yc.NotFoundError):
-        yc.fetch_video("abc")
 
 
 def test_search_via_api_path_used_when_key_set(monkeypatch):
@@ -351,15 +295,6 @@ def test_search_via_api_path_used_when_key_set(monkeypatch):
     results = yc.search_videos("query")
     assert called.get("hit")
     assert results[0].video_id == "api1"
-
-
-def test_fetch_videos_preserves_order(monkeypatch):
-    def fake_fetch_video(video_id, cookiefile=None, api_key=None):
-        return yc.VideoInfo(video_id=video_id, view_count=len(video_id))
-
-    monkeypatch.setattr(yc, "fetch_video", fake_fetch_video)
-    results = yc.fetch_videos(["z", "a", "m", "z"])
-    assert [v.video_id for v in results] == ["z", "a", "m"]
 
 
 def test_chunks():

@@ -80,24 +80,6 @@ def _column_order(rows: Iterable[dict[str, Any]]) -> list[str]:
     return seen
 
 
-def _split_sections(
-    rows: Sequence[dict[str, Any]],
-    sections: Sequence[tuple[str, Sequence[dict[str, Any]]]],
-) -> tuple[str, list[dict[str, Any]], list[tuple[str, list[dict[str, Any]]]]]:
-    """Split the main rows from the named sections.
-
-    Some pages (the Competitors page) hand the *same* list to the exporter
-    twice: once as the main rows and once as the first named section.  The
-    main group is therefore matched against the sections by content: the
-    matching section supplies the label and is not written a second time.
-    """
-    main_rows = list(rows)
-    remaining = [(name, list(section_rows)) for name, section_rows in sections]
-    for index, (name, section_rows) in enumerate(remaining):
-        if section_rows == main_rows:
-            return name, main_rows, remaining[:index] + remaining[index + 1 :]
-    return "Main", main_rows, remaining
-
 
 def to_csv(
     rows: Sequence[dict[str, Any]],
@@ -187,20 +169,6 @@ def _md_cell(value: Any) -> str:
     return text
 
 
-def to_markdown(
-    title: str,
-    rows: Sequence[dict[str, Any]],
-    columns: Sequence[str] | None = None,
-    *,
-    sections: Sequence[tuple[str, Sequence[dict[str, Any]]]] = (),
-) -> str:
-    """Build a Markdown report.
-
-    ``rows`` is the main table; ``sections`` adds extra titled tables (the AI
-    analysis uses it for ideas, scripts and the growth blueprint).
-    """
-    lines: list[str] = [f"# {title}", "", f"Generated {_now_label()}", ""]
-
     def add_table(table_rows: Sequence[dict[str, Any]], cols: Sequence[str] | None) -> None:
         if not table_rows:
             lines.append("_No data._")
@@ -266,14 +234,3 @@ def write_export(path: str, text: str) -> None:
         fh.write(text)
 
 
-def rows_from(items: Iterable[Any]) -> list[dict[str, Any]]:
-    """Normalise an iterable of dataclasses/dicts into plain dicts."""
-    from dataclasses import asdict, is_dataclass
-
-    out: list[dict[str, Any]] = []
-    for item in items:
-        if is_dataclass(item) and not isinstance(item, type):
-            out.append(asdict(item))
-        elif isinstance(item, dict):
-            out.append(dict(item))
-    return out
