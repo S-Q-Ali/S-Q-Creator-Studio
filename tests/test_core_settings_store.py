@@ -1,7 +1,6 @@
 """Tests for the app's secret store."""
 
 import os
-import sys
 
 import pytest
 

@@ -28,7 +28,6 @@ COMPETITOR_SECTIONS = [
 
 
 def _csv_rows(text: str) -> list[list[str]]:
-    import csv, io
     return list(csv.reader(io.StringIO(text)))
 
 

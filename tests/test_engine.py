@@ -1,10 +1,9 @@
 """Engine helpers, presets and platform-specific download options."""
 
+import types
 from pathlib import Path
 from unittest.mock import patch
 
-import os
-import types
 import pytest
 import yt_dlp
 from packaging.version import Version
@@ -13,6 +12,7 @@ from s_q_ali_media_downloader.engine import (
     DEFAULT_DELAY,
     DELAY_PRESETS,
     QUALITY_OPTIONS,
+    TEMP_PREFIX,
     AccountFetchThread,
     DownloadThread,
     YouTubeFetchThread,
@@ -24,8 +24,8 @@ from s_q_ali_media_downloader.engine import (
     tidy_error,
     tiktok_page_url,
     unique_basename,
-    TEMP_PREFIX,
 )
+
 
 def test_sanitize_filename():
     assert sanitize_filename("") == "untitled"

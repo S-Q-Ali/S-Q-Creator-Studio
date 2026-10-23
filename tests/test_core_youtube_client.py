@@ -1,8 +1,6 @@
 """Tests for the Niche Research yt-dlp YouTube client."""
 
 import pytest
-import yt_dlp
-import yt_dlp.utils as ydl_utils
 
 from s_q_ali_media_downloader.core import settings_store as db
 from s_q_ali_media_downloader.core import youtube_client as yc

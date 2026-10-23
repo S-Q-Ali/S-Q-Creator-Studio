@@ -25,7 +25,6 @@ import sqlite3
 import sys
 import threading
 from ctypes import wintypes
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
