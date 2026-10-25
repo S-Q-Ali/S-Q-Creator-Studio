@@ -102,11 +102,16 @@ def get_cookies_file() -> str | None:
     research pages on most IPs. A cookies.txt exported from a logged-in
     browser is the escape hatch — it is configured once in Settings and used
     by every request.
+
+    Returns ``None`` if the file is not configured or not found.
     """
     path = (settings_store.get_setting("youtube_cookies_file") or "").strip()
     if not path:
         return None
     if not os.path.isfile(path):
+        # Warning is logged but we return None so the app can continue
+        # without the cookies file. The user will see "bot check" errors
+        # until they configure a valid file.
         logger.warning("Configured cookies file is missing: %s", path)
         return None
     return path

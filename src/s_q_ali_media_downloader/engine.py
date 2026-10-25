@@ -80,8 +80,10 @@ QUALITY_OPTIONS = {
     "Audio only": "bestaudio/best",
 }
 
-MAX_ACCOUNT_VIDEOS = 200
+# Derive MAX_ACCOUNT_VIDEOS from ACCOUNT_LIMITS so changing the UI list
+# automatically updates the cap.
 ACCOUNT_LIMITS = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
+MAX_ACCOUNT_VIDEOS = max(ACCOUNT_LIMITS)
 
 # YouTube's default player client ("web") needs a PO token that only a real
 # browser can mint, so a single-video download from most non-residential IPs
@@ -231,6 +233,11 @@ def is_profile_url(url):
 
 
 def is_youtube_url(url):
+    """Check if a URL is a YouTube video URL.
+
+    Note: This is duplicated in youtube_client.py for import flexibility.
+    Keep them in sync when updating the pattern.
+    """
     low = url.strip().lower()
     if not low.startswith(("http://", "https://")):
         return False
@@ -365,11 +372,16 @@ class AccountFetchThread(QThread):
 
 
 class YouTubeFetchThread(QThread):
-    """Expands a YouTube playlist or channel into individual video URLs."""
+    """Expands a YouTube playlist or channel into individual video URLs.
+
+    Emits progress updates so users know the app isn't frozen during large
+    channel expansions (e.g., 500 videos).
+    """
 
     found = Signal(list, str)
     failed = Signal(str)
     note = Signal(str)
+    progress = Signal(int, str)  # (current, total)
 
     def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None, include_shorts=False):
         super().__init__(parent)
@@ -411,7 +423,8 @@ class YouTubeFetchThread(QThread):
         }
         urls: list[str] = []
         label = ""
-        for target in self._targets():
+        total_targets = len(self._targets())
+        for target_idx, target in enumerate(self._targets()):
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(target, download=False)
@@ -436,9 +449,14 @@ class YouTubeFetchThread(QThread):
                 candidate = f"https://www.youtube.com/watch?v={vid}"
                 if candidate not in urls:
                     urls.append(candidate)
+                    # Emit progress for large expansions.
+                    if taken % 50 == 0:
+                        self.progress.emit(taken, self.limit)
                 taken += 1
                 if taken >= self.limit:
                     break
+            # Progress between tabs.
+            self.progress.emit(taken, self.limit)
         if not urls:
             self.failed.emit("No videos found in that playlist or channel.")
             return
@@ -755,6 +773,11 @@ class DownloadThread(QThread):
             return "—"
 
     def _attempt(self, uid, url):
+        """Attempt a single download.
+
+        Handles impersonation failures by retrying without impersonation once.
+        This is merged into the inline retry loop to avoid duplicate logic.
+        """
         try:
             return (True, self._download_one(uid, url), "")
         except _Stopped:
@@ -762,6 +785,8 @@ class DownloadThread(QThread):
         except Exception as exc:
             raw = str(exc).lower()
             if self._impersonate and "impersonat" in raw:
+                # Retry once without impersonation if the failure was due to
+                # impersonation being unavailable.
                 self._impersonate = False
                 self.log.emit("Browser impersonation unavailable — continuing without it.")
                 try:

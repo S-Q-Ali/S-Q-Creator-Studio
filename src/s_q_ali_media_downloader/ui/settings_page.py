@@ -13,6 +13,7 @@ column of cards, in the app's own design language.
 from __future__ import annotations
 
 import os
+import os.path
 
 from PySide6.QtCore import QSettings, Qt, Signal
 from PySide6.QtWidgets import (
@@ -321,7 +322,8 @@ class SettingsPage(QWidget):
 
         self.groq_edit.setText(settings_store.get_setting(GROQ_KEY) or "")
         self.youtube_key_edit.setText(settings_store.get_setting(YOUTUBE_KEY) or "")
-        self.cookies_file_edit.setText(settings_store.get_setting(COOKIES_FILE_KEY) or "")
+        cookies_path = settings_store.get_setting(COOKIES_FILE_KEY) or ""
+        self.cookies_file_edit.setText(cookies_path)
 
         unreadable = [
             name
@@ -334,6 +336,14 @@ class SettingsPage(QWidget):
                 + " and ".join(unreadable)
                 + " cannot be decrypted on this Windows account. Enter them again."
             )
+            self.key_warning.setVisible(True)
+        elif cookies_path and not os.path.isfile(cookies_path):
+            # Cookies file is configured but doesn't exist — show a warning.
+            self.key_warning.setText(
+                f"Configured cookies file not found: {cookies_path}\n"
+                "YouTube bot checks will block downloads until you configure a valid file."
+            )
+            self.key_warning.setStyleSheet("color: #FFB020;")
             self.key_warning.setVisible(True)
         else:
             self.key_warning.setVisible(False)
@@ -434,7 +444,22 @@ class SettingsPage(QWidget):
     def choose_folder(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Choose a folder")
         if path:
-            self.folder_edit.setText(path)
+            # Validate the folder is writable before accepting.
+            try:
+                os.makedirs(path, exist_ok=True)
+                test_file = os.path.join(path, ".write_test")
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+                self.folder_edit.setText(path)
+                self.set_status(f"Folder validated: {path}")
+            except OSError as exc:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Folder",
+                    f"Cannot write to this folder:\n{path}\n\n{exc}",
+                )
+                self.set_status("Folder not writable — please choose another.")
 
     def open_folder(self) -> None:
         path = self.folder_edit.text().strip()
