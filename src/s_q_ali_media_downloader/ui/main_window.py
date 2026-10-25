@@ -1,10 +1,15 @@
 """Main window for S-Q Creator Studio."""
 
-import fcntl
 import json
 import logging
 import os
 import sys
+
+# fcntl is Unix-only; we use Windows file locking instead
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Windows
 
 logger = logging.getLogger(__name__)
 
@@ -640,8 +645,11 @@ class MainWindow(QMainWindow):
             lock_acquired = False
             with open(queue_path, "a") as lock_file:
                 try:
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-                    lock_acquired = True
+                    if fcntl:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                        lock_acquired = True
+                    else:
+                        raise AttributeError("fcntl not available on Windows")
                 except (OSError, AttributeError):
                     # fcntl not available on Windows; use a lock file.
                     lock_path = queue_path + ".lock"
@@ -668,7 +676,8 @@ class MainWindow(QMainWindow):
                 finally:
                     try:
                         if lock_acquired:
-                            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                            if fcntl:
+                                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
                             lock_file.close()
                     except (OSError, AttributeError):
                         # Only delete lock_path if it was created (fcntl failed)

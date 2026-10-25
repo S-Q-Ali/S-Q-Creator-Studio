@@ -10,13 +10,16 @@ no usable browser is found.
 
 from __future__ import annotations
 
+import typing
+
 import pytest
 
 from s_q_ali_media_downloader.agent.tools import (
     browser as br,
+)
+from s_q_ali_media_downloader.agent.tools import (
     social_verify as sv,
 )
-
 
 # =============================================================================
 # Test channels - real channels with known social presence
@@ -26,7 +29,7 @@ class TestChannels:
     """Test channels with known social media presence."""
 
     # These are real channels. The agent must correctly find their social accounts.
-    TEST_CHANNELS = [
+    TEST_CHANNELS: typing.ClassVar[list[dict]] = [
         {
             "name": "MrBeast",
             "youtube": "https://www.youtube.com/@MrBeast",
