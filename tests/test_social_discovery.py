@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+import pytest
+
 from s_q_ali_media_downloader.agent import social_discovery as sd
 from s_q_ali_media_downloader.agent.tools import social_judge as judge
 from s_q_ali_media_downloader.agent.tools import social_resolve as sr
 from s_q_ali_media_downloader.agent.tools import social_verify as sv
+
+
+@pytest.fixture(autouse=True)
+def _no_groq_key(monkeypatch):
+    """Keep the tests offline unless a test asks for a key."""
+    monkeypatch.setattr(judge, "groq_key", lambda: None)
 
 
 class _FakeChannel:
@@ -99,6 +107,38 @@ def test_an_empty_bio_asks_the_agent(monkeypatch):
     assert result.outcome("facebook").source == sd.SOURCE_MODEL
 
 
+def test_a_bio_link_does_not_stop_the_agent(monkeypatch):
+    """The bio can list one platform; the agent still proposes the rest."""
+    monkeypatch.setattr(
+        sd,
+        "resolve_channel",
+        lambda text, session=None: _record(["https://www.facebook.com/MrBeast/"]),
+    )
+    monkeypatch.setattr(judge, "groq_key", lambda: "test-key")
+
+    class FakeProposal:
+        candidates: ClassVar[dict] = {"instagram": ["MrBeast"]}
+        reason = "the model knows this creator"
+
+    monkeypatch.setattr(judge, "propose", lambda *a, **k: FakeProposal())
+    session = _FakeSession(
+        {
+            "https://www.facebook.com/MrBeast/": _found_page(
+                "https://www.facebook.com/MrBeast/"
+            ),
+            "https://www.instagram.com/MrBeast/": _found_page(
+                "https://www.instagram.com/MrBeast/"
+            ),
+        }
+    )
+
+    result = sd.discover(session, "@MrBeast")
+
+    assert result.found_count == 2
+    assert result.outcome("facebook").source == sd.SOURCE_BIO
+    assert result.outcome("instagram").source == sd.SOURCE_MODEL
+
+
 def test_a_channel_that_cannot_be_resolved_reports_why(monkeypatch):
     def boom(text, session=None):
         raise sr.ChannelUnresolved("that is not a channel")
@@ -126,6 +166,30 @@ def test_a_missing_agent_key_is_reported(monkeypatch):
     result = sd.discover(_FakeSession(), "@MrBeast")
 
     assert "key" in result.error.lower()
+
+
+def test_a_rejected_agent_key_is_reported_with_a_bio_link(monkeypatch):
+    """The bio result is still good, but a 401 must not look like silence."""
+    monkeypatch.setattr(
+        sd,
+        "resolve_channel",
+        lambda text, session=None: _record(["https://www.facebook.com/MrBeast/"]),
+    )
+    monkeypatch.setattr(judge, "groq_key", lambda: "test-key")
+
+    def boom(*a, **k):
+        raise judge.JudgeUnavailable("Groq answered 401: invalid_api_key")
+
+    monkeypatch.setattr(judge, "propose", boom)
+    session = _FakeSession(
+        {"https://www.facebook.com/MrBeast/": _found_page("https://www.facebook.com/MrBeast/")}
+    )
+
+    result = sd.discover(session, "@MrBeast")
+
+    assert "401" in result.warning
+    assert result.error == ""
+    assert result.found_count == 1
 
 
 def test_the_progress_is_reported(monkeypatch):

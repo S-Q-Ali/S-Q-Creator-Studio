@@ -62,6 +62,26 @@ def test_a_real_tiktok_profile_is_found():
     assert "name_match" in result.evidence or "handle_match" in result.evidence
 
 
+def test_a_tiktok_bio_that_repeats_the_handle_keeps_the_profile_name():
+    """The name is the text before the profile line, not before a later
+    mention of the handle in the bio."""
+    page = Page(
+        url="https://www.tiktok.com/@mrbeast",
+        title="TikTok - Make Your Day",
+        text=(
+            "MrBeast\nmrbeast\n346\nFollowing\n144.6M\nFollowers\n"
+            "Follow me on mrbeast.com"
+        ),
+        links=[],
+        meta={},
+    )
+
+    result = sv.verify_page(page, "tiktok", CREATOR)
+
+    assert result.display_name == "MrBeast"
+    assert result.verdict is sv.Verdict.FOUND
+
+
 # --------------------------------------------------------------------------- #
 # The made-up ones
 # --------------------------------------------------------------------------- #
@@ -196,3 +216,88 @@ def test_a_platform_nobody_could_check_stays_unknown():
 
     assert len(results) == 1
     assert results[0].verdict is sv.Verdict.UNKNOWN
+
+
+def test_one_evidence_is_not_enough():
+    """The spec needs two signals. A substring used to count as one FOUND."""
+    page = Page(
+        url="https://www.facebook.com/other",
+        title="Ali | Facebook",
+        text="Ali 1K followers",
+        links=[],
+        meta={"ogTitle": "Ali", "ogUrl": "https://www.facebook.com/other"},
+    )
+
+    result = sv.verify_page(
+        page, "facebook", sv.CreatorRef(title="Ali", handle="ali", url="")
+    )
+
+    assert result.evidence == ["name_match"]
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_page_of_somebody_else_is_kept_as_no_match():
+    session = _FakeSession(
+        {"https://www.facebook.com/CarolinaFordDealer": _page("facebook_other")}
+    )
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"facebook": ["https://www.facebook.com/CarolinaFordDealer"]},
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_bio_link_that_cannot_be_read_is_found():
+    session = _FakeSession({})
+    url = "https://www.instagram.com/real_creator/"
+
+    results = sv.verify_candidates(
+        session, CREATOR, {"instagram": [url]}, bio_urls={url}
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.FOUND
+    assert results[0].evidence == ["bio_link"]
+    assert results[0].source == "bio"
+
+
+def test_a_readable_bio_link_that_does_not_match_stays_no_match():
+    """The channel page also lists sponsors. A page that says it is somebody
+    else must not be turned into the creator's account by the link alone."""
+    session = _FakeSession(
+        {"https://www.facebook.com/CarolinaFordDealer": _page("facebook_other")}
+    )
+    url = "https://www.facebook.com/CarolinaFordDealer"
+
+    results = sv.verify_candidates(
+        session, CREATOR, {"facebook": [url]}, bio_urls={url}
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.NO_MATCH
+    assert "bio_link" not in results[0].evidence
+
+
+def test_a_bio_link_with_one_match_becomes_found():
+    """One signal from the page plus the creator's link is two signals."""
+    page = Page(
+        url="https://www.facebook.com/other",
+        title="MrBeast | Facebook",
+        text="MrBeast 1K followers",
+        links=[],
+        meta={"ogTitle": "MrBeast", "ogUrl": "https://www.facebook.com/other"},
+    )
+    session = _FakeSession({"https://www.facebook.com/other": page})
+    url = "https://www.facebook.com/other"
+
+    results = sv.verify_candidates(
+        session, CREATOR, {"facebook": [url]}, bio_urls={url}
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.FOUND
+    assert results[0].evidence == ["bio_link", "name_match"]

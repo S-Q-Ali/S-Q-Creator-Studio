@@ -146,6 +146,96 @@ def test_every_candidate_per_platform_is_kept(monkeypatch):
     assert "https://www.instagram.com/johnpeelfitness/" in candidates["instagram"]
 
 
+def test_a_plain_name_is_searched(monkeypatch):
+    class FakeChannel:
+        channel_id = "UC123"
+        title = "Marques Brownlee"
+        description = ""
+        subscriber_count = 21_400_000
+        custom_url = "https://www.youtube.com/@mkbhd"
+        uploads = ()
+
+    calls = []
+
+    def fake_search(query, max_results=1):
+        calls.append((query, max_results))
+        return [FakeChannel()]
+
+    def fail_fetch(*a, **k):
+        raise AssertionError("the name path must not fetch the channel twice")
+
+    monkeypatch.setattr(sr, "search_channels", fake_search)
+    monkeypatch.setattr(sr, "fetch_channel", fail_fetch)
+
+    record = sr.resolve_channel("Marques Brownlee")
+
+    assert calls == [("Marques Brownlee", 5)]
+    assert record.url == "https://www.youtube.com/channel/UC123"
+    assert record.source == "name"
+
+
+def test_the_closest_name_wins(monkeypatch):
+    class FakeChannel:
+        def __init__(self, channel_id, title):
+            self.channel_id = channel_id
+            self.title = title
+            self.description = ""
+            self.subscriber_count = 0
+            self.custom_url = ""
+            self.uploads = ()
+
+    def fail_fetch(*a, **k):
+        raise AssertionError("the name path must not fetch the channel twice")
+
+    monkeypatch.setattr(
+        sr,
+        "search_channels",
+        lambda *a, **k: [FakeChannel("UC1", "Alibaba"), FakeChannel("UC2", "Ali Khan")],
+    )
+    monkeypatch.setattr(sr, "fetch_channel", fail_fetch)
+
+    record = sr.resolve_channel("Ali Khan")
+
+    assert record.channel_id == "UC2"
+    assert record.title == "Ali Khan"
+
+
+def test_a_single_word_name_falls_back_to_search(monkeypatch):
+    class FakeChannel:
+        channel_id = "UC123"
+        title = "Tech Reviews"
+        description = ""
+        subscriber_count = 0
+        custom_url = "https://www.youtube.com/@techreviews"
+        uploads = ()
+
+    def fail_fetch(*a, **k):
+        raise RuntimeError("no such handle")
+
+    monkeypatch.setattr(sr, "fetch_channel", fail_fetch)
+    monkeypatch.setattr(sr, "search_channels", lambda *a, **k: [FakeChannel()])
+
+    record = sr.resolve_channel("Tech")
+
+    assert record.channel_id == "UC123"
+    assert record.title == "Tech Reviews"
+    assert record.source == "name"
+
+
+def test_a_failed_handle_is_not_searched_as_a_name(monkeypatch):
+    def fail_fetch(*a, **k):
+        raise RuntimeError("no such handle")
+
+    def fail_search(*a, **k):
+        raise AssertionError("a handle must not be searched as a name")
+
+    monkeypatch.setattr(sr, "fetch_channel", fail_fetch)
+    monkeypatch.setattr(sr, "search_channels", fail_search)
+
+    with pytest.raises(sr.ChannelUnresolved):
+        sr.resolve_channel("@nobody")
+
+
 def test_resolve_channel_reports_a_channel_it_cannot_open(monkeypatch):
     class FakeChannel:
         channel_id = "UC123"

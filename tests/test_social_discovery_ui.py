@@ -96,6 +96,57 @@ def test_the_export_rows_carry_every_platform(qapp):
     assert rows[0]["tiktok_status"] == ""
 
 
+def test_shutdown_stops_and_waits_for_the_worker(qapp):
+    class FakeWorker:
+        cancelled = False
+        waited = False
+
+        def isRunning(self):
+            return True
+
+        def cancel(self):
+            self.cancelled = True
+
+        def wait(self, ms):
+            self.waited = True
+            return True
+
+    page = SocialDiscoveryPage()
+    page.worker = FakeWorker()
+
+    assert page.shutdown() is True
+    assert page.worker.cancelled
+    assert page.worker.waited
+
+
+def test_shutdown_reports_a_worker_that_will_not_stop(qapp):
+    class FakeWorker:
+        def isRunning(self):
+            return True
+
+        def cancel(self):
+            pass
+
+        def wait(self, ms):
+            return False
+
+    page = SocialDiscoveryPage()
+    page.worker = FakeWorker()
+
+    assert page.shutdown() is False
+
+
+def test_a_warning_is_shown_with_the_row(qapp):
+    page = SocialDiscoveryPage()
+    result = _result(warning="Groq answered 401: invalid_api_key")
+    result.platforms = [_found("facebook")]
+
+    page._on_result(result)
+
+    assert "401" in page.status_label.text()
+    assert "401" in page.table.item(0, 0).toolTip()
+
+
 def test_a_channel_that_could_not_be_resolved_still_gets_a_row(qapp):
     page = SocialDiscoveryPage()
     result = _result(query="@nobody", title="", error="that is not a channel")

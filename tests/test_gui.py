@@ -2,7 +2,8 @@
 
 import os
 
-from PySide6.QtWidgets import QLabel, QPushButton
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton
 
 from s_q_ali_media_downloader import __version__
 from s_q_ali_media_downloader.ui.main_window import MainWindow, resource
@@ -25,6 +26,106 @@ def test_main_window_smoke(qapp, isolated_appdata):
 
     assert os.path.isfile(resource("icon.ico"))
     window.close()
+
+
+def test_a_failed_job_keeps_the_error_out_of_the_size(qapp, isolated_appdata):
+    """The engine emits (uid, status, size, error). The window used to read
+    the last two the other way round, so the error became the size."""
+    window = MainWindow()
+    job = Job("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    window._add_job(job)
+
+    window.on_result(job.uid, "Failed", "—", "HTTP 404")
+
+    assert job.error == "HTTP 404"
+    assert job.size != "HTTP 404"
+    window.close()
+
+
+def test_close_with_no_workers_accepts(qapp, isolated_appdata):
+    window = MainWindow()
+    event = QCloseEvent()
+
+    window.closeEvent(event)
+
+    assert event.isAccepted()
+
+
+def test_close_waits_for_a_running_worker_without_blocking(
+    qapp, isolated_appdata, monkeypatch
+):
+    window = MainWindow()
+
+    class FakeThread:
+        stopped = False
+
+        def isRunning(self):
+            return True
+
+        def stop(self):
+            self.stopped = True
+
+    thread = FakeThread()
+    window.thread = thread
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+
+    event = QCloseEvent()
+    window.closeEvent(event)
+
+    assert thread.stopped
+    assert window._close_pending
+    assert not event.isAccepted()
+    assert not window.isVisible()
+
+    thread.isRunning = lambda: False
+    window._finish_deferred_close()
+
+    assert not window._close_pending
+    assert not window.isVisible()
+
+
+def test_close_can_be_cancelled(qapp, isolated_appdata, monkeypatch):
+    window = MainWindow()
+
+    class FakeThread:
+        def isRunning(self):
+            return True
+
+        def stop(self):
+            raise AssertionError("a cancelled close must not stop the worker")
+
+    window.thread = FakeThread()
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.No)
+
+    event = QCloseEvent()
+    window.closeEvent(event)
+
+    assert not event.isAccepted()
+    assert not window._close_pending
+    window.thread = None
+    window.close()
+
+
+def test_finish_deferred_close_quits_the_app(qapp, isolated_appdata, monkeypatch):
+    window = MainWindow()
+    calls = []
+    monkeypatch.setattr(QApplication, "quit", lambda *a, **k: calls.append(True))
+    window._close_pending = True
+
+    window._finish_deferred_close()
+
+    assert calls == [True]
+    assert not window._close_pending
+
+
+def test_a_pending_close_does_not_start_new_work(qapp, isolated_appdata):
+    window = MainWindow()
+    window._close_pending = True
+    window._expand_queue = ["https://www.tiktok.com/@creator"]
+
+    window._start_next_expand()
+
+    assert window.expander is None
 
 
 def test_queue_add_and_remove(qapp, isolated_appdata):
