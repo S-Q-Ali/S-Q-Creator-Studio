@@ -1,10 +1,43 @@
 # S-Q Creator Studio
 
-Bulk-download **TikTok** and **YouTube** videos and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Open source, free, and no activation keys — ever.
-
 [![Release](https://img.shields.io/github/v/release/S-Q-Ali/S-Q-Creator-Studio)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio)
+
+Bulk-download **TikTok** and **YouTube** videos and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Open source, free, and no activation keys — ever.
+
+**[Quick Start](#quick-start)** | **[Features](#features)** | **[Install](#install)** | **[Build from Source](#build-from-source)** | **[FAQ](#faq)** | **[Roadmap](#roadmap)**
+
+---
+
+## 🚀 Quick Start
+
+Download the latest release and start downloading videos in seconds:
+
+1. Download `S-Q-Creator-Studio-Setup-2.6.0.exe` from [Releases](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
+2. Install (no admin rights needed)
+3. Paste TikTok or YouTube links
+4. Click Download
+
+**Or build from source** - See [Build from source](#build-from-source) section.
+
+---
+
+## 📸 Screenshots
+
+> **Note:** Add screenshots to the `screenshots/` folder in the repository root.
+
+| Main Interface | Settings |
+|----------------|----------|
+| ![Main Interface](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/interface.png) | ![Settings](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/settings.png) |
+
+| Social Discovery | Compact Mode |
+|------------------|--------------|
+| ![Social Discovery](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/social-discovery.png) | ![Compact Mode](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/compact.png) |
+
+> *Dark theme with compact layout option*
 
 ---
 
@@ -101,12 +134,104 @@ The API keys are sealed at rest with Windows DPAPI — they are stored encrypted
 - **Inno Setup** — per-user installer
 - **pytest / ruff / GitHub Actions (pip-audit gate)** — tests, lint, CI
 
+## ❓ FAQ
+
+### Common Issues
+
+**Q: "Bot check" error on YouTube?**
+A: Export cookies from your signed-in browser:
+1. Open Chrome/Edge → Developer Tools (F12) → Application → Cookies
+2. Find `youtube.com` cookies
+3. Export as `cookies.txt` format
+4. Set path in Settings → Cookies file
+
+**Q: Social Discovery fails to verify accounts?**
+A: Check these:
+- Groq API key configured correctly in Settings
+- Browser installed (Chrome or Edge recommended)
+- Internet connection stable
+- Account actually exists (try visiting the URL directly)
+
+**Q: Downloads fail with "Deleted or Private"?**
+A: These videos cannot be downloaded. They're marked as **Waiting** but won't retry to save bandwidth.
+
+**Q: App won't start or crashes?**
+A: Try these:
+- Reinstall the app
+- Check Python 3.10+ installed (if running from source)
+- Ensure ffmpeg.exe is accessible (check PATH)
+- Verify output directory is writable
+
+**Q: Which quality options are available?**
+A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio only** (MP3).
+
+---
+
+## 🛣️ Roadmap
+
+### Q4 2026
+- [ ] Twitch video downloader
+- [ ] Instagram Reels support
+- [ ] Mobile companion app (Android)
+
+### Q1 2027
+- [ ] Download history & statistics dashboard
+- [ ] Cloud sync (optional, encrypted)
+- [ ] Batch download optimization
+
+### Future
+- [ ] Direct TikTok profile scraper
+- [ ] AI-powered video recommendations
+- [ ] Multi-language UI (i18n)
+- [ ] Browser extension for quick add
+
+---
+
+## 🙏 Acknowledgments
+
+This project wouldn't be possible without these amazing libraries and tools:
+
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Powerful video extraction engine
+- **[PySide6](https://pypi.org/project/PySide6/)** - Qt 6 Python bindings for desktop UI
+- **[curl_cffi](https://pypi.org/project/curl-cffi/)** - TLS fingerprint impersonation for TikTok
+- **[httpx](https://www.python-httpx.org/)** - Modern HTTP client for async requests
+- **[Pydantic](https://docs.pydantic.dev/)** - Data validation and settings management
+- **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** - HTML/XML parsing
+- **[Groq LLM](https://groq.com/)** - Fast AI for Social Discovery
+- **[Inno Setup](https://jrsoftware.org/isinfo.php)** - Windows installer creation
+- **[PyInstaller](https://www.pyinstaller.org/)** - Standalone EXE packaging
+- **[pytest](https://docs.pytest.org/)** - Testing framework
+- **[Ruff](https://docs.astral.sh/ruff/)** - Fast Python linter
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+
+For bugs or feature requests, please use our [issue templates](.github/ISSUE_TEMPLATE/).
+
+---
+
+## 🔒 Security
+
+We take security seriously. Please see our [Security Policy](SECURITY.md) for vulnerability reporting guidelines.
+
+---
+
 ## Links
 
-- GitHub: https://github.com/S-Q-Ali
-- LinkedIn: https://linkedin.com/in/s-qasim-ali
-- Report a bug or request a feature: [Issues](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues)
+- **GitHub:** https://github.com/S-Q-Ali/S-Q-Creator-Studio
+- **LinkedIn:** https://linkedin.com/in/s-qasim-ali
+- **Report Bug:** [Issues](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues)
+- **Request Feature:** [Issues](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues)
+
+---
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) - Free to use, modify, and distribute.
+
+---
+
+> **⚠️ Disclaimer:** Only download content you own or have permission to download. The developer is not responsible for misuse of this tool. Please respect copyright laws and terms of service of the platforms you use.
