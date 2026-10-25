@@ -32,7 +32,6 @@ from s_q_ali_media_downloader.agent.social_discovery import (
 )
 from s_q_ali_media_downloader.agent.tools.browser import BrowserSession
 from s_q_ali_media_downloader.core import exporter
-from s_q_ali_media_downloader.theme import C
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +101,7 @@ class SocialDiscoveryPage(QWidget):
         layout.setSpacing(14)
 
         title = QLabel("🔎 SOCIAL DISCOVERY")
-        title.setStyleSheet(
-            f"font-size: 14px; font-weight: 800; color: {C['accent']}; letter-spacing: 2px;"
-        )
+        title.setProperty("role", "pageTitle")
         layout.addWidget(title)
 
         hint = QLabel(
@@ -113,7 +110,7 @@ class SocialDiscoveryPage(QWidget):
             "the rest and every account is confirmed in a real browser."
         )
         hint.setWordWrap(True)
-        hint.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
+        hint.setProperty("role", "hint")
         layout.addWidget(hint)
 
         self.input_edit = QPlainTextEdit()
@@ -150,7 +147,7 @@ class SocialDiscoveryPage(QWidget):
         layout.addLayout(buttons)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
+        self.status_label.setProperty("role", "hint")
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
 
@@ -190,7 +187,7 @@ class SocialDiscoveryPage(QWidget):
 
         self.detail_label = QLabel("")
         self.detail_label.setWordWrap(True)
-        self.detail_label.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
+        self.detail_label.setProperty("role", "hint")
         self.detail_label.setMinimumHeight(48)
         layout.addWidget(self.detail_label)
 

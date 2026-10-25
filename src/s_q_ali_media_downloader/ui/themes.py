@@ -6,9 +6,7 @@ Provides easy switching between different visual themes:
 - Custom themes can be added here
 """
 
-import os
-from pathlib import Path
-from typing import Optional
+from typing import ClassVar
 
 from PySide6.QtWidgets import QApplication
 
@@ -17,7 +15,7 @@ class ThemeManager:
     """Manage application themes and style switching."""
     
     # Theme options
-    THEMES = {
+    THEMES: ClassVar[dict[str, str]] = {
         "neon": "Neon Theme (Electric Blue)",
         "default": "Default Theme",
     }
@@ -62,39 +60,15 @@ class ThemeManager:
         
         stylesheet = NeonTheme.get_stylesheet()
         self.app.setStyleSheet(stylesheet)
-        
-        # Also try to load from QSS file
-        qss_path = self._get_qss_path()
-        if qss_path and qss_path.exists():
-            self._apply_qss_file(qss_path)
+        self.app.setProperty("s_q_theme", "neon")
     
     def _apply_default_theme(self):
         """Apply the default theme (reset to system defaults)."""
         # Clear custom stylesheet
         self.app.setStyleSheet("")
+        self.app.setProperty("s_q_theme", "default")
         self.current_theme = "default"
-    
-    def _apply_qss_file(self, path: Path):
-        """Apply a QSS file to the application."""
-        if path.exists():
-            with open(path, 'r', encoding='utf-8') as f:
-                stylesheet = f.read()
-                self.app.setStyleSheet(stylesheet)
-    
-    def _get_qss_path(self) -> Optional[Path]:
-        """Get path to theme QSS files."""
-        try:
-            # Get the package path
-            from s_q_ali_media_downloader import ui
-            package_path = Path(ui.__file__).parent / "stylesheets"
-            
-            if package_path.exists():
-                return package_path / "neon.qss"
-        except Exception:
-            pass
-        
-        return None
-    
+
     def get_available_themes(self) -> dict:
         """Get list of available themes.
         
@@ -128,7 +102,7 @@ class ThemeManager:
 
 
 # Global theme manager instance
-_theme_manager: Optional[ThemeManager] = None
+_theme_manager: ThemeManager | None = None
 
 
 def get_theme_manager(app: QApplication) -> ThemeManager:
@@ -154,6 +128,7 @@ def apply_neon_theme(app: QApplication):
     """
     from s_q_ali_media_downloader.core.theme_neon import NeonTheme
     app.setStyleSheet(NeonTheme.get_stylesheet())
+    app.setProperty("s_q_theme", "neon")
 
 
 def apply_default_theme(app: QApplication):
@@ -163,3 +138,4 @@ def apply_default_theme(app: QApplication):
         app: The QApplication instance
     """
     app.setStyleSheet("")
+    app.setProperty("s_q_theme", "default")

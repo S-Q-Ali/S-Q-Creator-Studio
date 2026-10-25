@@ -129,6 +129,28 @@ def test_every_control_is_big_enough_to_click(window, size):
     assert not small, f"too small at {size[0]}x{size[1]}:\n  " + "\n  ".join(small)
 
 
+def test_the_nav_tabs_leave_room_for_their_text(window):
+    """The AI tab used to lose its last letter.
+
+    QFontMetrics measures the emoji narrower than the fallback font paints
+    it, so a tab sized to the measured text has no room left and clips. The
+    padding is what keeps the last glyph inside the button.
+    """
+    window.resize(1366, 768)
+    window.show()
+    for _ in range(40):
+        qapp_process()
+
+    for button in (
+        window.btn_nav_queue,
+        window.btn_nav_agent,
+        window.btn_nav_settings,
+    ):
+        shown = button.text().replace("&&", "&")
+        slack = button.width() - button.fontMetrics().horizontalAdvance(shown)
+        assert slack >= 20, f"{shown!r} has only {slack}px of padding"
+
+
 def test_the_window_can_be_narrower_than_a_small_laptop(window):
     """The window's own minimum must not be wider than a 1280 screen.
 

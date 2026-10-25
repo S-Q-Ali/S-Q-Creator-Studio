@@ -126,6 +126,17 @@ QLabel[role="hint"] {{
     font-size: {caption}px;
     background: transparent;
 }}
+QLabel[role="pageTitle"] {{
+    font-size: 14px;
+    font-weight: 800;
+    color: {C['accent']};
+    background: transparent;
+}}
+#AgentHeader {{
+    background: {C['panel']};
+    border: 1px solid {C['border']};
+    border-radius: 12px;
+}}
 QLabel {{ background: transparent; }}
 
 /* ---------- inputs ---------- */
@@ -416,7 +427,9 @@ def apply_density(window: QWidget, compact: bool) -> None:
     tokens = DENSITY[name]
 
     app = QApplication.instance()
-    if app is not None:
+    # Density is a layout change, not a theme change. Re-applying the legacy
+    # stylesheet here would silently wipe the neon theme applied at startup.
+    if app is not None and app.property("s_q_theme") != "neon":
         app.setStyleSheet(stylesheet(name))
 
     _rescale_layouts(window, tokens["scale"])
@@ -428,4 +441,5 @@ def apply_density(window: QWidget, compact: bool) -> None:
         rail.setFixedWidth(tokens["rail"])
 
     window.updateGeometry()
-    window.layout().activate()
+    if window.layout() is not None:
+        window.layout().activate()

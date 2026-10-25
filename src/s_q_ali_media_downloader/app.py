@@ -12,7 +12,6 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from s_q_ali_media_downloader.engine import APP_NAME
-from s_q_ali_media_downloader.theme import STYLESHEET
 from s_q_ali_media_downloader.ui.main_window import ORG, MainWindow, resource
 
 _SECRET_RE = re.compile(

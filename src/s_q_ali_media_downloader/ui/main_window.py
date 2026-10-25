@@ -5,11 +5,16 @@ import logging
 import os
 import sys
 
-# fcntl is Unix-only; we use Windows file locking instead
+# fcntl is Unix-only; Windows locks with msvcrt instead.
 try:
     import fcntl
 except ImportError:
-    fcntl = None  # Windows
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -67,6 +73,17 @@ VERSION = __version__
 NOTICE = "Use only for content you own or have permission to download."
 INLINE_RETRY_WAIT_TEXT = "2-5s"
 MAX_SAVED_QUEUE = 500
+
+
+def _neon_glow(widget: QWidget, color: str = "#00d4ff", blur: int = 26) -> None:
+    """Give a widget a real glow. QSS has no box-shadow, so Qt needs this."""
+    glow = QColor(color)
+    glow.setAlpha(170)
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(blur)
+    effect.setColor(glow)
+    effect.setOffset(0, 0)
+    widget.setGraphicsEffect(effect)
 
 SOCIALS = [
     ("GitHub", "GH", "#24292F", "https://github.com/S-Q-Ali"),
@@ -209,6 +226,7 @@ class MainWindow(QMainWindow):
         add = QPushButton("Add to queue")
         add.setProperty("kind", "primary")
         add.clicked.connect(self.add_links)
+        _neon_glow(add)
         clear_box = QPushButton("Clear box")
         clear_box.clicked.connect(self.links.clear)
         row2.addWidget(add, 1)
@@ -314,6 +332,7 @@ class MainWindow(QMainWindow):
         self.btn_fetch = QPushButton("Get URLs")
         self.btn_fetch.setProperty("kind", "primary")
         self.btn_fetch.clicked.connect(self.fetch_account)
+        _neon_glow(self.btn_fetch)
         col.addWidget(self.btn_fetch)
         pair.addLayout(col, 1)
 
@@ -386,7 +405,7 @@ class MainWindow(QMainWindow):
         nav_lay.addWidget(self.btn_toggle_rail)
 
         self.btn_nav_queue = QPushButton("📥 Download Queue")
-        self.btn_nav_agent = QPushButton("🤖 AI Channel Finder & Social Inspector")
+        self.btn_nav_agent = QPushButton("🤖 AI Channel Finder && Social Inspector")
         self.btn_nav_settings = QPushButton("⚙️ Settings")
 
         for idx, btn in enumerate(
@@ -446,6 +465,7 @@ class MainWindow(QMainWindow):
         self.btn_start = QPushButton("Start")
         self.btn_start.setProperty("kind", "primary")
         self.btn_start.clicked.connect(self.start_run)
+        _neon_glow(self.btn_start)
         self.btn_pause = QPushButton("Pause")
         self.btn_pause.clicked.connect(self.pause_run)
         self.btn_stop = QPushButton("Stop")
@@ -457,7 +477,7 @@ class MainWindow(QMainWindow):
 
         divider = QFrame()
         divider.setFixedWidth(1)
-        divider.setStyleSheet(f"background: {C['border']};")
+        divider.setObjectName("divider")
         bar.addSpacing(6)
         bar.addWidget(divider)
         bar.addSpacing(6)
@@ -627,65 +647,51 @@ class MainWindow(QMainWindow):
                         "error": job.error,
                     }
                 )
-            # Atomic write with file locking: prevents race conditions when
-            # multiple MainWindow instances write to the same queue.json.
+            # Write the new queue to a temporary file first. If this fails,
+            # the live queue is still the old one.
             queue_path = queue_file()
-            tmp_path = queue_file() + ".tmp"
-            # Backup the existing queue before overwriting.
-            backup_path = queue_file() + ".bak"
-            if os.path.exists(queue_path):
-                try:
-                    os.replace(queue_path, backup_path)
-                except OSError:
-                    pass
-            # Create temp file first, then lock the main file for the rename.
+            tmp_path = queue_path + ".tmp"
+            backup_path = queue_path + ".bak"
+            lock_path = queue_path + ".lock"
             with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump({"version": 1, "items": items}, handle)
-            # Lock the queue file for writing (blocking on Windows, advisory on Unix).
-            lock_acquired = False
-            with open(queue_path, "a") as lock_file:
+
+            # Serialize writers on a dedicated lock file. Opening queue.json
+            # itself would make the replace below fail on Windows: the open
+            # handle does not share delete access, so the move is refused.
+            with open(lock_path, "a+", encoding="utf-8") as lock_file:
                 try:
                     if fcntl:
                         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-                        lock_acquired = True
-                    else:
-                        raise AttributeError("fcntl not available on Windows")
-                except (OSError, AttributeError):
-                    # fcntl not available on Windows; use a lock file.
-                    lock_path = queue_path + ".lock"
-                    while True:
-                        import time
-
-                        if not os.path.exists(lock_path):
-                            try:
-                                open(lock_path, "x").close()
-                                lock_acquired = True
-                                break
-                            except FileExistsError:
-                                time.sleep(0.05)
-                        else:
-                            time.sleep(0.05)
-                try:
+                    elif msvcrt:
+                        lock_file.seek(0, os.SEEK_END)
+                        if lock_file.tell() == 0:
+                            lock_file.write(" ")
+                            lock_file.flush()
+                        lock_file.seek(0)
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+                    # Keep the old queue as a backup until the new one is in
+                    # place, so a failed replace can still be recovered.
+                    if os.path.exists(queue_path):
+                        try:
+                            os.replace(queue_path, backup_path)
+                        except OSError:
+                            pass
                     os.replace(tmp_path, queue_path)
-                    # Clean up the backup after successful write
                     if os.path.exists(backup_path):
                         try:
                             os.remove(backup_path)
                         except OSError:
                             pass
                 finally:
-                    try:
-                        if lock_acquired:
-                            if fcntl:
-                                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-                            lock_file.close()
-                    except (OSError, AttributeError):
-                        # Only delete lock_path if it was created (fcntl failed)
-                        if lock_path and os.path.exists(lock_path):
-                            try:
-                                os.remove(lock_path)
-                            except OSError:
-                                pass
+                    if fcntl:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                    elif msvcrt:
+                        try:
+                            lock_file.seek(0)
+                            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                        except OSError:
+                            pass
         except (OSError, TypeError, ValueError):
             pass
 

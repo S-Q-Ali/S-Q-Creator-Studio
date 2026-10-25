@@ -89,7 +89,8 @@ def test_the_queue_file_is_replaced_not_rewritten(window):
     """The write goes to a temporary file and moves it into place.
 
     That is what makes the write atomic: a reader sees either the old
-    queue or the new one, never half of one.
+    queue or the new one, never half of one. The lock file is the one
+    expected leftover; it is the handle writers serialize on.
     """
     window._add_job(Job(A_URL))
     window._save_queue()
@@ -97,6 +98,20 @@ def test_the_queue_file_is_replaced_not_rewritten(window):
     leftovers = [
         name
         for name in os.listdir(os.path.dirname(queue_file()))
-        if name.startswith("queue.json") and name != "queue.json"
+        if name.startswith("queue.json")
+        and name not in ("queue.json", "queue.json.lock")
     ]
     assert not leftovers, f"the temporary file was left behind: {leftovers}"
+
+
+def test_a_save_writes_the_queue_instead_of_only_the_temp_file(window):
+    """Regression: the live queue used to stay at 0 bytes on Windows.
+
+    The old writer opened queue.json as its own lock, so the atomic replace
+    was refused and the JSON stayed in queue.json.tmp.
+    """
+    window._add_job(Job(A_URL))
+    window._save_queue()
+
+    assert os.path.getsize(queue_file()) > 0, "queue.json was left empty"
+    assert _read_queue()[0]["url"] == A_URL

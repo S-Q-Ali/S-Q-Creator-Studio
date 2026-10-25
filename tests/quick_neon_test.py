@@ -1,36 +1,28 @@
-"""Quick test to verify neon theme is correctly implemented."""
+"""Verify the neon theme is Qt-valid and survives a density change."""
 
+import os
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 print("=" * 70)
 print("NEON THEME IMPLEMENTATION CHECK")
 print("=" * 70)
 
-# Test 1: Import theme module
 print("\n1. Import Theme Module:")
-try:
-    from s_q_ali_media_downloader.core.theme_neon import NeonTheme
-    print("   [OK] NeonTheme module imported successfully")
-except Exception as e:
-    print(f"   [FAIL] Import error: {e}")
-    sys.exit(1)
+from s_q_ali_media_downloader.core.theme_neon import NeonTheme
 
-# Test 2: Check stylesheet generation
+print("   [OK] NeonTheme imported")
+
 print("\n2. Stylesheet Generation:")
-try:
-    stylesheet = NeonTheme.get_stylesheet()
-    print(f"   [OK] Stylesheet generated: {len(stylesheet)} characters")
-except Exception as e:
-    print(f"   [FAIL] Generation error: {e}")
-    sys.exit(1)
+stylesheet = NeonTheme.get_stylesheet()
+print(f"   [OK] {len(stylesheet)} characters")
 
-# Test 3: Verify key colors
-print("\n3. Key Colors Verification:")
-colors_to_check = [
+print("\n3. Key Colors:")
+for name, color in [
     ("Dark Background", "#0a0a0a"),
     ("Electric Blue", "#00d4ff"),
     ("Electric Purple", "#7c3aed"),
@@ -38,59 +30,48 @@ colors_to_check = [
     ("Success Green", "#10b981"),
     ("Warning Amber", "#f59e0b"),
     ("Error Red", "#ef4444"),
-]
+]:
+    print(f"   [{'OK' if color in stylesheet else 'FAIL'}] {name}: {color}")
 
-for name, color in colors_to_check:
-    if color in stylesheet:
-        print(f"   [OK] {name}: {color}")
-    else:
-        print(f"   [FAIL] {name}: {color} - MISSING")
+print("\n4. Qt-Supported Features:")
+for name, feature in [
+    ("Gradient", "qlineargradient"),
+    ("Rounded corners", "border-radius"),
+    ("Hover states", ":hover"),
+    ("Focus states", ":focus"),
+]:
+    print(f"   [{'OK' if feature in stylesheet else 'FAIL'}] {name}: {feature}")
 
-# Test 4: Check key CSS features
-print("\n4. CSS Features Verification:")
-features_to_check = [
-    ("Glow Effects", "box-shadow"),
-    ("Gradient Buttons", "linear-gradient"),
-    ("Border Radius", "border-radius"),
-    ("Animations", "animation"),
-    ("Hover Effects", ":hover"),
-]
+print("\n5. Unsupported Web CSS Must Be Absent:")
+for feature in ("box-shadow", "text-shadow", "linear-gradient", "animation:"):
+    print(f"   [{'OK' if feature not in stylesheet else 'FAIL'}] no {feature}")
 
-for name, feature in features_to_check:
-    if feature in stylesheet:
-        print(f"   [OK] {name}: {feature}")
-    else:
-        print(f"   [FAIL] {name}: {feature} - MISSING")
+print("\n6. Real Glow (Qt drop shadow):")
+from s_q_ali_media_downloader.ui import main_window
 
-# Test 5: Check theme manager
-print("\n5. Theme Manager:")
-try:
-    from s_q_ali_media_downloader.ui.themes import ThemeManager, apply_neon_theme
-    print("   [OK] ThemeManager imported successfully")
-    print("   [OK] apply_neon_theme function available")
-except Exception as e:
-    print(f"   [FAIL] ThemeManager error: {e}")
+print(f"   [{'OK' if hasattr(main_window, '_neon_glow') else 'FAIL'}] _neon_glow helper")
 
-# Test 6: Check QSS file
-print("\n6. QSS File:")
-qss_path = Path("src/s_q_ali_media_downloader/ui/stylesheets/neon.qss")
-if qss_path.exists():
-    qss_content = qss_path.read_text()
-    print(f"   [OK] QSS file exists: {len(qss_content)} characters")
-else:
-    print(f"   [WARN] QSS file not found: {qss_path}")
+print("\n7. Theme Manager:")
+from PySide6.QtWidgets import QApplication, QWidget
 
-# Final summary
+from s_q_ali_media_downloader.theme import apply_density
+from s_q_ali_media_downloader.ui.themes import (
+    ThemeManager,
+    apply_neon_theme,
+)
+
+app = QApplication.instance() or QApplication([])
+apply_neon_theme(app)
+print(f"   [{'OK' if app.property('s_q_theme') == 'neon' else 'FAIL'}] theme property")
+
+manager = ThemeManager(app)
+print(f"   [{'OK' if manager.get_available_themes() else 'FAIL'}] ThemeManager")
+
+print("\n8. Density Change Keeps Neon:")
+apply_density(QWidget(), False)
+kept = app.property("s_q_theme") == "neon" and "#00d4ff" in app.styleSheet()
+print(f"   [{'OK' if kept else 'FAIL'}] theme survives apply_density()")
+
 print("\n" + "=" * 70)
-print("SUMMARY:")
-print("=" * 70)
-print("[SUCCESS] Neon theme implementation verified!")
-print("\nThe following are ready to use:")
-print("  - NeonTheme class with complete stylesheet")
-print("  - ThemeManager for easy theme switching")
-print("  - apply_neon_theme() function")
-print("  - Standalone QSS file")
-print("\nTo apply neon theme in your app:")
-print("  from s_q_ali_media_downloader.ui.themes import apply_neon_theme")
-print("  apply_neon_theme(app)")
+print("DONE")
 print("=" * 70)

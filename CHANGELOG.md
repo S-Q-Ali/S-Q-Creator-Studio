@@ -3,29 +3,48 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [2.7.0] — 2026-10-26
 
 ### Added
 
-- **Neon Theme** - Electric blue glow effects throughout the app:
-  - Glowing buttons with hover animations
-  - Animated gradient progress bars
-  - Status color coding (success/warning/error with glow)
-  - Modern dark UI with #0a0a0a base background
-  - Electric blue accents (#00d4ff)
-  - Professional glow effects on all interactive elements
+- **The neon theme is the default look.** Electric cyan (`#00d4ff`) on a
+  near-black surface, with a real cyan drop shadow on the primary actions
+  (Start, Add to queue, Get URLs) instead of a painted border.
 
-- **Theme System** - Easy theme switching framework:
-  - `NeonTheme` class with complete stylesheet (12,721 lines of CSS)
-  - `ThemeManager` for runtime theme switching
-  - `apply_neon_theme()` function for easy integration
-  - Standalone QSS file for customization
+- **Theme roles for the agent and Social Discovery pages**, so their cards,
+  tables and buttons follow the same palette as the rest of the app.
 
 ### Changed
 
-- **App Styling** - Replaced inline styles with theme-based CSS
-- **UI Components** - All buttons, cards, and inputs use neon theme
-- **Version** - Bumped to 2.7.0 (Neon Edition)
+- **One stylesheet.** `NeonTheme.get_stylesheet()` is the single source of
+  truth; the separate `neon.qss` file and its loader are gone. Qt's QSS has
+  no `box-shadow`, `text-shadow` or animations, so the glow is a real
+  `QGraphicsDropShadowEffect` and the gradients are `qlineargradient`.
+
+- **Version** bumped to 2.7.0.
+
+### Fixed
+
+- **The saved queue could be lost on Windows.** The writer opened
+  `queue.json` itself as its lock, so the atomic replace was refused and the
+  JSON stayed in `queue.json.tmp` while the live file was left at 0 bytes.
+  The lock file is now separate, and the write is serialized with
+  `msvcrt.locking` / `fcntl.flock`.
+
+- **A density change replaced the neon theme.** The settings pass re-applied
+  the old stylesheet on top of the neon one; the active theme is now marked
+  on the application and survives the density switch.
+
+- **The AI workspace tab clipped its last letter** when it was selected: the
+  checked style switched to a heavier weight than the width was measured
+  at. The selected tab is distinguished by its gradient and white text.
+
+- **"Account based" was clipped in the source tabs** at 125% display
+  scaling. The tab padding now fits both labels in the rail.
+
+- **Checkboxes had an 18px click target.** They keep the 16px box but the
+  row is 24px tall.
+
 
 ## [2.6.0] — 2026-10-22
 

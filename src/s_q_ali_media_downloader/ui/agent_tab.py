@@ -121,24 +121,20 @@ class AgentTabWidget(QWidget):
         # 1. Top Controls Header Panel
         controls_frame = QFrame()
         controls_frame.setObjectName("AgentHeader")
-        controls_frame.setStyleSheet(
-            "QFrame#AgentHeader { background: #1A1722; border: 1px solid #332C42; border-radius: 12px; padding: 12px; }"
-        )
         controls_layout = QVBoxLayout(controls_frame)
         controls_layout.setSpacing(12)
 
         # Header Title
         lbl_title = QLabel("🤖 AI CHANNEL FINDER & SOCIAL PRESENCE INSPECTOR")
-        lbl_title.setStyleSheet(
-            "font-size: 14px; font-weight: 800; color: #22D3EE; letter-spacing: 2px;"
-        )
+        lbl_title.setProperty("role", "pageTitle")
         controls_layout.addWidget(lbl_title)
 
         # Row 0: Discovery Mode
         row0 = QHBoxLayout()
         row0.setSpacing(10)
         lbl_mode = QLabel("Discovery Mode:")
-        lbl_mode.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
+        lbl_mode.setProperty("role", "hint")
+        lbl_mode.setStyleSheet("font-weight: bold;")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK, MODE_SOCIAL])
         self.mode_combo.setMinimumHeight(34)
@@ -167,7 +163,7 @@ class AgentTabWidget(QWidget):
         self.query_edit.setMinimumHeight(40)
         self.query_edit.returnPressed.connect(self._start_agent)
 
-        self.btn_search = QPushButton("🤖 Find & Verify Channels")
+        self.btn_search = QPushButton("🤖 Find && Verify Channels")
         self.btn_search.setProperty("kind", "primary")
         self.btn_search.setMinimumHeight(40)
         self.btn_search.setMinimumWidth(180)
@@ -203,7 +199,8 @@ class AgentTabWidget(QWidget):
 
         # Depth
         lbl_depth = QLabel("Depth:")
-        lbl_depth.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
+        lbl_depth.setProperty("role", "hint")
+        lbl_depth.setStyleSheet("font-weight: bold;")
         self.depth_combo = QComboBox()
         self.depth_combo.addItems(["20 channels", "50 channels", "100 channels"])
         self.depth_combo.setCurrentIndex(1)
@@ -213,7 +210,8 @@ class AgentTabWidget(QWidget):
 
         # Min Subs
         self.lbl_subs = QLabel("Min Subs:")
-        self.lbl_subs.setStyleSheet(f"font-weight: bold; color: {C['muted']};")
+        self.lbl_subs.setProperty("role", "hint")
+        self.lbl_subs.setStyleSheet("font-weight: bold;")
         self.subs_combo = QComboBox()
         self.subs_combo.addItems(["Any", "5K+", "10K+", "50K+", "100K+"])
         self.subs_combo.setCurrentIndex(0)
@@ -257,7 +255,7 @@ class AgentTabWidget(QWidget):
         # Row 3: Optional YouTube API Key
         row3 = QHBoxLayout()
         lbl_key = QLabel("YouTube API Key (Optional):")
-        lbl_key.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
+        lbl_key.setProperty("role", "hint")
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setPlaceholderText(
             "Leave blank for 100% free zero-key scraper mode (yt-dlp)"
@@ -271,7 +269,7 @@ class AgentTabWidget(QWidget):
         # Row 4: TikTok cookies file (optional, TikTok mode only)
         row4 = QHBoxLayout()
         lbl_cookies = QLabel("TikTok cookies.txt (Optional):")
-        lbl_cookies.setStyleSheet(f"color: {C['muted']}; font-size: 12px;")
+        lbl_cookies.setProperty("role", "hint")
         self.cookies_edit = QLineEdit()
         self.cookies_edit.setPlaceholderText(
             "Paste @handles or profile URLs above, or load a cookies.txt to unlock #tag search"
@@ -300,20 +298,14 @@ class AgentTabWidget(QWidget):
         self.progress_bar.setVisible(False)
 
         self.lbl_status = QLabel("Ready to search channels and verify social presences.")
-        self.lbl_status.setStyleSheet(f"color: {C['muted']}; font-size: 12px; font-weight: 600;")
+        self.lbl_status.setProperty("role", "hint")
+        self.lbl_status.setStyleSheet("font-weight: 600;")
 
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.lbl_status)
 
         # 3. Results Table (QTableWidget) — columns adapt to the discovery mode
         self.table = QTableWidget()
-        self.table.setStyleSheet(
-            "QTableWidget { background: #1A1722; border: 1px solid #332C42; border-radius: 8px; gridline-color: #241F30; "
-            "alternate-background-color: #1C1926; }"
-            "QTableWidget::item { padding: 6px 8px; border: none; }"
-            "QTableWidget::item:selected { background: #2E2840; color: #EFEAF5; }"
-            "QHeaderView::section { background: #241F30; color: #22D3EE; font-weight: 700; padding: 8px 6px; border: none; }"
-        )
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
