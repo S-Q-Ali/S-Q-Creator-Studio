@@ -1,12 +1,17 @@
 """Main window for S-Q Creator Studio."""
 
+import fcntl
 import json
+import logging
 import os
 import sys
 
-from PySide6.QtCore import Qt, QUrl
+logger = logging.getLogger(__name__)
+
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QFontMetrics
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -91,14 +96,18 @@ class MainWindow(QMainWindow):
         self.resize(1240, 840)
         self.setMinimumSize(1060, 720)
 
-        self.jobs = []
-        self.cards = {}
+        self.jobs: list[Job] = []
+        self.cards: dict[int, JobCard] = {}
         self.thread = None
         self.fetcher = None
         self.expander = None
-        self._expand_queue = []
-        self.active_uids = set()
+        self._expand_queue: list[str] = []
+        self.active_uids: set[int] = set()
         self.autoscroll = True
+        self._close_pending = False
+        self._close_timer = None
+        # Memory management: limit jobs to 1000 entries, auto-purge old completed jobs.
+        self._MAX_JOBS = 1000
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -135,9 +144,15 @@ class MainWindow(QMainWindow):
 
         ok, label = impersonation_summary()
         if not ok:
-            self.set_status(
-                f"Warning · browser impersonation {label}. Expect heavy failures until curl_cffi is installed."
+            QMessageBox.warning(
+                self,
+                APP_TITLE,
+                f"Browser impersonation unavailable · {label}\n\n"
+                "TikTok downloads require curl_cffi to be installed.\n"
+                "Install it with: pip install curl_cffi\n"
+                "YouTube downloads will still work without it.",
             )
+            self.set_status(f"Warning · browser impersonation {label}. TikTok downloads require curl_cffi.")
             return
 
         if restored:
@@ -607,22 +622,84 @@ class MainWindow(QMainWindow):
                         "error": job.error,
                     }
                 )
-            # Atomic write: temp file first, then move into place. A crash
-            # mid-write never leaves queue.json half-written.
+            # Atomic write with file locking: prevents race conditions when
+            # multiple MainWindow instances write to the same queue.json.
             queue_path = queue_file()
             tmp_path = queue_file() + ".tmp"
+            # Backup the existing queue before overwriting.
+            backup_path = queue_file() + ".bak"
+            if os.path.exists(queue_path):
+                try:
+                    os.replace(queue_path, backup_path)
+                except OSError:
+                    pass
+            # Create temp file first, then lock the main file for the rename.
             with open(tmp_path, "w", encoding="utf-8") as handle:
                 json.dump({"version": 1, "items": items}, handle)
-            os.replace(tmp_path, queue_path)
+            # Lock the queue file for writing (blocking on Windows, advisory on Unix).
+            lock_acquired = False
+            with open(queue_path, "a") as lock_file:
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                    lock_acquired = True
+                except (OSError, AttributeError):
+                    # fcntl not available on Windows; use a lock file.
+                    lock_path = queue_path + ".lock"
+                    while True:
+                        import time
+
+                        if not os.path.exists(lock_path):
+                            try:
+                                open(lock_path, "x").close()
+                                lock_acquired = True
+                                break
+                            except FileExistsError:
+                                time.sleep(0.05)
+                        else:
+                            time.sleep(0.05)
+                try:
+                    os.replace(tmp_path, queue_path)
+                    # Clean up the backup after successful write
+                    if os.path.exists(backup_path):
+                        try:
+                            os.remove(backup_path)
+                        except OSError:
+                            pass
+                finally:
+                    try:
+                        if lock_acquired:
+                            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                            lock_file.close()
+                    except (OSError, AttributeError):
+                        # Only delete lock_path if it was created (fcntl failed)
+                        if lock_path and os.path.exists(lock_path):
+                            try:
+                                os.remove(lock_path)
+                            except OSError:
+                                pass
         except (OSError, TypeError, ValueError):
             pass
 
     def _load_queue(self):
+        queue_path = queue_file()
+        # Try to load the queue with integrity checking.
         try:
-            with open(queue_file(), "r", encoding="utf-8") as handle:
+            with open(queue_path, "r", encoding="utf-8") as handle:
                 data = json.load(handle)
         except (OSError, ValueError):
-            return 0
+            # If the queue is corrupted, try to restore from backup.
+            backup_path = queue_file() + ".bak"
+            if os.path.exists(backup_path):
+                try:
+                    with open(backup_path, "r", encoding="utf-8") as handle:
+                        data = json.load(handle)
+                    logger.warning("Queue file corrupted; restored from backup.")
+                except (OSError, ValueError):
+                    logger.warning("Backup queue also corrupted; starting with empty queue.")
+                    return 0
+            else:
+                logger.warning("Queue file missing or corrupted; starting with empty queue.")
+                return 0
 
         restored = 0
         seen = set()
@@ -720,6 +797,11 @@ class MainWindow(QMainWindow):
                 normalized, limit, self, include_shorts=self.chk_shorts.isChecked()
             )
             self.fetcher.note.connect(self.set_status)
+            self.fetcher.progress.connect(
+                lambda cur, total: self.set_status(
+                    f"Expanding channel: {cur}/{total} videos found…"
+                )
+            )
             self.fetcher.found.connect(self.on_youtube_channel_fetched)
             self.fetcher.failed.connect(self.on_account_failed)
             self.fetcher.finished.connect(self._sync_buttons)
@@ -824,6 +906,8 @@ class MainWindow(QMainWindow):
         self._start_next_expand()
 
     def _start_next_expand(self):
+        if self._close_pending:
+            return
         if self.expander is not None and self.expander.isRunning():
             return
         if not self._expand_queue:
@@ -865,6 +949,20 @@ class MainWindow(QMainWindow):
         self._start_next_expand()
 
     def _add_job(self, job):
+        # Memory management: remove old completed jobs if we're over capacity.
+        if len(self.jobs) >= self._MAX_JOBS:
+            # Remove oldest completed jobs first.
+            completed_indices = [
+                i for i, j in enumerate(self.jobs) if j.status == "Completed"
+            ]
+            to_remove = min(len(completed_indices), len(self.jobs) - self._MAX_JOBS + 1)
+            for idx in completed_indices[:to_remove]:
+                card = self.cards.pop(self.jobs[idx].uid, None)
+                if card:
+                    self.queue_layout.removeWidget(card)
+                    card.deleteLater()
+                self.jobs.pop(idx)
+
         card = JobCard(job)
         self.jobs.append(job)
         self.cards[job.uid] = card
@@ -931,10 +1029,28 @@ class MainWindow(QMainWindow):
             return
 
         folder = self.output_dir()
+        # Validate output directory before starting downloads.
         try:
             os.makedirs(folder, exist_ok=True)
         except OSError as exc:
-            QMessageBox.warning(self, APP_TITLE, f"That folder can't be used.\n{exc}")
+            QMessageBox.warning(
+                self,
+                APP_TITLE,
+                f"Invalid download folder:\n{folder}\n\n{exc}",
+            )
+            return
+        # Check we can write to the folder.
+        try:
+            test_file = os.path.join(folder, ".write_test")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+        except OSError as exc:
+            QMessageBox.warning(
+                self,
+                APP_TITLE,
+                f"Cannot write to download folder:\n{folder}\n\n{exc}",
+            )
             return
 
         self._save_settings()
@@ -1061,7 +1177,7 @@ class MainWindow(QMainWindow):
         self.cards[uid].refresh()
         self._update_stats()
 
-    def on_result(self, uid, status, error, size):
+    def on_result(self, uid, status, size, error):
         job = self._job(uid)
         if not job:
             return
@@ -1103,24 +1219,65 @@ class MainWindow(QMainWindow):
             note += " Try Retry failed, or switch the pace to Safe."
         self.set_status(note)
 
-    def closeEvent(self, event):
-        if self.running():
-            answer = QMessageBox.question(
-                self,
-                APP_TITLE,
-                "A download is still running. Close anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+    def _workers_running(self):
+        social = getattr(getattr(self, "agent_tab", None), "social_page", None)
+        return (
+            self.running()
+            or self.fetching()
+            or (self.expander is not None and self.expander.isRunning())
+            or (
+                social is not None
+                and social.worker is not None
+                and social.worker.isRunning()
             )
-            if answer != QMessageBox.Yes:
-                event.ignore()
-                return
+        )
+
+    def closeEvent(self, event):
+        if self._close_pending:
+            event.ignore()
+            return
+        if not self._workers_running():
+            self._save_settings()
+            self._save_queue()
+            event.accept()
+            return
+        answer = QMessageBox.question(
+            self,
+            APP_TITLE,
+            "Work is still running. Close when it finishes?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if answer != QMessageBox.Yes:
+            event.ignore()
+            return
+        self._begin_deferred_close()
+        event.ignore()
+
+    def _begin_deferred_close(self):
+        """Hide the window now and close it when the workers are done."""
+        self._close_pending = True
+        if self.running():
             self.thread.stop()
-            self.thread.wait(4000)
-        if self.fetching():
-            self.fetcher.wait(2000)
-        if self.expander is not None and self.expander.isRunning():
-            self.expander.wait(2000)
-        self._save_settings()
-        self._save_queue()
-        event.accept()
+        social = getattr(getattr(self, "agent_tab", None), "social_page", None)
+        if social is not None:
+            social.cancel()
+        self.hide()
+        self._close_timer = QTimer(self)
+        self._close_timer.timeout.connect(self._finish_deferred_close)
+        self._close_timer.start(200)
+
+    def _finish_deferred_close(self):
+        if self._workers_running():
+            return
+        timer = self._close_timer
+        self._close_timer = None
+        if timer is not None:
+            timer.stop()
+            timer.deleteLater()
+        self._close_pending = False
+        self.close()
+        app = QApplication.instance()
+        if app is not None:
+            # The window was hidden, so Qt does not emit lastWindowClosed.
+            app.quit()
