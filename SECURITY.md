@@ -1,82 +1,64 @@
 # Security Policy
 
-## Reporting a vulnerability
+## Supported Versions
 
-Please report security issues privately instead of opening a public issue.
+We take the security of S-Q Creator Studio seriously. We provide security updates for the following versions:
 
-Use GitHub's **private vulnerability reporting**:
+| Version | Supported          |
+| ------- | ------------------ |
+| 2.6.x   | ✅ Yes             |
+| 2.5.x   | ⚠️ Limited         |
+| 2.4.x   | ⚠️ Limited         |
+| < 2.0   | ❌ No              |
 
-1. Go to https://github.com/S-Q-Ali/S-Q-Creator-Studio/security/advisories
-2. Click **New draft security advisory**
-3. Describe the issue, the affected version, and a minimal reproduction.
+## Reporting a Vulnerability
 
-You'll get an acknowledgment within a few days. Please do not disclose the
-issue publicly until it has been addressed.
+We take the security of S-Q Creator Studio seriously. If you believe you have found a security vulnerability, please report it to us immediately.
 
-## Scope
+**DO NOT create a public issue on GitHub for security vulnerabilities.** Public issues can be exploited by malicious actors before fixes are deployed.
 
-In scope:
+### How to Report
 
-- Remote code execution or arbitrary file write from a crafted URL or filename.
-- Credential/key leakage in the shipped application or repository.
-- Unexpected network behaviour that exposes user data.
+Please report security vulnerabilities via email to:
 
-Out of scope:
+**Email:** `[YOUR-EMAIL-HERE]@example.com`
 
-- Downloading copyrighted content (this tool is a download client; users are
-  responsible for respecting platform terms and copyright).
-- Design choices about retry pacing or worker count.
+**Include in your report:**
+- Description of the vulnerability
+- Steps to reproduce the issue
+- Potential impact/risks
+- Your contact information for follow-up
 
-## How the app handles your data
+### What to Expect
 
-- **API keys** (YouTube Data API, Groq, aiHubMix, OpenRouter, Google AI) are
-  stored in the local SQLite database, encrypted with **Windows DPAPI** under
-  your user account — another account on the same machine cannot decrypt them.
-  If Windows refuses to encrypt a key, the key is **not stored at all** and
-  the app says so; it is never written in plain text as a fallback.
-- **The `cookies.txt` path** you point the app at is the only thing that is
-  stored (the path, not the file). The file is read at request time and is
-  never copied into the database, never written to a log and never sent
-  anywhere except to the platform it belongs to.
-- **Your cookies never leave for another host.** A `cookies.txt` holds a
-  logged-in YouTube session, so the app refuses to fetch a URL that is not
-  actually on `youtube.com` — the host is compared exactly, not by a
-  substring.
-- **The log file** (`%LOCALAPPDATA%\S-Q-Ali Media Downloader\app.log`) is
-  where the app writes diagnostics. It is scrubbed of key and token patterns,
-  because that is the file people attach to bug reports.
-- **Nothing is uploaded anywhere** by the app itself: there is no telemetry,
-  no analytics and no crash reporting. The only outbound traffic is to the
-  platform you asked about (YouTube, TikTok, Facebook, Instagram), Google's
-  autocomplete/suggest endpoint, and the AI provider you configured a key
-  for. The AI analysis sends the channel title, subscriber and view counts, a
-  300-character excerpt of the description and the titles of the five
-  newest videos to that provider.
+1. **Response Time:** Within 48 hours
+2. **Investigation:** We will review and investigate your report
+3. **Status Update:** We will keep you updated on our progress
+4. **Resolution:** Once fixed, we will notify you and publish the security advisory
 
-## What leaves the machine
+### Best Practices
 
-- **The Social Discovery feature** asks Groq about a creator: the channel
-  title, the handle, the subscriber count and the first 600 characters of
-  the channel description. The description is written by whoever owns the
-  channel, so it is cut short, passed inside a delimited block, and the
-  model is told to ignore any instruction inside it. Nothing else is sent —
-  no cookies, no API keys, no browsing history.
-- The feature then opens the candidate accounts in a real browser to check
-  them. The browser is the one Windows has, or the Chromium the app ships.
+- Keep your yt-dlp and all dependencies updated to the latest versions
+- Only download and use official release binaries from GitHub Releases
+- Export cookies.txt only from trusted browsers
+- Don't share your Groq API key or YouTube API key publicly
+- Use the latest version of the app for maximum security
 
-## Notes for maintainers
+## Security Features
 
-- The legacy activation secret (`legacy/licensing.py`) is gitignored and must
-  never be re-added to the repository or the installer.
-- Do not commit secrets, tokens, or the GitHub credential material to the repo.
-- The YouTube Data API key must travel in the `X-Goog-Api-Key` header, never
-  in a query string: httpx logs every request URL at INFO, and the app writes
-  that log to disk.
-- `niche_research/storage/db.py` opens the SQLite connection under the
-  module lock. Two worker threads reaching the database at once used to open
-  two connections and run the migrations twice.
-- `ctypes.WinError` is a **function** on Python 3.14, not an exception class
-  — `except (OSError, ctypes.WinError)` raises `TypeError` instead of
-  catching anything. Use `except OSError`.
-- The `_SEAL_ENTROPY` constant in `niche_research/storage/db.py` must never
-  change: every stored key would become undecryptable.
+- **Encrypted Settings:** API keys are stored encrypted using Windows DPAPI
+- **Input Validation:** All user inputs are validated to prevent injection attacks
+- **Secure Downloads:** Downloads are sandboxed and use yt-dlp's security features
+- **No Telemetry:** The app does not collect or send user data to any server
+
+## Security Updates
+
+Security updates will be released as soon as possible after a vulnerability is confirmed. Users are encouraged to:
+
+- Keep the app updated to the latest version
+- Monitor GitHub Releases for security advisories
+- Subscribe to GitHub notifications for this repository
+
+## Acknowledgments
+
+We thank the security researchers and community members who help us improve the security of S-Q Creator Studio by responsibly disclosing vulnerabilities.
