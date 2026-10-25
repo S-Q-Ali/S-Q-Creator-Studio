@@ -174,31 +174,40 @@ def set_setting(key: str, value: str) -> None:
 
 def get_setting(key: str) -> str | None:
     """Read a setting. A sealed secret comes back in plain text, or ``None``
-    when this account cannot unseal it."""
-    row = _run("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
-    if row is None:
-        return None
-    value: str = row["value"]
-    if _is_secret_key(key):
-        if not value.startswith(SEAL_PREFIX):
-            # Legacy plaintext row — seal it now and keep returning plaintext.
-            try:
-                sealed = _seal(value)
-                if sealed != value:
-                    _run("UPDATE settings SET value = ? WHERE key = ?", (sealed, key))
-            except Exception:
-                logger.warning("Failed to seal legacy setting %s", key, exc_info=True)
-            return value
-        try:
+    when this account cannot unseal it.
+
+    Always returns a value or None; never raises. This is critical because
+    the Settings page reads every key during startup, and an exception would
+    prevent the app from launching.
+    """
+    try:
+        row = _run("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return None
+        value: str = row["value"]
+        if _is_secret_key(key):
+            if not value.startswith(SEAL_PREFIX):
+                # Legacy plaintext row — seal it now and keep returning plaintext.
+                try:
+                    sealed = _seal(value)
+                    if sealed != value:
+                        _run("UPDATE settings SET value = ? WHERE key = ?", (sealed, key))
+                except Exception:
+                    logger.warning("Failed to seal legacy setting %s", key, exc_info=True)
+                return value
             return _unseal(value)
-        except Exception as exc:
-            # DPAPI is user-scoped: a database copied from another account
-            # cannot be decrypted. Returning None asks the user to re-enter
-            # the key; raising here would stop the app from starting.
+        return value
+    except Exception as exc:
+        # DPAPI is user-scoped: a database copied from another account
+        # cannot be decrypted. Returning None asks the user to re-enter
+        # the key; raising here would stop the app from starting.
+        if _is_secret_key(key):
             logger.error("Stored secret %s cannot be decrypted on this account", key)
             logger.debug("Decrypt failure for %s: %s", key, exc)
             return None
-    return value
+        # Non-secret key failed to read — log and return None.
+        logger.error("Failed to read setting %s: %s", key, exc)
+        return None
 
 
 def secret_is_unreadable(key: str) -> bool:
