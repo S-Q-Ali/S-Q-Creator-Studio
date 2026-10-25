@@ -52,6 +52,8 @@ class AgentOrchestrator:
                     self._loop.stop()
                 self._loop.close()
         except Exception:
+            # Silent cleanup failure is acceptable here — we're in a destructor
+            # where exceptions cannot be propagated and the app is shutting down.
             pass
 
     def _emit(self, percent: int, message: str) -> None:

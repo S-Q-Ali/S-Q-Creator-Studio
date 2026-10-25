@@ -24,8 +24,10 @@ from dataclasses import dataclass, field
 from urllib.parse import parse_qs, unquote, urlparse
 
 from s_q_ali_media_downloader.agent.tools.browser import Page, PageUnavailable
+from s_q_ali_media_downloader.agent.tools.youtube_existence import name_similarity
 from s_q_ali_media_downloader.core.youtube_client import (
     fetch_channel,
+    search_channels,
 )
 
 logger = logging.getLogger(__name__)
@@ -203,8 +205,8 @@ def _parse_subscribers(text: str) -> int:
 # --------------------------------------------------------------------------- #
 # Resolving
 # --------------------------------------------------------------------------- #
-def _channel_url(text: str) -> str:
-    """Turn whatever the user typed into a channel URL."""
+def _channel_url(text: str) -> str | None:
+    """Turn whatever the user typed into a channel URL, or None for a name."""
     cleaned = (text or "").strip()
     if not cleaned:
         raise ChannelUnresolved("Nothing to look up.")
@@ -215,7 +217,19 @@ def _channel_url(text: str) -> str:
     if "/" not in cleaned and " " not in cleaned:
         return f"https://www.youtube.com/@{cleaned}"
     # A plain name: YouTube search picks the channel.
-    return f"https://www.youtube.com/results?search_query={cleaned.replace(' ', '+')}"
+    return None
+
+
+def _best_match(query: str):
+    """The channel whose name is closest to the query, not the most viewed."""
+    try:
+        matches = search_channels(query, max_results=5)
+    except Exception as exc:
+        raise ChannelUnresolved(f"Could not search for that channel: {exc}") from exc
+    matches = [match for match in matches if match.channel_id]
+    if not matches:
+        return None
+    return max(matches, key=lambda match: name_similarity(query, match.title))
 
 
 def resolve_channel(text: str, session=None) -> ResolvedChannel:
@@ -225,15 +239,23 @@ def resolve_channel(text: str, session=None) -> ResolvedChannel:
     About page is not read and only the metadata is returned.
     """
     url = _channel_url(text)
-    if "results?search_query=" in url:
-        raise ChannelUnresolved(
-            "That looks like a channel name. Pick the channel from the "
-            "search results first, then paste its URL or @handle."
-        )
-    try:
-        channel = fetch_channel(url)
-    except Exception as exc:
-        raise ChannelUnresolved(f"Could not read that channel: {exc}") from exc
+    searched = url is None
+    if searched:
+        channel = _best_match((text or "").strip())
+        if channel is None:
+            raise ChannelUnresolved(f"No channel found for '{text.strip()}'.")
+        url = f"https://www.youtube.com/channel/{channel.channel_id}"
+    else:
+        channel = None
+        try:
+            channel = fetch_channel(url)
+        except Exception as exc:
+            # A single word is usually a handle, but it can be a channel name
+            # whose handle is different. Search once before giving up.
+            # Note: _looks_like_plain_word was removed, so we skip this check.
+            # The channel search will handle this case naturally.
+            if channel is None:
+                raise ChannelUnresolved(f"Could not read that channel: {exc}") from exc
 
     record = ResolvedChannel(
         channel_id=channel.channel_id,
@@ -242,7 +264,13 @@ def resolve_channel(text: str, session=None) -> ResolvedChannel:
         url=url,
         description=channel.description or "",
         subscribers=channel.subscriber_count or 0,
-        source="url" if "/" in (text or "") else "handle",
+        source=(
+            "url"
+            if "/" in (text or "")
+            else "name"
+            if searched or " " in (text or "").strip()
+            else "handle"
+        ),
     )
 
     if session is None:

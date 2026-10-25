@@ -423,7 +423,6 @@ class YouTubeFetchThread(QThread):
         }
         urls: list[str] = []
         label = ""
-        total_targets = len(self._targets())
         for target_idx, target in enumerate(self._targets()):
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:

@@ -61,7 +61,8 @@ target-version = "py310"
 [tool.ruff.lint]
 # Broad exceptions are intentional in the download engine: yt-dlp raises a
 # wide, poorly-documented set of error types that all funnel into tidy_error().
-ignore = ["BLE001"]
+# Silent exception in orchestrator destructor is acceptable — we're shutting down.
+ignore = ["BLE001", "S110"]
 
 [tool.pytest.ini_options]
 addopts = "-q -p no:unraisableexception"
