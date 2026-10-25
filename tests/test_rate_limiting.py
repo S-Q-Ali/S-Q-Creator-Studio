@@ -6,11 +6,11 @@ Refactor: Clean up after tests are green.
 """
 
 import time
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from s_q_ali_media_downloader.agent.tools.social_verifier import SocialVerifierTool
-from s_q_ali_media_downloader.agent.schema import SocialStatus
 
 
 class TestRateLimiting:
