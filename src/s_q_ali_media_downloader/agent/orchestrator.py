@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 class AgentOrchestrator:
-    """Orchestrates multi-tool execution DAG for channel discovery & social presence verification."""
+    """Orchestrates multi-tool execution DAG for channel discovery & social presence verification.
+
+    Uses a persistent event loop (not asyncio.run()) so it can be called from a QThread
+    without nested event loop conflicts.
+    """
 
     def __init__(
         self,
@@ -36,6 +40,19 @@ class AgentOrchestrator:
         self.tiktok_tool = TikTokSearchTool()
         self.youtube_existence_tool = YouTubeExistenceTool(api_key=api_key)
         self.progress_callback = progress_callback
+        # Persistent event loop for reuse across calls.
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+
+    def __del__(self):
+        # Clean up the event loop when the orchestrator is destroyed.
+        try:
+            if hasattr(self, "_loop") and self._loop:
+                if self._loop.is_running():
+                    self._loop.stop()
+                self._loop.close()
+        except Exception:
+            pass
 
     def _emit(self, percent: int, message: str) -> None:
         if self.progress_callback:
@@ -86,7 +103,7 @@ class AgentOrchestrator:
 
         # 3. Social Presence Verification
         self._emit(60, "Verifying Facebook, Instagram & TikTok presences...")
-        verified_channels = asyncio.run(
+        verified_channels = self._loop.run_until_complete(
             self._verify_all_socials(
                 enriched_channels, check_facebook, check_instagram, check_tiktok
             )
