@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "s-q-ali-media-downloader"
-version = "2.5.1"
-description = "Bulk-download TikTok and YouTube videos with a queue-based desktop app."
+version = "2.7.0"
+description = "AI-powered bulk video downloader for TikTok & YouTube with neon theme and cross-platform social discovery."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

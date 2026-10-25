@@ -5,6 +5,30 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Neon Theme** - Electric blue glow effects throughout the app:
+  - Glowing buttons with hover animations
+  - Animated gradient progress bars
+  - Status color coding (success/warning/error with glow)
+  - Modern dark UI with #0a0a0a base background
+  - Electric blue accents (#00d4ff)
+  - Professional glow effects on all interactive elements
+
+- **Theme System** - Easy theme switching framework:
+  - `NeonTheme` class with complete stylesheet (12,721 lines of CSS)
+  - `ThemeManager` for runtime theme switching
+  - `apply_neon_theme()` function for easy integration
+  - Standalone QSS file for customization
+
+### Changed
+
+- **App Styling** - Replaced inline styles with theme-based CSS
+- **UI Components** - All buttons, cards, and inputs use neon theme
+- **Version** - Bumped to 2.7.0 (Neon Edition)
+
+## [2.6.0] — 2026-10-22
+
 ### Fixed
 
 - **A channel title could run as a formula in your spreadsheet.** The AI
