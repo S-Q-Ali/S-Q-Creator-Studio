@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S-Q Creator Studio - Neon Concepts</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 60px 20px 40px;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 3.5em;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .header p {
+            font-size: 1.3em;
+            color: #a0a0a0;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .neon-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid #00d4ff;
+            border-radius: 20px;
+            color: #00d4ff;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .section-title {
+            font-size: 2em;
+            margin-bottom: 40px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .section-title span {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* ========================================
+           MAIN CONCEPT PREVIEW
+           ======================================== */
+        .main-concept {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            border: 2px solid #00d4ff;
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 60px;
+            box-shadow: 
+                0 0 40px rgba(0, 212, 255, 0.2),
+                0 0 80px rgba(124, 58, 237, 0.1),
+                inset 0 0 60px rgba(0, 212, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-concept::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed, #ec4899);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .neon-logo {
+            font-size: 1.8em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .nav-btn {
+            padding: 10px 24px;
+            background: transparent;
+            border: 2px solid #7c3aed;
+            border-radius: 8px;
+            color: #7c3aed;
+            font-weight: 600;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(124, 58, 237, 0.2);
+        }
+
+        .nav-btn:hover {
+            background: #7c3aed;
+            color: white;
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+        }
+
+        .nav-btn.active {
+            background: #00d4ff;
+            border-color: #00d4ff;
+            color: #0a0a0a;
+            box-shadow: 0 0 25px rgba(0, 212, 255, 0.6);
+        }
+
+        .app-hero {
+            text-align: center;
+            padding: 40px 0;
+            margin-bottom: 40px;
+        }
+
+        .app-hero h2 {
+            font-size: 2.8em;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .app-hero p {
+            font-size: 1.2em;
+            color: #a0a0a0;
+            margin-bottom: 30px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #00d4ff, #38bdf8);
+            border: none;
+            border-radius: 12px;
+            color: #0a0a0a;
+            font-weight: 700;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 
+                0 0 30px rgba(0, 212, 255, 0.5),
+                0 10px 40px rgba(0, 212, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 
+                0 0 50px rgba(0, 212, 255, 0.7),
+                0 15px 60px rgba(0, 212, 255, 0.5);
+        }
+
+        .btn-secondary {
+            padding: 16px 40px;
+            background: transparent;
+            border: 2px solid #7c3aed;
+            border-radius: 12px;
+            color: #7c3aed;
+            font-weight: 600;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #7c3aed;
+            color: white;
+            box-shadow: 0 0 40px rgba(124, 58, 237, 0.5);
+        }
+
+        .app-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .neon-card {
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neon-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed, #ec4899);
+        }
+
+        .neon-card:hover {
+            transform: translateY(-5px);
+            border-color: #00d4ff;
+            box-shadow: 
+                0 10px 40px rgba(0, 212, 255, 0.2),
+                0 0 60px rgba(0, 212, 255, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            font-size: 2em;
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .card-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #707070;
+        }
+
+        .progress-track {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            animation: glow-pulse 2s ease-in-out infinite;
+        }
+
+        .progress-fill.blue {
+            background: linear-gradient(90deg, #00d4ff, #38bdf8);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+        }
+
+        .progress-fill.purple {
+            background: linear-gradient(90deg, #7c3aed, #a855f7);
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.6);
+        }
+
+        .progress-fill.pink {
+            background: linear-gradient(90deg, #ec4899, #f472b6);
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
+        }
+
+        .download-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .download-item .name {
+            font-size: 0.9em;
+            color: #d0d0d0;
+        }
+
+        .download-item .status {
+            font-size: 0.8em;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .status-done {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-downloading {
+            background: rgba(56, 189, 248, 0.2);
+            color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+
+        .status-queued {
+            background: rgba(124, 58, 237, 0.2);
+            color: #a855f7;
+            box-shadow: 0 0 10px rgba(124, 58, 237, 0.3);
+        }
+
+        .status-waiting {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+
+        /* ========================================
+           COLOR PALETTE SECTION
+           ======================================== */
+        .palette-section {
+            margin-bottom: 80px;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+        }
+
+        .palette-card {
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.9), rgba(10, 10, 20, 0.9));
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .palette-card:hover {
+            transform: translateY(-5px);
+            border-color: #00d4ff;
+            box-shadow: 0 20px 60px rgba(0, 212, 255, 0.2);
+        }
+
+        .palette-card h3 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .color-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .color-item {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-item:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .color-name {
+            font-size: 0.65em;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        /* ========================================
+           ANIMATIONS
+           ======================================== */
+        @keyframes glow-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* ========================================
+           COMPONENT PREVIEW
+           ======================================== */
+        .component-preview {
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid rgba(124, 58, 237, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            margin-top: 40px;
+        }
+
+        .component-preview h3 {
+            font-size: 1.4em;
+            color: #a855f7;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .component-row {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .component-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .component-label {
+            font-size: 0.85em;
+            color: #707070;
+        }
+
+        /* ========================================
+           RESPONSIVE
+           ======================================== */
+        @media (max-width: 1200px) {
+            .app-content {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .palette-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🌈 Neon Design System</h1>
+            <p>High-contrast, glowing UI for modern desktop applications</p>
+            <div class="neon-badge">⚡ Electric Blue Theme</div>
+        </div>
+
+        <h2 class="section-title">Main Interface Preview</h2>
+
+        <!-- Main App Preview -->
+        <div class="main-concept">
+            <div class="app-header">
+                <div class="neon-logo">S-Q Creator Studio</div>
+                <div class="nav-buttons">
+                    <button class="nav-btn active">🎬 Downloads</button>
+                    <button class="nav-btn">📊 Queue</button>
+                    <button class="nav-btn">🤖 AI Finder</button>
+                    <button class="nav-btn">⚙️ Settings</button>
+                </div>
+            </div>
+
+            <div class="app-hero">
+                <h2>Bulk Video Downloader</h2>
+                <p>Download TikTok & YouTube videos with AI-powered social discovery</p>
+                <div class="hero-buttons">
+                    <button class="btn-primary">Add Links</button>
+                    <button class="btn-secondary">View History</button>
+                </div>
+            </div>
+
+            <div class="app-content">
+                <!-- Card 1: Downloads -->
+                <div class="neon-card">
+                    <div class="card-header">
+                        <div class="card-icon">🎬</div>
+                        <div class="card-title">Downloads</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <div class="stat-value">13</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">3</div>
+                            <div class="stat-label">Active</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">45%</div>
+                            <div class="stat-label">Complete</div>
+                        </div>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill blue" style="width: 45%;"></div>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">video_1.mp4</span>
+                        <span class="status status-done">✓ Done</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">video_2.mp4</span>
+                        <span class="status status-downloading">⬇ 78%</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">video_3.mp4</span>
+                        <span class="status status-queued">⏳ Queued</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Social Discovery -->
+                <div class="neon-card">
+                    <div class="card-header">
+                        <div class="card-icon">🤖</div>
+                        <div class="card-title">Social Discovery</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <div class="stat-value">8</div>
+                            <div class="stat-label">Found</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">2</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">95%</div>
+                            <div class="stat-label">Accuracy</div>
+                        </div>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill purple" style="width: 80%;"></div>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">Instagram</span>
+                        <span class="status status-done">✓ Verified</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">TikTok</span>
+                        <span class="status status-done">✓ Verified</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">Facebook</span>
+                        <span class="status status-waiting">⏱ Checking</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Settings -->
+                <div class="neon-card">
+                    <div class="card-header">
+                        <div class="card-icon">⚙️</div>
+                        <div class="card-title">Settings</div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <div class="stat-value">120</div>
+                            <div class="stat-label">MB Used</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">2.5 GB</div>
+                            <div class="stat-label">Available</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">✅</div>
+                            <div class="stat-label">Optimal</div>
+                        </div>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill pink" style="width: 47%;"></div>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">Quality</span>
+                        <span class="status status-done">1080p</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">Parallel</span>
+                        <span class="status status-downloading">3 Workers</span>
+                    </div>
+                    <div class="download-item">
+                        <span class="name">Storage</span>
+                        <span class="status status-queued">Optimized</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="section-title">🎨 Color Palette</h2>
+        
+        <!-- Color Palettes -->
+        <div class="palette-section">
+            <div class="palette-grid">
+                <!-- Electric Blue -->
+                <div class="palette-card">
+                    <h3>⚡ Electric Blue</h3>
+                    <div class="color-row">
+                        <div class="color-item" style="background: #0a0a0a;">
+                            <span>Dark</span>
+                            <span class="color-name">#0A0A0A</span>
+                        </div>
+                        <div class="color-item" style="background: #1a1a2e;">
+                            <span>Surface</span>
+                            <span class="color-name">#1A1A2E</span>
+                        </div>
+                        <div class="color-item" style="background: #00d4ff;">
+                            <span>Primary</span>
+                            <span class="color-name">#00D4FF</span>
+                        </div>
+                        <div class="color-item" style="background: #38bdf8;">
+                            <span>Light</span>
+                            <span class="color-name">#38BDF8</span>
+                        </div>
+                        <div class="color-item" style="background: #0ea5e9;">
+                            <span>Dark</span>
+                            <span class="color-name">#0EA5E9</span>
+                        </div>
+                        <div class="color-item" style="background: #7dd3fc;">
+                            <span>Glow</span>
+                            <span class="color-name">#7DD3FC</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Electric Purple -->
+                <div class="palette-card">
+                    <h3>🟣 Electric Purple</h3>
+                    <div class="color-row">
+                        <div class="color-item" style="background: #0a0a0a;">
+                            <span>Dark</span>
+                            <span class="color-name">#0A0A0A</span>
+                        </div>
+                        <div class="color-item" style="background: #1a1a2e;">
+                            <span>Surface</span>
+                            <span class="color-name">#1A1A2E</span>
+                        </div>
+                        <div class="color-item" style="background: #7c3aed;">
+                            <span>Primary</span>
+                            <span class="color-name">#7C3AED</span>
+                        </div>
+                        <div class="color-item" style="background: #a855f7;">
+                            <span>Light</span>
+                            <span class="color-name">#A855F7</span>
+                        </div>
+                        <div class="color-item" style="background: #6d28d9;">
+                            <span>Dark</span>
+                            <span class="color-name">#6D28D9</span>
+                        </div>
+                        <div class="color-item" style="background: #ddd6fe;">
+                            <span>Glow</span>
+                            <span class="color-name">#DDD6FE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Electric Pink -->
+                <div class="palette-card">
+                    <h3>💖 Electric Pink</h3>
+                    <div class="color-row">
+                        <div class="color-item" style="background: #0a0a0a;">
+                            <span>Dark</span>
+                            <span class="color-name">#0A0A0A</span>
+                        </div>
+                        <div class="color-item" style="background: #1a1a2e;">
+                            <span>Surface</span>
+                            <span class="color-name">#1A1A2E</span>
+                        </div>
+                        <div class="color-item" style="background: #ec4899;">
+                            <span>Primary</span>
+                            <span class="color-name">#EC4899</span>
+                        </div>
+                        <div class="color-item" style="background: #f472b6;">
+                            <span>Light</span>
+                            <span class="color-name">#F472B6</span>
+                        </div>
+                        <div class="color-item" style="background: #db2777;">
+                            <span>Dark</span>
+                            <span class="color-name">#DB2777</span>
+                        </div>
+                        <div class="color-item" style="background: #fecdd3;">
+                            <span>Glow</span>
+                            <span class="color-name">#FECDD3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Color -->
+                <div class="palette-card">
+                    <h3>🌈 Rainbow</h3>
+                    <div class="color-row">
+                        <div class="color-item" style="background: #00d4ff;">
+                            <span>Cyan</span>
+                            <span class="color-name">#00D4FF</span>
+                        </div>
+                        <div class="color-item" style="background: #7c3aed;">
+                            <span>Purple</span>
+                            <span class="color-name">#7C3AED</span>
+                        </div>
+                        <div class="color-item" style="background: #ec4899;">
+                            <span>Pink</span>
+                            <span class="color-name">#EC4899</span>
+                        </div>
+                        <div class="color-item" style="background: #10b981;">
+                            <span>Green</span>
+                            <span class="color-name">#10B981</span>
+                        </div>
+                        <div class="color-item" style="background: #f59e0b;">
+                            <span>Orange</span>
+                            <span class="color-name">#F59E0B</span>
+                        </div>
+                        <div class="color-item" style="background: #ef4444;">
+                            <span>Red</span>
+                            <span class="color-name">#EF4444</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="section-title">🔧 Component Library</h2>
+        
+        <!-- Component Preview -->
+        <div class="component-preview">
+            <h3>Interactive Components</h3>
+            <div class="component-row">
+                <div class="component-item">
+                    <button class="btn-primary" style="padding: 12px 24px;">Primary</button>
+                    <span class="component-label">Primary Button</span>
+                </div>
+                <div class="component-item">
+                    <button class="btn-secondary" style="padding: 12px 24px;">Secondary</button>
+                    <span class="component-label">Secondary Button</span>
+                </div>
+                <div class="component-item">
+                    <button class="nav-btn active">Active</button>
+                    <button class="nav-btn">Inactive</button>
+                    <span class="component-label">Navigation</span>
+                </div>
+                <div class="component-item">
+                    <div class="progress-track">
+                        <div class="progress-fill blue" style="width: 60%;"></div>
+                    </div>
+                    <span class="component-label">Progress Bar</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

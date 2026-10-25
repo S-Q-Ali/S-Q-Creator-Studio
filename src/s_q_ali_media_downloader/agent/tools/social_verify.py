@@ -131,6 +131,7 @@ class CheckResult:
     handle: str = ""
     evidence: list[str] = field(default_factory=list)
     detail: str = ""
+    source: str = ""
 
     @property
     def confidence(self) -> float:
@@ -163,11 +164,8 @@ def _meta(page: Page, key: str) -> str:
     return (page.meta or {}).get(key, "") or ""
 
 
-def _name_before(text: str, handle: str) -> str:
+def _name_before(text: str, position: int) -> str:
     """The display name in front of the handle, without the navigation."""
-    position = text.lower().find(handle.lower())
-    if position < 0:
-        return ""
     words = [
         word
         for word in text[:position].split()
@@ -227,7 +225,7 @@ def _tiktok_profile(page: Page) -> tuple[bool, str, str, str]:
         handle = match.group("handle")
         return (
             True,
-            _name_before(text, handle),
+            _name_before(text, match.start()),
             handle,
             "the profile page shows the account",
         )
@@ -256,8 +254,10 @@ def match_evidence(profile_name: str, profile_handle: str, page: Page, creator: 
     evidence: list[str] = []
     name = _norm(profile_name)
     title = _norm(creator.title)
-    if name and title and (name == title or title in name or name in title):
-        evidence.append("name_match")
+    if name and title:
+        name_words, title_words = set(name.split()), set(title.split())
+        if name == title or name_words <= title_words or title_words <= name_words:
+            evidence.append("name_match")
     if profile_handle and creator.handle and profile_handle.lower() == creator.handle.lower():
         evidence.append("handle_match")
     if creator.url:
@@ -299,7 +299,7 @@ def verify_page(page: Page, platform: str, creator: CreatorRef) -> CheckResult:
         )
 
     evidence = match_evidence(name, handle, page, creator)
-    if evidence:
+    if len(evidence) >= 2:
         return CheckResult(
             platform=platform,
             verdict=Verdict.FOUND,
@@ -318,13 +318,19 @@ def verify_page(page: Page, platform: str, creator: CreatorRef) -> CheckResult:
             detail=detail,
         )
 
+    detail = (
+        "only one signal ties the account to the creator; two are needed"
+        if evidence
+        else f"the account is '{name or handle}', not '{creator.title or creator.handle}'"
+    )
     return CheckResult(
         platform=platform,
         verdict=Verdict.NO_MATCH,
         url=page.url,
         display_name=name,
         handle=handle,
-        detail=f"the account is '{name or handle}', not '{creator.title or creator.handle}'",
+        evidence=evidence,
+        detail=detail,
     )
 
 
@@ -359,27 +365,52 @@ def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> C
 
 
 def verify_candidates(
-    session, creator: CreatorRef, candidates: dict[str, list[str]]
+    session,
+    creator: CreatorRef,
+    candidates: dict[str, list[str]],
+    bio_urls: set[str] | frozenset[str] = frozenset(),
 ) -> list[CheckResult]:
     """Check every candidate and keep the ones worth showing.
 
     A candidate that does not exist is dropped; the one that matches wins;
-    a platform we could not check stays unknown.
+    a platform we could not check stays unknown; one that exists but belongs
+    to somebody else is kept as ``NO_MATCH``. A URL from the channel page is
+    ``FOUND`` with ``bio_link`` when the page cannot be read, or when it has
+    at least one match. A readable page with no match stays ``NO_MATCH``: the
+    channel page also lists sponsors, so it cannot overrule the account page.
     """
     results: list[CheckResult] = []
     for platform, urls in (candidates or {}).items():
         unknown: CheckResult | None = None
+        no_match: CheckResult | None = None
         for url in urls:
             result = verify_candidate(session, url, platform, creator)
+            is_bio = url in bio_urls
+            result.source = "bio" if is_bio else "model"
+            if is_bio:
+                if result.verdict is Verdict.UNKNOWN:
+                    # The page could not be read; the link is the evidence.
+                    result.verdict = Verdict.FOUND
+                    result.evidence.insert(0, "bio_link")
+                elif result.verdict is Verdict.NO_MATCH and result.evidence:
+                    # One signal from the page plus the link is two.
+                    result.verdict = Verdict.FOUND
+                    result.evidence.insert(0, "bio_link")
+                elif result.verdict is Verdict.FOUND and "bio_link" not in result.evidence:
+                    result.evidence.insert(0, "bio_link")
             if result.verdict is Verdict.FOUND:
                 results.append(result)
                 break
             if result.verdict is Verdict.UNKNOWN and unknown is None:
                 # Keep looking: another candidate may still be the answer.
                 unknown = result
+            if result.verdict is Verdict.NO_MATCH and no_match is None:
+                no_match = result
         else:
-            # Nothing matched. If we could not read any of them, say so
-            # rather than claiming the creator has no account there.
+            # Nothing matched. Say we could not read one before saying the
+            # account belongs to somebody else.
             if unknown is not None:
                 results.append(unknown)
+            elif no_match is not None:
+                results.append(no_match)
     return results

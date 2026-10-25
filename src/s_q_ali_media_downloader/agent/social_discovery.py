@@ -62,6 +62,7 @@ class DiscoveryResult:
     subscribers: int = 0
     platforms: list[PlatformOutcome] = field(default_factory=list)
     reason: str = ""
+    warning: str = ""
     error: str = ""
 
     def outcome(self, platform: str) -> PlatformOutcome | None:
@@ -106,11 +107,16 @@ def discover(
         subscribers=record.subscribers,
     )
 
-    candidates = record.platform_candidates()
-    source = SOURCE_BIO
-    if not candidates:
-        # The channel page lists nothing: let the agent propose, and say why.
-        say("No social links in the channel's page — asking the AI agent ...")
+    candidates = {
+        platform: list(urls) for platform, urls in record.platform_candidates().items() if urls
+    }
+    bio_urls = {url for urls in candidates.values() for url in urls}
+
+    # Ask the agent once per channel. The bio may list one platform and the
+    # model can propose the rest; a missing key only matters when it is the
+    # only source of candidates.
+    if api_key or judge.groq_key() or not candidates:
+        say("Asking the AI agent ...")
         try:
             proposal = judge.propose(
                 record.title,
@@ -120,13 +126,23 @@ def discover(
                 api_key=api_key,
             )
         except judge.JudgeUnavailable as exc:
-            result.reason = str(exc)
-            result.error = str(exc)
-            return result
-        candidates = judge.candidate_urls(proposal)
-        result.reason = proposal.reason
-        source = SOURCE_MODEL
-        say(f"The agent proposed {sum(len(v) for v in candidates.values())} candidates.")
+            if not candidates:
+                result.reason = str(exc)
+                result.error = str(exc)
+                return result
+            if "No Groq API key configured" not in str(exc):
+                # The bio results are still good, but the user should know
+                # why the other platforms are missing.
+                result.warning = str(exc)
+        else:
+            result.reason = proposal.reason
+            proposed = judge.candidate_urls(proposal)
+            say(f"The agent proposed {sum(len(v) for v in proposed.values())} candidates.")
+            for platform, urls in proposed.items():
+                existing = candidates.setdefault(platform, [])
+                for url in urls:
+                    if url not in existing:
+                        existing.append(url)
 
     creator = CreatorRef(title=record.title, handle=record.handle, url=record.url)
     for platform in PLATFORMS:
@@ -134,7 +150,7 @@ def discover(
         if not urls:
             continue
         say(f"Checking {platform} ...")
-        for check in verify_candidates(session, creator, {platform: urls}):
+        for check in verify_candidates(session, creator, {platform: urls}, bio_urls):
             result.platforms.append(
                 PlatformOutcome(
                     platform=platform,
@@ -143,7 +159,7 @@ def discover(
                     display_name=check.display_name,
                     evidence=list(check.evidence),
                     detail=check.detail,
-                    source=source,
+                    source=check.source,
                 )
             )
     return result

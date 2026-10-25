@@ -222,10 +222,22 @@ class SocialDiscoveryPage(QWidget):
         self.worker.finished.connect(self._on_finished)
         self.worker.start()
 
-    def _cancel(self) -> None:
+    def cancel(self) -> None:
+        """Ask the worker to stop without waiting for it."""
         if self.worker is not None:
             self.worker.cancel()
+
+    def _cancel(self) -> None:
+        self.cancel()
         self.status_label.setText("Cancelling ...")
+
+    def shutdown(self) -> bool:
+        """Stop the discovery worker and wait for it. True when it is gone."""
+        worker = self.worker
+        if worker is None or not worker.isRunning():
+            return True
+        self.cancel()
+        return worker.wait(4000)
 
     def _on_result(self, result: DiscoveryResult) -> None:
         self._results.append(result)
@@ -236,7 +248,12 @@ class SocialDiscoveryPage(QWidget):
         channel = QTableWidgetItem(
             f"{result.title}  (@{result.handle})\n{result.subscribers:,} subscribers"
         )
-        channel.setToolTip(result.url)
+        tip = result.url
+        if result.reason:
+            tip += f"\n{result.reason}"
+        if result.warning:
+            tip += f"\n{result.warning}"
+        channel.setToolTip(tip)
         self.table.setItem(row, 0, channel)
 
         for index, platform in enumerate(PLATFORMS, start=1):
@@ -256,9 +273,10 @@ class SocialDiscoveryPage(QWidget):
             self.table.setItem(row, index, item)
 
         self.table.resizeRowsToContents()
-        self.status_label.setText(
-            f"{result.title}: {result.found_count} of {len(PLATFORMS)} confirmed."
-        )
+        status = f"{result.title}: {result.found_count} of {len(PLATFORMS)} confirmed."
+        if result.warning:
+            status += f"  ·  {result.warning}"
+        self.status_label.setText(status)
 
     def _on_failed(self, message: str) -> None:
         self.status_label.setText(f"Failed: {message}")

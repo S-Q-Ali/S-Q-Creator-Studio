@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S-Q Creator Studio - Design Concepts</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 40px;
+            border-radius: 20px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.8;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        .concept-card {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+
+        .concept-preview {
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-info {
+            padding: 24px;
+            background: white;
+        }
+
+        .concept-info h3 {
+            font-size: 1.5em;
+            margin-bottom: 8px;
+        }
+
+        .concept-info p {
+            opacity: 0.7;
+            margin-bottom: 16px;
+        }
+
+        .color-swatch {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+
+        /* ========================================
+           CONCEPT 1: Glass & Gradient
+           ======================================== */
+        .concept-glass {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+        }
+
+        .glass-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .glass-logo {
+            font-size: 1.2em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glass-nav {
+            display: flex;
+            gap: 16px;
+        }
+
+        .glass-nav-item {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .glass-hero {
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .glass-hero-text {
+            flex: 1;
+        }
+
+        .glass-hero h2 {
+            font-size: 1.8em;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .glass-hero p {
+            color: #475569;
+            margin-bottom: 16px;
+        }
+
+        .glass-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #6366f1, #ec4899);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .glass-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ========================================
+           CONCEPT 2: Bold & Vibrant
+           ======================================== */
+        .concept-bold {
+            background: #121212;
+        }
+
+        .bold-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bold-logo {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .bold-hero {
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            right: 20px;
+        }
+
+        .bold-hero h2 {
+            font-size: 2em;
+            color: white;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        .bold-hero p {
+            color: #a3a3a3;
+            font-size: 1.1em;
+            margin-bottom: 24px;
+        }
+
+        .bold-btn {
+            padding: 14px 28px;
+            background: #00d4ff;
+            color: #121212;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1em;
+            cursor: pointer;
+            box-shadow: 
+                0 0 20px rgba(0, 212, 255, 0.5),
+                0 0 40px rgba(0, 212, 255, 0.3);
+        }
+
+        .bold-card {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            width: 280px;
+            background: #1e1e1e;
+            border: 2px solid #7c3aed;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 
+                0 0 20px rgba(124, 58, 237, 0.3),
+                0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .bold-card h4 {
+            color: #7c3aed;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bold-card .progress {
+            height: 6px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .bold-card .progress-bar {
+            height: 100%;
+            width: 65%;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        /* ========================================
+           CONCEPT 3: Neo-Material
+           ======================================== */
+        .concept-material {
+            background: #f8fafc;
+        }
+
+        .material-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .material-logo {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .material-hero {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+        }
+
+        .material-hero h2 {
+            font-size: 2em;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .material-hero p {
+            color: #475569;
+            font-size: 1.1em;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .material-cards {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .material-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .material-card .icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-bottom: 16px;
+        }
+
+        .material-card.blue .icon {
+            background: #eff6ff;
+            color: #3b82f6;
+        }
+
+        .material-card.green .icon {
+            background: #f0fdf4;
+            color: #10b981;
+        }
+
+        .material-card.purple .icon {
+            background: #faf5ff;
+            color: #8b5cf6;
+        }
+
+        .material-card h4 {
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .material-card p {
+            color: #64748b;
+            font-size: 0.9em;
+        }
+
+        /* ========================================
+           CONCEPT 4: Modern Glass (Hybrid)
+           ======================================== */
+        .concept-hybrid {
+            background: #0f172a;
+        }
+
+        .hybrid-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hybrid-logo {
+            font-size: 1.2em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hybrid-hero {
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .hybrid-hero-text {
+            flex: 1;
+        }
+
+        .hybrid-hero h2 {
+            font-size: 1.8em;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+        }
+
+        .hybrid-hero p {
+            color: #cbd5e1;
+            margin-bottom: 16px;
+        }
+
+        .hybrid-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .hybrid-card {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .hybrid-card h4 {
+            color: #38bdf8;
+            margin-bottom: 12px;
+        }
+
+        .hybrid-card .bar {
+            height: 8px;
+            background: rgba(51, 65, 85, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .hybrid-card .bar-fill {
+            height: 100%;
+            width: 70%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        /* ========================================
+           Color Swatches Section
+           ======================================== */
+        .swatches-section {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-top: 60px;
+        }
+
+        .swatches-section h2 {
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .swatch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .swatch-container {
+            background: #f8fafc;
+            padding: 24px;
+            border-radius: 12px;
+        }
+
+        .swatch-container h4 {
+            margin-bottom: 16px;
+            font-size: 1.1em;
+        }
+
+        .swatch-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .swatch-item {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            color: white;
+            font-weight: 600;
+        }
+
+        .swatch-label {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">
+            <h1>🎨 Design Concepts</h1>
+            <p>S-Q Creator Studio - Visual Style Exploration</p>
+        </div>
+
+        <div class="concept-grid">
+            <!-- Concept 1: Glass & Gradient -->
+            <div class="concept-card">
+                <div class="concept-preview concept-glass">
+                    <div class="glass-header">
+                        <div class="glass-logo">S-Q Creator Studio</div>
+                        <div class="glass-nav">
+                            <div class="glass-nav-item">Download</div>
+                            <div class="glass-nav-item">Queue</div>
+                            <div class="glass-nav-item">Settings</div>
+                        </div>
+                    </div>
+                    <div class="glass-hero">
+                        <div class="glass-hero-text">
+                            <h2>Bulk Video Downloader</h2>
+                            <p>Download TikTok & YouTube videos in one queue. AI-powered social discovery.</p>
+                            <button class="glass-btn">Get Started</button>
+                        </div>
+                        <div class="glass-card">
+                            <strong style="color: #0f172a;">Downloads</strong>
+                            <div style="margin-top: 16px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 3px;">
+                                <div style="width: 65%; height: 100%; background: linear-gradient(90deg, #6366f1, #ec4899); border-radius: 3px;"></div>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 0.85em; color: #475569;">13/20 completed</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="concept-info">
+                    <h3>Glass & Gradient</h3>
+                    <p>Premium light theme with glass-morphism effects and gradient accents</p>
+                    <div class="color-swatch">
+                        <div class="swatch" style="background: #ffffff;"></div>
+                        <div class="swatch" style="background: #f5f7fa;"></div>
+                        <div class="swatch" style="background: #e4e8ec;"></div>
+                        <div class="swatch" style="background: #6366f1;"></div>
+                        <div class="swatch" style="background: #8b5cf6;"></div>
+                        <div class="swatch" style="background: #ec4899;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Concept 2: Bold & Vibrant -->
+            <div class="concept-card">
+                <div class="concept-preview concept-bold">
+                    <div class="bold-header">
+                        <div class="bold-logo">S-Q Creator Studio</div>
+                    </div>
+                    <div class="bold-hero">
+                        <h2>Bulk Video Downloader</h2>
+                        <p>Download TikTok & YouTube videos in one queue. AI-powered social discovery.</p>
+                        <button class="bold-btn">GET STARTED</button>
+                    </div>
+                    <div class="bold-card">
+                        <h4>🎬 Download Progress</h4>
+                        <div class="progress">
+                            <div class="progress-bar"></div>
+                        </div>
+                        <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 0.85em; color: #a3a3a3;">
+                            <span>65%</span>
+                            <span>13/20</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="concept-info">
+                    <h3>Bold & Vibrant</h3>
+                    <p>Dark energetic theme with neon glow effects and high contrast accents</p>
+                    <div class="color-swatch">
+                        <div class="swatch" style="background: #121212;"></div>
+                        <div class="swatch" style="background: #1e1e1e;"></div>
+                        <div class="swatch" style="background: #00d4ff;"></div>
+                        <div class="swatch" style="background: #7c3aed;"></div>
+                        <div class="swatch" style="background: #10b981;"></div>
+                        <div class="swatch" style="background: #f97316;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Concept 3: Neo-Material -->
+            <div class="concept-card">
+                <div class="concept-preview concept-material">
+                    <div class="material-header">
+                        <div class="material-logo">S-Q Creator Studio</div>
+                        <div style="display: flex; gap: 8px;">
+                            <div style="width: 32px; height: 32px; background: #3b82f6; border-radius: 50%;"></div>
+                        </div>
+                    </div>
+                    <div class="material-hero">
+                        <h2>Bulk Video Downloader</h2>
+                        <p>Download TikTok & YouTube videos in one queue. AI-powered social discovery.</p>
+                    </div>
+                    <div class="material-cards">
+                        <div class="material-card blue">
+                            <div class="icon">🎬</div>
+                            <h4>Downloads</h4>
+                            <p>13 videos in queue</p>
+                        </div>
+                        <div class="material-card green">
+                            <div class="icon">⚡</div>
+                            <h4>Active</h4>
+                            <p>3 downloading now</p>
+                        </div>
+                        <div class="material-card purple">
+                            <div class="icon">📊</div>
+                            <h4>Social Discovery</h4>
+                            <p>4 accounts found</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="concept-info">
+                    <h3>Neo-Material</h3>
+                    <p>Clean, functional design with soft shadows and rounded corners</p>
+                    <div class="color-swatch">
+                        <div class="swatch" style="background: #f8fafc;"></div>
+                        <div class="swatch" style="background: #ffffff;"></div>
+                        <div class="swatch" style="background: #3b82f6;"></div>
+                        <div class="swatch" style="background: #14b8a6;"></div>
+                        <div class="swatch" style="background: #f1f5f9;"></div>
+                        <div class="swatch" style="background: #10b981;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Concept 4: Modern Glass (Hybrid) -->
+            <div class="concept-card">
+                <div class="concept-preview concept-hybrid">
+                    <div class="hybrid-header">
+                        <div class="hybrid-logo">S-Q Creator Studio</div>
+                        <div class="glass-nav">
+                            <div class="glass-nav-item">Download</div>
+                            <div class="glass-nav-item">Queue</div>
+                            <div class="glass-nav-item">Settings</div>
+                        </div>
+                    </div>
+                    <div class="hybrid-hero">
+                        <div class="hybrid-hero-text">
+                            <h2>Bulk Video Downloader</h2>
+                            <p>Download TikTok & YouTube videos in one queue. AI-powered social discovery.</p>
+                            <button class="hybrid-btn">Get Started</button>
+                        </div>
+                        <div class="hybrid-card">
+                            <h4>🎬 Downloads</h4>
+                            <div class="bar">
+                                <div class="bar-fill"></div>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 0.85em; color: #94a3b8;">13/20 completed</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="concept-info">
+                    <h3>Modern Glass (Hybrid)</h3>
+                    <p>Dark base with glass effects and gradient accents - best of both worlds</p>
+                    <div class="color-swatch">
+                        <div class="swatch" style="background: #0f172a;"></div>
+                        <div class="swatch" style="background: #1e293b;"></div>
+                        <div class="swatch" style="background: #334155;"></div>
+                        <div class="swatch" style="background: #6366f1;"></div>
+                        <div class="swatch" style="background: #38bdf8;"></div>
+                        <div class="swatch" style="background: #8b5cf6;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="swatches-section">
+            <h2>🎨 Color Palette Reference</h2>
+            <div class="swatch-grid">
+                <div class="swatch-container">
+                    <h4>Glass & Gradient</h4>
+                    <div class="swatch-row">
+                        <div class="swatch-item" style="background: #ffffff;">White</div>
+                        <div class="swatch-item" style="background: #f5f7fa;">Base</div>
+                        <div class="swatch-item" style="background: #e4e8ec;">Surface</div>
+                        <div class="swatch-item" style="background: #6366f1;">Indigo</div>
+                        <div class="swatch-item" style="background: #8b5cf6;">Violet</div>
+                        <div class="swatch-item" style="background: #ec4899;">Pink</div>
+                    </div>
+                    <div class="swatch-label">Primary palette</div>
+                </div>
+
+                <div class="swatch-container">
+                    <h4>Bold & Vibrant</h4>
+                    <div class="swatch-row">
+                        <div class="swatch-item" style="background: #121212;">Dark</div>
+                        <div class="swatch-item" style="background: #1e1e1e;">Surface</div>
+                        <div class="swatch-item" style="background: #00d4ff;">Cyan</div>
+                        <div class="swatch-item" style="background: #7c3aed;">Purple</div>
+                        <div class="swatch-item" style="background: #10b981;">Green</div>
+                        <div class="swatch-item" style="background: #f97316;">Orange</div>
+                    </div>
+                    <div class="swatch-label">Electric neon palette</div>
+                </div>
+
+                <div class="swatch-container">
+                    <h4>Neo-Material</h4>
+                    <div class="swatch-row">
+                        <div class="swatch-item" style="background: #f8fafc;">Light</div>
+                        <div class="swatch-item" style="background: #ffffff;">White</div>
+                        <div class="swatch-item" style="background: #3b82f6;">Blue</div>
+                        <div class="swatch-item" style="background: #14b8a6;">Teal</div>
+                        <div class="swatch-item" style="background: #f1f5f9;">Gray</div>
+                        <div class="swatch-item" style="background: #10b981;">Green</div>
+                    </div>
+                    <div class="swatch-label">Clean functional palette</div>
+                </div>
+
+                <div class="swatch-container">
+                    <h4>Modern Glass (Hybrid)</h4>
+                    <div class="swatch-row">
+                        <div class="swatch-item" style="background: #0f172a;">Navy</div>
+                        <div class="swatch-item" style="background: #1e293b;">Surface</div>
+                        <div class="swatch-item" style="background: #334155;">Gray</div>
+                        <div class="swatch-item" style="background: #6366f1;">Indigo</div>
+                        <div class="swatch-item" style="background: #38bdf8;">Cyan</div>
+                        <div class="swatch-item" style="background: #8b5cf6;">Violet</div>
+                    </div>
+                    <div class="swatch-label">Dark glass palette</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
