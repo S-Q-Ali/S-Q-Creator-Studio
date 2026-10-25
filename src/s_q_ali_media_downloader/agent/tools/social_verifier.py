@@ -63,13 +63,57 @@ TIKTOK_NOT_FOUND_SIGNATURES = [
     "no content available",
 ]
 
+IG_LOGIN_WALL_SIGNATURES = ["log in to instagram"]
+
+TIKTOK_LOGIN_WALL_SIGNATURES = ["log in to tiktok"]
+
+#: A 200 page is only a profile when it shows profile data. The login wall and
+#: the JavaScript shell are both 200 pages with none of these. A bare
+#: "followers" is not enough: both the shell and some walls contain it.
+IG_PROFILE_SIGNATURES = ['"edge_followed_by"', '"biography"']
+
+TIKTOK_PROFILE_SIGNATURES = ['"followercount"', '"uniqueid"']
+
 
 class SocialVerifierTool:
-    """Probes Facebook, Instagram, and TikTok profile existence asynchronously."""
+    """Probes Facebook, Instagram, and TikTok profile existence asynchronously.
+
+    Implements rate limiting with exponential backoff to prevent IP bans
+    from Facebook, Instagram, and TikTok during bulk discovery.
+    """
 
     def __init__(self, delay_between_requests: float = 2.0, timeout: float = 10.0):
         self.delay = delay_between_requests
         self.timeout = timeout
+        self._request_count = 0
+        self._last_request_time = 0.0
+        self._retry_after_header = 0.0
+
+    def _enforce_rate_limit(self) -> None:
+        """Enforce rate limiting with exponential backoff on 429 errors.
+
+        Resets the counter every 10 requests to prevent accumulating delays
+        after many requests.
+        """
+        import time
+
+        # Check Retry-After header first
+        if self._retry_after_header > 0:
+            time.sleep(self._retry_after_header)
+            self._retry_after_header = 0.0
+
+        # Minimum delay between requests
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self.delay:
+            time.sleep(self.delay - elapsed)
+        self._last_request_time = time.time()
+        self._request_count += 1
+
+        # Exponential backoff on high request count (prevent IP bans)
+        # Reset counter every 10 requests to prevent unbounded delays
+        if self._request_count % 10 == 0:
+            time.sleep(1.0)
+            self._request_count = 0
 
     # ------------------------------------------------------------------
     # Shared helpers
@@ -90,12 +134,15 @@ class SocialVerifierTool:
         response: httpx.Response,
         not_found_sigs: list[str],
         login_wall_sigs: list[str],
+        profile_sigs: list[str] | None = None,
     ) -> SocialStatus:
         """Classifies a 200 response body into a SocialStatus."""
         body = response.text.lower()
         if any(sig in body for sig in not_found_sigs):
             return SocialStatus.NOT_FOUND
         if any(sig in body for sig in login_wall_sigs):
+            return SocialStatus.INCONCLUSIVE
+        if profile_sigs is not None and not any(sig in body for sig in profile_sigs):
             return SocialStatus.INCONCLUSIVE
         return SocialStatus.VERIFIED
 
@@ -121,6 +168,9 @@ class SocialVerifierTool:
         is_bio_link = source == "bio_link"
 
         try:
+            # Enforce rate limiting before making the request
+            self._enforce_rate_limit()
+            
             async with httpx.AsyncClient(
                 follow_redirects=True, timeout=self.timeout, headers=DEFAULT_HEADERS
             ) as client:
@@ -154,8 +204,11 @@ class SocialVerifierTool:
                     else:  # INCONCLUSIVE — login wall / ambiguous body
                         self._failure_status(presence, is_bio_link)
                 elif response.status_code == 404:
-                    presence.status = SocialStatus.NOT_FOUND
-                    presence.confidence_score = 0.0
+                    if is_bio_link:
+                        self._failure_status(presence, is_bio_link)
+                    else:
+                        presence.status = SocialStatus.NOT_FOUND
+                        presence.confidence_score = 0.0
                 else:
                     self._failure_status(presence, is_bio_link)
         except Exception as e:
@@ -186,13 +239,21 @@ class SocialVerifierTool:
         is_bio_link = source == "bio_link"
 
         try:
+            # Enforce rate limiting before making the request
+            self._enforce_rate_limit()
+            
             async with httpx.AsyncClient(
                 follow_redirects=True, timeout=self.timeout, headers=DEFAULT_HEADERS
             ) as client:
                 response = await client.get(target_url)
 
                 if response.status_code == 200:
-                    status = self._classify(response, IG_NOT_FOUND_SIGNATURES, [])
+                    status = self._classify(
+                        response,
+                        IG_NOT_FOUND_SIGNATURES,
+                        IG_LOGIN_WALL_SIGNATURES,
+                        IG_PROFILE_SIGNATURES,
+                    )
                     if status == SocialStatus.VERIFIED:
                         presence.status = (
                             SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
@@ -207,8 +268,11 @@ class SocialVerifierTool:
                     else:
                         self._failure_status(presence, is_bio_link)
                 elif response.status_code == 404:
-                    presence.status = SocialStatus.NOT_FOUND
-                    presence.confidence_score = 0.0
+                    if is_bio_link:
+                        self._failure_status(presence, is_bio_link)
+                    else:
+                        presence.status = SocialStatus.NOT_FOUND
+                        presence.confidence_score = 0.0
                 else:
                     # 302-to-login or rate limit — unknown, never "missing".
                     self._failure_status(presence, is_bio_link)
@@ -240,13 +304,21 @@ class SocialVerifierTool:
         is_bio_link = source == "bio_link"
 
         try:
+            # Enforce rate limiting before making the request
+            self._enforce_rate_limit()
+            
             async with httpx.AsyncClient(
                 follow_redirects=True, timeout=self.timeout, headers=DEFAULT_HEADERS
             ) as client:
                 response = await client.get(target_url)
 
                 if response.status_code == 200:
-                    status = self._classify(response, TIKTOK_NOT_FOUND_SIGNATURES, [])
+                    status = self._classify(
+                        response,
+                        TIKTOK_NOT_FOUND_SIGNATURES,
+                        TIKTOK_LOGIN_WALL_SIGNATURES,
+                        TIKTOK_PROFILE_SIGNATURES,
+                    )
                     if status == SocialStatus.VERIFIED:
                         presence.status = (
                             SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
@@ -261,8 +333,11 @@ class SocialVerifierTool:
                     else:
                         self._failure_status(presence, is_bio_link)
                 elif response.status_code == 404:
-                    presence.status = SocialStatus.NOT_FOUND
-                    presence.confidence_score = 0.0
+                    if is_bio_link:
+                        self._failure_status(presence, is_bio_link)
+                    else:
+                        presence.status = SocialStatus.NOT_FOUND
+                        presence.confidence_score = 0.0
                 else:
                     self._failure_status(presence, is_bio_link)
         except Exception as e:
