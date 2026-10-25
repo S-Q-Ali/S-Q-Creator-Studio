@@ -84,7 +84,11 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setOrganizationName(ORG)
-    app.setStyleSheet(STYLESHEET)
+    
+    # Apply neon theme by default
+    from s_q_ali_media_downloader.ui.themes import apply_neon_theme
+    apply_neon_theme(app)
+    
     setup_logging()
     sys.excepthook = _excepthook
 
