@@ -250,12 +250,17 @@ def resolve_channel(text: str, session=None) -> ResolvedChannel:
         try:
             channel = fetch_channel(url)
         except Exception as exc:
-            # A single word is usually a handle, but it can be a channel name
-            # whose handle is different. Search once before giving up.
-            # Note: _looks_like_plain_word was removed, so we skip this check.
-            # The channel search will handle this case naturally.
-            if channel is None:
+            # A bare word is usually a handle, but it can be a channel name
+            # whose handle is different. Search once before giving up; an
+            # explicit @handle is never searched as a name.
+            cleaned = (text or "").strip()
+            if cleaned.startswith("@") or "/" in cleaned or " " in cleaned:
                 raise ChannelUnresolved(f"Could not read that channel: {exc}") from exc
+            channel = _best_match(cleaned)
+            if channel is None:
+                raise ChannelUnresolved(f"No channel found for '{cleaned}'.") from exc
+            url = f"https://www.youtube.com/channel/{channel.channel_id}"
+            searched = True
 
     record = ResolvedChannel(
         channel_id=channel.channel_id,
