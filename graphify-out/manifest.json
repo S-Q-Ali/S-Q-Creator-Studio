@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1792956186.0823038,
-    "seen": 1792962038.9105866,
-    "ast_hash": "9fcba3542fc162f64c1cacdfe802e5f3",
+    "mtime": 1793110621.5854461,
+    "seen": 1793110737.1349614,
+    "ast_hash": "c7d778825487104e54e2ac612c03af1c",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1792723328.126932,
-    "seen": 1792728948.810527,
-    "ast_hash": "1ef59c04a75db214c77c99e3928081e8",
+    "mtime": 1793109745.815416,
+    "seen": 1793110737.1351092,
+    "ast_hash": "d8839adaba86a3ba88c00982afbdb0ab",
     "semantic_hash": ""
   },
   ".opencode/references/accessibility-checklist.md": {
@@ -1398,9 +1398,9 @@
     "semantic_hash": ""
   },
   "requirements-dev.txt": {
-    "mtime": 1792613461.6469116,
-    "seen": 1792728948.81151,
-    "ast_hash": "f17d7df665f59cf3fc127d722c3ecbe7",
+    "mtime": 1793110621.5854461,
+    "seen": 1793110737.1354787,
+    "ast_hash": "560093fc692f28c770f3d626a46be93c",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -1800,9 +1800,9 @@
     "semantic_hash": ""
   },
   "tests/test_social_comprehensive.py": {
-    "mtime": 1793100923.8085518,
-    "seen": 1793101105.1258295,
-    "ast_hash": "2275ae2b77ded73eeeee6de5a71eb920",
+    "mtime": 1793109749.9513829,
+    "seen": 1793110737.1350715,
+    "ast_hash": "65550e8d5d41212945962d05c070307b",
     "semantic_hash": ""
   },
   "validate_fixes.py": {
@@ -1943,18 +1943,6 @@
     "ast_hash": "8fa8b00a306ef0b7335acd8609d160b4",
     "semantic_hash": ""
   },
-  "screenshots/portable_v270_agent.png": {
-    "mtime": 1792961167.8466337,
-    "seen": 1792962038.9120452,
-    "ast_hash": "2a77a6bec3328873471b9e6d838cbc46",
-    "semantic_hash": ""
-  },
-  "screenshots/portable_v270_main.png": {
-    "mtime": 1792961148.898415,
-    "seen": 1792962038.912049,
-    "ast_hash": "ff26db58ea864f148a278d33625f8fd0",
-    "semantic_hash": ""
-  },
   "screenshots/portable_v270_queue.png": {
     "mtime": 1792961172.4266167,
     "seen": 1792962038.9120526,
@@ -1965,12 +1953,6 @@
     "mtime": 1792961158.1709986,
     "seen": 1792962038.9120567,
     "ast_hash": "59b0c03c3d3febeb04ecd00df6371433",
-    "semantic_hash": ""
-  },
-  "screenshots/portable_v270_settings.png": {
-    "mtime": 1792961170.1539133,
-    "seen": 1792962038.9120605,
-    "ast_hash": "93447d53ed6e6ed0deba3730abbb020d",
     "semantic_hash": ""
   },
   "screenshots/queue_tab.png": {
@@ -2040,9 +2022,39 @@
     "semantic_hash": ""
   },
   "tasks/todo-social-verification.md": {
-    "mtime": 1793100943.353503,
-    "seen": 1793101105.1266587,
-    "ast_hash": "d71c85b9f4e8676c7cba44b4150b54bc",
+    "mtime": 1793101477.5700097,
+    "seen": 1793110737.1354923,
+    "ast_hash": "012bec3021a33c4553d21f178d2882f4",
+    "semantic_hash": ""
+  },
+  "release/README.md": {
+    "mtime": 1793109785.701628,
+    "seen": 1793110737.135477,
+    "ast_hash": "f3b223a1d8be155350d0269e2b6b7df8",
+    "semantic_hash": ""
+  },
+  "screenshots/compact.png": {
+    "mtime": 1792961148.898415,
+    "seen": 1793110737.135499,
+    "ast_hash": "ff26db58ea864f148a278d33625f8fd0",
+    "semantic_hash": ""
+  },
+  "screenshots/interface.png": {
+    "mtime": 1792961148.898415,
+    "seen": 1793110737.1355002,
+    "ast_hash": "ff26db58ea864f148a278d33625f8fd0",
+    "semantic_hash": ""
+  },
+  "screenshots/settings.png": {
+    "mtime": 1792961170.1539133,
+    "seen": 1793110737.1355195,
+    "ast_hash": "93447d53ed6e6ed0deba3730abbb020d",
+    "semantic_hash": ""
+  },
+  "screenshots/social-discovery.png": {
+    "mtime": 1792961167.8466337,
+    "seen": 1793110737.1355338,
+    "ast_hash": "2a77a6bec3328873471b9e6d838cbc46",
     "semantic_hash": ""
   }
 }
