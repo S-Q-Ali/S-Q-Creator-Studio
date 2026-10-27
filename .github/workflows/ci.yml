@@ -40,6 +40,17 @@ jobs:
       - name: Audit dependencies (OSV/pip-audit)
         run: python -m pip_audit
 
+      - name: Install the browser and ffmpeg the app ships
+        # The installer bundles both. windows-latest has Inno Setup, but not
+        # the Playwright browser or ffmpeg, so the installer would fail on
+        # its [Files] entries without them.
+        shell: pwsh
+        run: |
+          choco install innosetup ffmpeg --yes --no-progress
+          python -m playwright install chromium
+          Write-Output "ISCC: $((Get-ChildItem 'C:\Program Files*\Inno Setup 6\ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
+          Write-Output "ffmpeg: $((Get-Command ffmpeg -ErrorAction SilentlyContinue).Source)"
+
       - name: Build EXE
         shell: pwsh
         run: |
