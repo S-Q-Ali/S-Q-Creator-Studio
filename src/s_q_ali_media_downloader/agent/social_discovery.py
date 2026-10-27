@@ -45,6 +45,7 @@ class PlatformOutcome:
     evidence: list[str] = field(default_factory=list)
     detail: str = ""
     source: str = ""
+    tier: str = ""
 
     @property
     def is_found(self) -> bool:
@@ -64,6 +65,10 @@ class DiscoveryResult:
     reason: str = ""
     warning: str = ""
     error: str = ""
+    bio_candidates: int = 0
+    ai_used: bool = False
+    ai_candidates: int = 0
+    browser_checks: int = 0
 
     def outcome(self, platform: str) -> PlatformOutcome | None:
         for item in self.platforms:
@@ -111,6 +116,7 @@ def discover(
         platform: list(urls) for platform, urls in record.platform_candidates().items() if urls
     }
     bio_urls = {url for urls in candidates.values() for url in urls}
+    result.bio_candidates = len(bio_urls)
 
     # Ask the agent once per channel. The bio may list one platform and the
     # model can propose the rest; a missing key only matters when it is the
@@ -136,21 +142,35 @@ def discover(
                 result.warning = str(exc)
         else:
             result.reason = proposal.reason
+            result.ai_used = True
             proposed = judge.candidate_urls(proposal)
-            say(f"The agent proposed {sum(len(v) for v in proposed.values())} candidates.")
+            result.ai_candidates = sum(len(urls) for urls in proposed.values())
+            say(f"The agent proposed {result.ai_candidates} candidates.")
             for platform, urls in proposed.items():
                 existing = candidates.setdefault(platform, [])
                 for url in urls:
                     if url not in existing:
                         existing.append(url)
 
-    creator = CreatorRef(title=record.title, handle=record.handle, url=record.url)
+    result.browser_checks = 0
+    creator = CreatorRef(
+        title=record.title,
+        handle=record.handle,
+        url=record.url,
+        channel_id=record.channel_id,
+    )
+
+    def count_check() -> None:
+        result.browser_checks += 1
+
     for platform in PLATFORMS:
         urls = candidates.get(platform) or []
         if not urls:
             continue
         say(f"Checking {platform} ...")
-        for check in verify_candidates(session, creator, {platform: urls}, bio_urls):
+        for check in verify_candidates(
+            session, creator, {platform: urls}, bio_urls, on_check=count_check
+        ):
             result.platforms.append(
                 PlatformOutcome(
                     platform=platform,
@@ -160,6 +180,7 @@ def discover(
                     evidence=list(check.evidence),
                     detail=check.detail,
                     source=check.source,
+                    tier=check.tier,
                 )
             )
     return result

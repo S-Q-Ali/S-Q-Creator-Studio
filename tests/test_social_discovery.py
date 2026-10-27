@@ -50,14 +50,14 @@ class _FakeSession:
         return page
 
 
-def _found_page(url, name="MrBeast", handle="MrBeast"):
+def _found_page(url, name="MrBeast", handle="MrBeast", links=()):
     from s_q_ali_media_downloader.agent.tools.browser import Page
 
     return Page(
         url=url,
         title=f"{name} | Facebook",
         text=f"{name} 51M followers",
-        links=[],
+        links=list(links),
         meta={"ogTitle": name, "ogUrl": url},
     )
 
@@ -77,9 +77,37 @@ def test_a_channel_with_a_bio_link_is_checked(monkeypatch):
 
     assert result.error == ""
     assert result.found_count == 1
+    assert result.bio_candidates == 1
+    assert result.ai_used is False
+    assert result.ai_candidates == 0
+    assert result.browser_checks == 1
     outcome = result.outcome("facebook")
     assert outcome.is_found
     assert outcome.source == sd.SOURCE_BIO
+    assert outcome.tier == "confirmed"
+
+
+def test_a_channel_id_back_link_is_used_for_a_handle_input(monkeypatch):
+    """The input is @MrBeast, but the social page links to /channel/UC123."""
+    monkeypatch.setattr(
+        sd,
+        "resolve_channel",
+        lambda text, session=None: _record(["https://www.facebook.com/other"]),
+    )
+    page = _found_page(
+        "https://www.facebook.com/other",
+        name="MrBeast",
+        handle="other",
+        links=["https://www.youtube.com/channel/UC123"],
+    )
+    session = _FakeSession({"https://www.facebook.com/other": page})
+
+    result = sd.discover(session, "@MrBeast")
+
+    outcome = result.outcome("facebook")
+    assert outcome.is_found
+    assert "back_link" in outcome.evidence
+    assert outcome.tier == "confirmed"
 
 
 def test_an_empty_bio_asks_the_agent(monkeypatch):
@@ -104,7 +132,13 @@ def test_an_empty_bio_asks_the_agent(monkeypatch):
 
     assert result.reason == "the model knows this creator"
     assert result.found_count == 1
-    assert result.outcome("facebook").source == sd.SOURCE_MODEL
+    assert result.bio_candidates == 0
+    assert result.ai_used is True
+    assert result.ai_candidates == 1
+    assert result.browser_checks == 1
+    outcome = result.outcome("facebook")
+    assert outcome.source == sd.SOURCE_MODEL
+    assert outcome.tier == "likely"
 
 
 def test_a_bio_link_does_not_stop_the_agent(monkeypatch):
@@ -135,6 +169,10 @@ def test_a_bio_link_does_not_stop_the_agent(monkeypatch):
     result = sd.discover(session, "@MrBeast")
 
     assert result.found_count == 2
+    assert result.bio_candidates == 1
+    assert result.ai_used is True
+    assert result.ai_candidates == 1
+    assert result.browser_checks == 2
     assert result.outcome("facebook").source == sd.SOURCE_BIO
     assert result.outcome("instagram").source == sd.SOURCE_MODEL
 

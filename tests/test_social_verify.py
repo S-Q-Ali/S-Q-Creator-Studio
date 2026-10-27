@@ -34,6 +34,7 @@ CREATOR = sv.CreatorRef(
     title="MrBeast",
     handle="MrBeast",
     url="https://www.youtube.com/@MrBeast",
+    channel_id="UC123",
 )
 
 
@@ -207,6 +208,60 @@ def test_a_candidate_that_does_not_exist_is_dropped():
     assert [r.url for r in results] == ["https://www.instagram.com/mrbeast/"]
 
 
+def test_a_page_that_renders_nothing_is_opened_once_more():
+    """TikTok paints its profile in after the first paint."""
+    empty = Page(
+        url="https://www.tiktok.com/@mrbeast",
+        title="",
+        text="",
+        links=[],
+        meta={},
+    )
+    full = _page("tiktok_real")
+
+    class _Session:
+        def __init__(self):
+            self.calls = []
+
+        def open(self, url, *, wait_ms=None):
+            self.calls.append(wait_ms)
+            return empty if len(self.calls) == 1 else full
+
+    session = _Session()
+
+    result = sv.verify_candidate(
+        session, "https://www.tiktok.com/@mrbeast", "tiktok", CREATOR
+    )
+
+    assert len(session.calls) == 2
+    assert result.verdict is sv.Verdict.FOUND
+
+
+def test_every_candidate_opened_is_reported():
+    """The page count is per account tried, not per platform kept."""
+    session = _FakeSession(
+        {
+            "https://www.facebook.com/CarolinaFordDealer": _page("facebook_other"),
+            "https://www.facebook.com/MrBeast": _page("facebook_real"),
+        }
+    )
+    seen: list[int] = []
+
+    sv.verify_candidates(
+        session,
+        CREATOR,
+        {
+            "facebook": [
+                "https://www.facebook.com/CarolinaFordDealer",
+                "https://www.facebook.com/MrBeast",
+            ]
+        },
+        on_check=lambda: seen.append(1),
+    )
+
+    assert len(seen) == 2
+
+
 def test_a_platform_nobody_could_check_stays_unknown():
     session = _FakeSession({})
 
@@ -263,6 +318,7 @@ def test_a_bio_link_that_cannot_be_read_is_found():
     assert results[0].verdict is sv.Verdict.FOUND
     assert results[0].evidence == ["bio_link"]
     assert results[0].source == "bio"
+    assert results[0].tier == "likely"
 
 
 def test_a_readable_bio_link_that_does_not_match_stays_no_match():
@@ -301,3 +357,247 @@ def test_a_bio_link_with_one_match_becomes_found():
     assert len(results) == 1
     assert results[0].verdict is sv.Verdict.FOUND
     assert results[0].evidence == ["bio_link", "name_match"]
+    assert results[0].tier == "confirmed"
+
+
+# --------------------------------------------------------------------------- #
+# Strict names and back-links
+# --------------------------------------------------------------------------- #
+def _facebook_page(name, handle, links=()):
+    return Page(
+        url=f"https://www.facebook.com/{handle}",
+        title=f"{name} | Facebook",
+        text=f"{name} 1K followers",
+        links=list(links),
+        meta={
+            "ogTitle": name,
+            "ogUrl": f"https://www.facebook.com/{handle}",
+        },
+    )
+
+
+def test_a_fan_page_with_the_creators_back_link_is_not_found():
+    """A fan page can copy the name and link to the real channel. That is not
+    ownership; the name says what the page is."""
+    page = _facebook_page(
+        "MrBeast Fan",
+        "MrBeastFan",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "name_conflict" in result.evidence
+    assert "back_link" in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_fan_page_cannot_hide_behind_the_creators_handle():
+    """Even an exact handle does not rescue a page that calls itself a fan
+    page, unless the creator's own bio linked it."""
+    page = _facebook_page(
+        "MrBeast Fan",
+        "MrBeast",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "name_conflict" in result.evidence
+    assert "handle_match" in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_back_link_with_the_channel_id_is_evidence():
+    creator = sv.CreatorRef(
+        title="MrBeast",
+        handle="MrBeast",
+        url="https://www.youtube.com/@MrBeast",
+        channel_id="UC123",
+    )
+    page = _facebook_page(
+        "MrBeast",
+        "other",
+        ["https://www.youtube.com/channel/UC123"],
+    )
+
+    result = sv.verify_page(page, "facebook", creator)
+
+    assert "back_link" in result.evidence
+    assert result.verdict is sv.Verdict.FOUND
+
+
+def test_a_back_link_with_the_handle_matches_a_channel_url_creator():
+    creator = sv.CreatorRef(
+        title="MrBeast",
+        handle="MrBeast",
+        url="https://www.youtube.com/channel/UC123",
+    )
+    page = _facebook_page(
+        "MrBeast",
+        "other",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", creator)
+
+    assert "back_link" in result.evidence
+    assert result.verdict is sv.Verdict.FOUND
+
+
+def test_a_facebook_redirect_back_link_is_unwrapped():
+    page = _facebook_page(
+        "MrBeast",
+        "other",
+        [
+            "https://l.facebook.com/l.php?u=https%3A%2F%2Fyoutube.com%2F%40mrbeast&h=abc"
+        ],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "back_link" in result.evidence
+    assert result.verdict is sv.Verdict.FOUND
+
+
+def test_a_link_to_a_different_channel_is_not_a_match():
+    page = _facebook_page(
+        "MrBeast",
+        "mrbeast",
+        ["https://www.youtube.com/@otherchannel"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "conflicting_back_link" in result.evidence
+    assert "back_link" not in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_video_link_is_not_used_as_a_back_link():
+    page = _facebook_page(
+        "MrBeast",
+        "other",
+        ["https://youtu.be/dQw4w9WgXcQ"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "back_link" not in result.evidence
+    assert "conflicting_back_link" not in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_an_official_suffix_still_matches_the_name():
+    page = _facebook_page("MrBeast Official", "MrBeastOfficial")
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "name_match" in result.evidence
+
+
+def test_a_non_fan_suffix_is_partial_not_a_match():
+    page = _facebook_page("MrBeast Vlogs", "MrBeastVlogs")
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "name_partial" in result.evidence
+    assert "name_match" not in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_name_and_handle_and_back_link_are_confirmed():
+    page = _facebook_page(
+        "MrBeast",
+        "mrbeast",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert result.verdict is sv.Verdict.FOUND
+    assert result.tier == "confirmed"
+
+
+def test_name_and_handle_without_a_back_link_are_likely():
+    page = _facebook_page("MrBeast", "mrbeast")
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert result.verdict is sv.Verdict.FOUND
+    assert result.tier == "likely"
+
+
+def test_a_bio_link_with_only_a_partial_name_stays_no_match():
+    url = "https://www.facebook.com/MrBeastVlogs"
+    page = _facebook_page("MrBeast Vlogs", "MrBeastVlogs")
+    session = _FakeSession({url: page})
+
+    results = sv.verify_candidates(
+        session, CREATOR, {"facebook": [url]}, bio_urls={url}
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.NO_MATCH
+    assert "bio_link" not in results[0].evidence
+
+
+def test_a_bio_link_upgrades_a_likely_page_to_confirmed():
+    """The tier and the detail must agree after the bio link is added."""
+    url = "https://www.facebook.com/MrBeast"
+    page = _facebook_page("MrBeast", "mrbeast")
+    session = _FakeSession({url: page})
+
+    results = sv.verify_candidates(
+        session, CREATOR, {"facebook": [url]}, bio_urls={url}
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.FOUND
+    assert results[0].tier == "confirmed"
+    assert "not strong enough" not in results[0].detail
+    assert "bio" in results[0].detail
+
+
+def test_a_concatenated_fan_name_is_a_conflict():
+    """Facebook display names often run the words together."""
+    page = _facebook_page(
+        "MrBeastFan",
+        "MrBeastFan",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert "name_conflict" in result.evidence
+    assert result.verdict is sv.Verdict.NO_MATCH
+
+
+def test_a_name_and_back_link_do_not_claim_the_back_link_is_missing():
+    """Name + back-link is likely, but the reason is not a missing link."""
+    page = _facebook_page(
+        "MrBeast",
+        "MrBeastFan",
+        ["https://www.youtube.com/@MrBeast"],
+    )
+
+    result = sv.verify_page(page, "facebook", CREATOR)
+
+    assert result.verdict is sv.Verdict.FOUND
+    assert result.tier == "likely"
+    assert "not strong enough" in result.detail
+
+
+def test_a_tiktok_not_found_message_in_the_body_is_not_found():
+    """TikTok's missing-profile page has a generic title and no meta tags."""
+    page = Page(
+        url="https://www.tiktok.com/@thisdoesnotexist12345",
+        title="TikTok - Make Your Day",
+        text="Couldn't find this account\n\nLooking for videos? Try browsing.",
+        links=[],
+        meta={},
+    )
+
+    result = sv.verify_page(page, "tiktok", CREATOR)
+
+    assert result.verdict is sv.Verdict.NOT_FOUND

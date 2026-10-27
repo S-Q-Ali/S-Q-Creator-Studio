@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 
 from s_q_ali_media_downloader.agent.social_discovery import (
     DiscoveryResult,
@@ -23,7 +24,7 @@ def _result(**kwargs) -> DiscoveryResult:
     return DiscoveryResult(**base)
 
 
-def _found(platform: str) -> PlatformOutcome:
+def _found(platform: str, tier: str = "confirmed", source: str = "bio") -> PlatformOutcome:
     return PlatformOutcome(
         platform=platform,
         verdict="found",
@@ -31,7 +32,8 @@ def _found(platform: str) -> PlatformOutcome:
         display_name="MrBeast",
         evidence=["name_match", "handle_match"],
         detail="the page describes the account",
-        source="bio",
+        source=source,
+        tier=tier,
     )
 
 
@@ -80,6 +82,60 @@ def test_clicking_a_cell_shows_the_evidence(qapp):
     text = page.detail_label.text()
     assert "name_match" in text
     assert "mrbeast" in text
+
+
+def test_a_found_cell_shows_the_confidence_tier(qapp):
+    page = SocialDiscoveryPage()
+    result = _result()
+    result.platforms = [_found("facebook", tier="likely")]
+
+    page._on_result(result)
+
+    item = page.table.item(0, 1)
+    assert "Found" in item.text()
+    assert "likely" in item.text()
+    assert "likely" in item.toolTip()
+
+
+def test_the_detail_line_shows_the_source_and_tier(qapp):
+    page = SocialDiscoveryPage()
+    result = _result()
+    result.platforms = [_found("facebook", tier="likely", source="model")]
+    page._on_result(result)
+
+    page._on_cell_clicked(0, 1)
+
+    text = page.detail_label.text()
+    assert "likely" in text
+    assert "model" in text
+
+
+def test_the_status_splits_confirmed_from_likely(qapp):
+    page = SocialDiscoveryPage()
+    result = _result()
+    result.platforms = [
+        _found("facebook", tier="confirmed"),
+        _found("instagram", tier="likely"),
+    ]
+
+    page._on_result(result)
+
+    text = page.status_label.text()
+    assert "2 found" in text
+    assert "1 confirmed" in text
+    assert "1 likely" in text
+
+
+def test_the_export_rows_carry_the_tier_and_source(qapp):
+    page = SocialDiscoveryPage()
+    result = _result()
+    result.platforms = [_found("facebook", tier="likely", source="model")]
+    page._on_result(result)
+
+    rows = page._rows()
+
+    assert rows[0]["facebook_tier"] == "likely"
+    assert rows[0]["facebook_source"] == "model"
 
 
 def test_the_export_rows_carry_every_platform(qapp):
@@ -145,6 +201,53 @@ def test_a_warning_is_shown_with_the_row(qapp):
 
     assert "401" in page.status_label.text()
     assert "401" in page.table.item(0, 0).toolTip()
+
+
+def test_the_status_line_says_which_backends_were_used(qapp):
+    page = SocialDiscoveryPage()
+    result = _result(
+        bio_candidates=2,
+        ai_used=True,
+        ai_candidates=3,
+        browser_checks=5,
+    )
+    result.platforms = [_found("facebook")]
+
+    page._on_result(result)
+
+    text = page.status_label.text()
+    assert "bio links 2" in text
+    assert "AI 3" in text
+    assert "browser checks 5" in text
+
+
+def test_the_channel_tooltip_says_which_backends_were_used(qapp):
+    page = SocialDiscoveryPage()
+    result = _result(
+        bio_candidates=2,
+        ai_used=True,
+        ai_candidates=3,
+        browser_checks=5,
+    )
+    result.platforms = [_found("facebook")]
+
+    page._on_result(result)
+
+    tip = page.table.item(0, 0).toolTip()
+    assert "bio links 2" in tip
+    assert "AI 3" in tip
+    assert "browser checks 5" in tip
+
+
+def test_the_page_explains_the_backend_order(qapp):
+    page = SocialDiscoveryPage()
+
+    hints = [label.text() for label in page.findChildren(QLabel)]
+    hint = next(text for text in hints if "bio links" in text)
+
+    assert "yt-dlp" in hint
+    assert "Groq" in hint
+    assert "browser" in hint
 
 
 def test_a_channel_that_could_not_be_resolved_still_gets_a_row(qapp):

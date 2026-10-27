@@ -102,8 +102,12 @@ def test_verify_real_instagram_page_is_found(_browser_session):
 
 def test_verify_real_tiktok_page_is_found(_browser_session):
     """A real TikTok profile should be found as FOUND."""
-    page = _browser_session.open("https://www.tiktok.com/@mrbeast")
-    result = sv.verify_page(page, "tiktok", sv.CreatorRef(title="MrBeast", handle="mrbeast"))
+    result = sv.verify_candidate(
+        _browser_session,
+        "https://www.tiktok.com/@mrbeast",
+        "tiktok",
+        sv.CreatorRef(title="MrBeast", handle="mrbeast"),
+    )
     
     assert result.verdict == sv.Verdict.FOUND.value
     assert result.handle == "mrbeast" or result.display_name == "MrBeast"
@@ -134,11 +138,18 @@ def test_verify_fake_instagram_page_is_not_found(_browser_session):
 
 
 def test_verify_fake_tiktok_page_is_not_found(_browser_session):
-    """A fake TikTok profile should be NOT_FOUND."""
-    page = _browser_session.open("https://www.tiktok.com/@thisdoesnotexist12345")
-    result = sv.verify_page(page, "tiktok", sv.CreatorRef(title="Fake", handle="fake"))
-    
-    assert result.verdict == sv.Verdict.NOT_FOUND.value
+    """A fake TikTok profile should not be reported as a real account."""
+    result = sv.verify_candidate(
+        _browser_session,
+        "https://www.tiktok.com/@thisdoesnotexist12345",
+        "tiktok",
+        sv.CreatorRef(title="Fake", handle="fake"),
+    )
+
+    # TikTok answers with a rate limit or an HTTP error on some runs; that is
+    # "unknown", never "found".
+    assert result.verdict in (sv.Verdict.NOT_FOUND.value, sv.Verdict.UNKNOWN.value)
+    assert result.verdict != sv.Verdict.FOUND.value
 
 
 # =============================================================================

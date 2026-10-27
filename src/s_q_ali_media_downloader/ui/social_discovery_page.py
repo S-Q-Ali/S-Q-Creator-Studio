@@ -43,6 +43,19 @@ VERDICT_TEXT = {
 }
 
 
+def _backend_summary(result: DiscoveryResult) -> str:
+    """Which backends ran, so a missing account is not a silent mystery."""
+    if result.ai_used:
+        count = result.ai_candidates
+        ai = f"AI {count} candidate{'s' if count != 1 else ''}"
+    else:
+        ai = "AI not used"
+    return (
+        f"bio links {result.bio_candidates} · {ai} · "
+        f"browser checks {result.browser_checks}"
+    )
+
+
 class SocialDiscoveryWorker(QThread):
     """Runs the discovery for a list of channels, one after the other."""
 
@@ -106,8 +119,9 @@ class SocialDiscoveryPage(QWidget):
 
         hint = QLabel(
             "Paste a YouTube channel URL, an @handle, or a channel name — one per line "
-            "for a batch. The channel's own links are checked first; the AI agent proposes "
-            "the rest and every account is confirmed in a real browser."
+            "for a batch. The YouTube channel is resolved first with yt-dlp (or the "
+            "YouTube API key if set), its bio links are checked, Groq (optional) "
+            "proposes extra handles, and only a real browser confirms an account."
         )
         hint.setWordWrap(True)
         hint.setProperty("role", "hint")
@@ -250,6 +264,8 @@ class SocialDiscoveryPage(QWidget):
             tip += f"\n{result.reason}"
         if result.warning:
             tip += f"\n{result.warning}"
+        if not result.error:
+            tip += f"\n{_backend_summary(result)}"
         channel.setToolTip(tip)
         self.table.setItem(row, 0, channel)
 
@@ -259,9 +275,16 @@ class SocialDiscoveryPage(QWidget):
                 item = QTableWidgetItem("—")
                 item.setForeground(Qt.GlobalColor.gray)
             else:
-                item = QTableWidgetItem(VERDICT_TEXT.get(outcome.verdict, outcome.verdict))
+                text = VERDICT_TEXT.get(outcome.verdict, outcome.verdict)
+                if outcome.tier:
+                    text += f" · {outcome.tier}"
+                item = QTableWidgetItem(text)
                 item.setForeground(Qt.GlobalColor.green if outcome.is_found else Qt.GlobalColor.gray)
                 tip = outcome.url or outcome.detail
+                if outcome.tier:
+                    tip += f"\nconfidence: {outcome.tier}"
+                if outcome.source:
+                    tip += f"\nsource: {outcome.source}"
                 if outcome.evidence:
                     tip += "\n\n" + ", ".join(outcome.evidence)
                 item.setToolTip(tip)
@@ -270,7 +293,15 @@ class SocialDiscoveryPage(QWidget):
             self.table.setItem(row, index, item)
 
         self.table.resizeRowsToContents()
-        status = f"{result.title}: {result.found_count} of {len(PLATFORMS)} confirmed."
+        found = [outcome for outcome in result.platforms if outcome.is_found]
+        confirmed = sum(1 for outcome in found if outcome.tier == "confirmed")
+        likely = len(found) - confirmed
+        status = f"{result.title}: {len(found)} found"
+        if found:
+            status += f" ({confirmed} confirmed, {likely} likely)"
+        status += "."
+        if not result.error:
+            status += f"  ·  {_backend_summary(result)}"
         if result.warning:
             status += f"  ·  {result.warning}"
         self.status_label.setText(status)
@@ -286,7 +317,7 @@ class SocialDiscoveryPage(QWidget):
         if self._results:
             total = sum(r.found_count for r in self._results)
             self.status_label.setText(
-                f"Done — {total} confirmed account(s) across {len(self._results)} channel(s)."
+                f"Done — {total} found account(s) across {len(self._results)} channel(s)."
             )
 
     # ------------------------------------------------------------------ #
@@ -303,6 +334,10 @@ class SocialDiscoveryPage(QWidget):
             self.detail_label.setText("")
             return
         parts = [f"{outcome.platform}: {VERDICT_TEXT.get(outcome.verdict, outcome.verdict)}"]
+        if outcome.tier:
+            parts.append(f"confidence: {outcome.tier}")
+        if outcome.source:
+            parts.append(f"source: {outcome.source}")
         if outcome.display_name:
             parts.append(f"account name: {outcome.display_name}")
         if outcome.url:
@@ -341,6 +376,8 @@ class SocialDiscoveryPage(QWidget):
                 outcome = result.outcome(platform)
                 row[platform] = outcome.url if outcome and outcome.url else ""
                 row[f"{platform}_status"] = outcome.verdict if outcome else ""
+                row[f"{platform}_tier"] = outcome.tier if outcome else ""
+                row[f"{platform}_source"] = outcome.source if outcome else ""
             rows.append(row)
         return rows
 
