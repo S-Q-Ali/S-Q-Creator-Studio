@@ -1,11 +1,12 @@
-"""Comprehensive tests for the social discovery agent.
+"""Live tests for the social discovery agent.
 
 These tests verify that the agent correctly verifies Facebook, Instagram,
 and TikTok accounts for real channels. They use the real browser to test
-actual social media pages.
+actual social media pages, so they need a working network as well as a
+browser. CI excludes them with `pytest -m "not live"`; run them locally
+with `pytest -m live`.
 
-Run these tests with a browser installed. The tests are skipped if
-no usable browser is found.
+The tests are skipped if no usable browser is found.
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from s_q_ali_media_downloader.agent.tools import (
 from s_q_ali_media_downloader.agent.tools import (
     social_verify as sv,
 )
+
+pytestmark = pytest.mark.live
 
 # =============================================================================
 # Test channels - real channels with known social presence

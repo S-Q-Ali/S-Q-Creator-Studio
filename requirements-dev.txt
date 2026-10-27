@@ -1,7 +1,12 @@
 -r requirements.txt
 pytest>=8
+# The rate-limit tests are async; without the plugin pytest reports
+# "async def functions are not natively supported" and fails them.
+pytest-asyncio>=1.0
 ruff>=0.6
 pyinstaller>=6.10
+# PyInstaller pulls setuptools in; 84.1.0 fixes GHSA-xmj3-9gf7-h52w.
+setuptools>=84.1.0
 pip-audit>=2.10.1
 # The Social Discovery feature drives a real browser. The package is small;
 # the browser itself is not needed - channel="msedge" uses the one Windows

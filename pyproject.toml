@@ -30,8 +30,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "pytest-asyncio>=1.0",
     "ruff>=0.6",
     "pyinstaller>=6.10",
+    "setuptools>=84.1.0",
 ]
 # The Social Discovery feature drives a real browser. Without it the feature
 # explains what to install; the rest of the app does not need it.
@@ -67,3 +69,6 @@ ignore = ["BLE001", "S110"]
 [tool.pytest.ini_options]
 addopts = "-q -p no:unraisableexception"
 pythonpath = ["src"]
+markers = [
+    "live: hits real social media sites; CI runs pytest with -m 'not live'",
+]

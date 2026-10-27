@@ -32,7 +32,10 @@ jobs:
           # A crash on the way out leaves no trace without this: the run
           # would end with every test passed and a failure code.
           PYTHONFAULTHANDLER: '1'
-        run: pytest
+        # The live tests open real Instagram/TikTok pages. GitHub's runners
+        # get a login wall or an HTTP error from those sites, so the tests
+        # cannot be deterministic here. Run them locally with `pytest -m live`.
+        run: pytest -m "not live"
 
       - name: Audit dependencies (OSV/pip-audit)
         run: python -m pip_audit
