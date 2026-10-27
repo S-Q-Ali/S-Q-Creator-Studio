@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import os.path
 
-from PySide6.QtCore import QSettings, Qt, Signal
+from PySide6.QtCore import QSettings, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -59,6 +59,27 @@ YOUTUBE_KEY = "youtube_api_key"
 COOKIES_FILE_KEY = "youtube_cookies_file"
 
 
+class GroqKeyTestWorker(QThread):
+    """Sends one small request so the key can be tested without a run."""
+
+    ok = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, api_key: str, parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+
+    def run(self) -> None:  # pragma: no cover - the request is real
+        from s_q_ali_media_downloader.agent.tools import social_judge
+
+        try:
+            model = social_judge.test_key(self.api_key)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+        else:
+            self.ok.emit(model)
+
+
 def make_settings() -> QSettings:
     """The app's preferences.
 
@@ -81,6 +102,8 @@ class SettingsPage(QWidget):
         super().__init__(parent)
         self.setObjectName("SettingsPage")
         self.settings = make_settings()
+        self._groq_worker: GroqKeyTestWorker | None = None
+        self._groq_tested_key = ""
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -155,6 +178,29 @@ class SettingsPage(QWidget):
         self.groq_edit.setPlaceholderText("gsk_...")
         self.groq_edit.setMaximumWidth(460)
         self.groq_edit.textChanged.connect(self._save_keys)
+        self.groq_edit.textChanged.connect(self._on_groq_key_edited)
+
+        groq_line = QWidget()
+        groq_line_lay = QHBoxLayout(groq_line)
+        groq_line_lay.setContentsMargins(0, 0, 0, 0)
+        groq_line_lay.setSpacing(8)
+        groq_line_lay.addWidget(self.groq_edit, 1)
+        self.btn_test_groq = QPushButton("Test")
+        self.btn_test_groq.setToolTip("Send one small request to Groq to check the key.")
+        self.btn_test_groq.clicked.connect(self._test_groq_key)
+        groq_line_lay.addWidget(self.btn_test_groq)
+
+        self.groq_status = QLabel("")
+        self.groq_status.setProperty("role", "hint")
+        self.groq_status.setWordWrap(True)
+        self.groq_status.setVisible(False)
+
+        groq_row = QWidget()
+        groq_lay = QVBoxLayout(groq_row)
+        groq_lay.setContentsMargins(0, 0, 0, 0)
+        groq_lay.setSpacing(4)
+        groq_lay.addWidget(groq_line)
+        groq_lay.addWidget(self.groq_status)
 
         self.youtube_key_edit = QLineEdit()
         self.youtube_key_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
@@ -187,7 +233,7 @@ class SettingsPage(QWidget):
         return [
             (
                 "Groq API key",
-                self.groq_edit,
+                groq_row,
                 (
                     "Used by Social Discovery: the agent proposes the accounts, a "
                     "real browser confirms them. Leave it empty to search by name only."
@@ -321,6 +367,8 @@ class SettingsPage(QWidget):
 
         self.cookies.setChecked(self.settings.value("cookies") == "true")
 
+        self.groq_status.setText("")
+        self.groq_status.setVisible(False)
         self.groq_edit.setText(settings_store.get_setting(GROQ_KEY) or "")
         self.youtube_key_edit.setText(settings_store.get_setting(YOUTUBE_KEY) or "")
         cookies_path = settings_store.get_setting(COOKIES_FILE_KEY) or ""
@@ -379,6 +427,61 @@ class SettingsPage(QWidget):
             else:
                 settings_store.set_setting(key, "")
         self.set_status("Saved.")
+
+    # ------------------------------------------------------------------ #
+    # The Groq key test
+    # ------------------------------------------------------------------ #
+    def _test_groq_key(self) -> None:
+        if self._groq_worker is not None and self._groq_worker.isRunning():
+            return
+        key = self.groq_edit.text().strip()
+        if not key:
+            self._show_groq_status("Enter a Groq API key first.", "#FFB020")
+            return
+
+        self.btn_test_groq.setEnabled(False)
+        self.btn_test_groq.setText("Testing ...")
+        self._show_groq_status("Sending one small request to Groq ...", "#9C93AE")
+
+        worker = GroqKeyTestWorker(key, parent=self)
+        worker.ok.connect(self._on_groq_test_ok)
+        worker.failed.connect(self._on_groq_test_failed)
+        worker.finished.connect(self._on_groq_test_finished)
+        worker.finished.connect(worker.deleteLater)
+        self._groq_worker = worker
+        self._groq_tested_key = key
+        worker.start()
+
+    def _on_groq_key_edited(self) -> None:
+        """A result belongs to the key that was tested, not the next one."""
+        if not self.groq_status.isHidden():
+            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+
+    def _on_groq_test_ok(self, model: str) -> None:
+        if self.groq_edit.text().strip() != self._groq_tested_key:
+            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+            return
+        self._show_groq_status(f"Groq key works · {model}", "#2DD4BF")
+
+    def _on_groq_test_failed(self, message: str) -> None:
+        if self.groq_edit.text().strip() != self._groq_tested_key:
+            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+            return
+        self._show_groq_status(f"Groq key test failed: {message}", "#F2547D")
+
+    def _on_groq_test_finished(self) -> None:
+        self.btn_test_groq.setEnabled(True)
+        self.btn_test_groq.setText("Test")
+        self._groq_worker = None
+
+    def _show_groq_status(self, text: str, color: str) -> None:
+        self.groq_status.setText(text)
+        self.groq_status.setStyleSheet(f"color: {color};")
+        self.groq_status.setVisible(True)
+
+    def key_test_running(self) -> bool:
+        worker = self._groq_worker
+        return worker is not None and worker.isRunning()
 
     def _refresh_identity(self) -> None:
         ok, label = impersonation_summary()

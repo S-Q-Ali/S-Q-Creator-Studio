@@ -99,20 +99,33 @@ def groq_key() -> str | None:
     return stored or None
 
 
+def _error_detail(text: str) -> str:
+    """Groq's own message when it sent JSON, otherwise the raw text."""
+    try:
+        body = json.loads(text)
+    except json.JSONDecodeError:
+        return text[:160]
+    message = (body.get("error") or {}).get("message") if isinstance(body, dict) else None
+    return str(message) if message else text[:160]
+
+
 def _post_groq(payload: dict, api_key: str, timeout: float = 60.0) -> dict:
     """Ask Groq. One request, a timeout, and nothing logged."""
-    with httpx.Client(timeout=timeout) as client:
-        response = client.post(
-            f"{GROQ_BASE}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(
+                f"{GROQ_BASE}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+    except httpx.HTTPError as exc:
+        raise JudgeUnavailable(f"Could not reach Groq: {exc}") from exc
     if response.status_code != 200:
         raise JudgeUnavailable(
-            f"Groq answered {response.status_code}: {response.text[:160]}"
+            f"Groq answered {response.status_code}: {_error_detail(response.text)}"
         )
     return response.json()
 
@@ -161,6 +174,32 @@ def parse_response(raw: str) -> Proposal:
         reason=str(parsed.get("reason") or ""),
         confidence=str(parsed.get("confidence") or "none").lower(),
     )
+
+
+def test_key(api_key: str | None = None) -> str:
+    """Send one small request and return the model that answered.
+
+    The Settings page's Test button uses this. A bad key fails here, so the
+    page can show the exact answer instead of claiming the key works.
+    """
+    key = (api_key or groq_key() or "").strip()
+    if not key:
+        raise JudgeUnavailable(
+            "No Groq API key configured. Add one in Settings > AI Keys."
+        )
+
+    payload = {
+        "model": DEFAULT_MODEL,
+        "messages": [{"role": "user", "content": "Reply with OK."}],
+        "temperature": 0.0,
+        "max_completion_tokens": 8,
+    }
+    answer = _post_groq(payload, key, timeout=20.0)
+    try:
+        answer["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise JudgeUnavailable("The model's answer had no content.") from exc
+    return DEFAULT_MODEL
 
 
 def propose(

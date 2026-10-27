@@ -1240,6 +1240,7 @@ class MainWindow(QMainWindow):
             self.running()
             or self.fetching()
             or (self.expander is not None and self.expander.isRunning())
+            or self.settings_page.key_test_running()
             or (
                 social is not None
                 and social.worker is not None

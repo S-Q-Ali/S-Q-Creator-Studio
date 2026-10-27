@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import httpx
 import pytest
 
 from s_q_ali_media_downloader.agent.tools import social_judge as sj
@@ -117,3 +118,64 @@ def test_the_stored_key_is_used_when_the_environment_has_none(monkeypatch):
     monkeypatch.setattr(sj.settings_store, "get_setting", lambda key: "stored-key")
 
     assert sj.groq_key() == "stored-key"
+
+
+def test_the_key_test_sends_one_small_request(monkeypatch):
+    seen = {}
+
+    def fake_post(payload, key, timeout=60.0):
+        seen["payload"] = payload
+        seen["key"] = key
+        seen["timeout"] = timeout
+        return {"choices": [{"message": {"content": "OK"}}]}
+
+    monkeypatch.setattr(sj, "_post_groq", fake_post)
+
+    model = sj.test_key("gsk_test")
+
+    assert model == sj.DEFAULT_MODEL
+    assert seen["key"] == "gsk_test"
+    assert seen["payload"]["model"] == sj.DEFAULT_MODEL
+    assert seen["payload"]["max_completion_tokens"] <= 16
+    assert seen["timeout"] <= 30
+
+
+def test_without_a_key_the_key_test_says_so(monkeypatch):
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+
+    with pytest.raises(sj.JudgeUnavailable) as excinfo:
+        sj.test_key()
+
+    assert "key" in str(excinfo.value).lower()
+
+
+def test_a_groq_error_is_shown_as_its_own_message():
+    raw = '{"error":{"message":"Invalid API Key","type":"invalid_request_error"}}'
+
+    assert sj._error_detail(raw) == "Invalid API Key"
+
+
+def test_a_plain_error_is_kept_short():
+    assert sj._error_detail("x" * 500) == "x" * 160
+
+
+def test_a_network_error_is_reported_as_unavailable(monkeypatch):
+    class BrokenClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def post(self, *args, **kwargs):
+            raise httpx.ConnectError("no route")
+
+    monkeypatch.setattr(sj.httpx, "Client", BrokenClient)
+
+    with pytest.raises(sj.JudgeUnavailable) as excinfo:
+        sj._post_groq({}, "gsk_test")
+
+    assert "reach" in str(excinfo.value).lower()
