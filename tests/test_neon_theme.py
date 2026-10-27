@@ -13,9 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication
 
 # Import the app components
 from s_q_ali_media_downloader.ui.main_window import MainWindow
