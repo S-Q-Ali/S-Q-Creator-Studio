@@ -70,8 +70,11 @@ jobs:
           Stop-Process -Id $proc.Id -Force
           Write-Output "App stayed alive for 30 seconds"
 
-      - name: Upload portable build
+      - name: Upload app build
         uses: actions/upload-artifact@v7
         with:
           name: portable-build
-          path: dist\S-Q Creator Studio
+          # build.bat writes the PyInstaller output here before copying it
+          # to release\portable. Fail loudly if the path ever drifts again.
+          path: build\out\S-Q Creator Studio
+          if-no-files-found: error
