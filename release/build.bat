@@ -235,7 +235,7 @@ if %ISCC_TRY% geq 3 (
     call :failed || exit /b 1
 )
 set /a ISCC_TRY+=1
-echo           The output file was busy; retrying in 10 seconds ^(attempt %ISCC_TRY% of 3^)...
+echo           Inno Setup failed; retrying in 10 seconds ^(attempt %ISCC_TRY% of 3^)...
 ping -n 11 127.0.0.1 >nul
 goto :run_iscc
 
