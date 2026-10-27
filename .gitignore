@@ -24,6 +24,7 @@ unins000.exe
 # Release build output (setup EXE, ffmpeg staging)
 release/*
 !release/installer.iss
+!release/README.md
 
 # Legacy activation tooling (contains old product-key secret) — keep local
 legacy/

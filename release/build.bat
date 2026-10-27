@@ -210,16 +210,48 @@ if defined FFMPEG_EXE (
     echo           Installer will build without ffmpeg — copy it manually to %STAGING%\ first.
 )
 
+rem Compile into a clean folder instead of release\. An Explorer window left
+rem open on release\ - or antivirus scanning the new 200 MB Setup.exe - can
+rem hold the file open while Inno updates its icon and version resources,
+rem which fails with "EndUpdateResource failed (110)". The finished file is
+rem moved into release\ after the compile.
+set "INSTALLER_OUT=%ROOT%build\installer"
+if exist "%INSTALLER_OUT%" rmdir /s /q "%INSTALLER_OUT%" >nul 2>nul
+mkdir "%INSTALLER_OUT%" >nul 2>nul
+set "INSTALLER_EXE=%ROOT%release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe"
+
 echo Running Inno Setup compiler...
 rem MyAppSource tells the installer which folder the build landed in.
-"%ISCC%" /DMyAppVersion=%APP_VERSION% /DMyAppSource=%APPSOURCE% "release\installer.iss"
+set "ISCC_TRY=1"
+:run_iscc
+"%ISCC%" /O"%INSTALLER_OUT%" /DMyAppVersion=%APP_VERSION% /DMyAppSource=%APPSOURCE% "release\installer.iss"
 
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Inno Setup compilation failed.
+if %ERRORLEVEL% equ 0 goto :iscc_ok
+if %ISCC_TRY% geq 3 (
+    echo [ERROR] Inno Setup compilation failed after 3 attempts.
+    echo         If the error is "EndUpdateResource failed (110)", close any
+    echo         Explorer window on release\ and add this project folder to
+    echo         your antivirus exclusions, then run the build again.
     call :failed || exit /b 1
 )
+set /a ISCC_TRY+=1
+echo           The output file was busy; retrying in 10 seconds ^(attempt %ISCC_TRY% of 3^)...
+ping -n 11 127.0.0.1 >nul
+goto :run_iscc
 
-echo Installer built: release\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe
+:iscc_ok
+rem The move can hit the same brief lock. Retry it instead of failing a build
+rem that has already spent minutes compressing.
+for /l %%i in (1,1,10) do (
+    move /y "%INSTALLER_OUT%\S-Q-Creator-Studio-Setup-%APP_VERSION%.exe" "%INSTALLER_EXE%" >nul 2>nul
+    if not errorlevel 1 goto :installer_done
+    ping -n 4 127.0.0.1 >nul
+)
+echo [ERROR] Could not move the installer to "%INSTALLER_EXE%".
+call :failed || exit /b 1
+
+:installer_done
+echo Installer built: %INSTALLER_EXE%
 
 rem Step past the failure subroutine: the build is done.
 goto :done
