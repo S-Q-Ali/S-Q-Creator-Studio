@@ -12,5 +12,5 @@
 - [x] Browser: persistent profile + visible option + tests.
 - [x] Browser: mode-1 rendered-page fallback + tests.
 - [x] Full suite (362 passed), ruff, pip-audit.
-- [ ] Commit and push; watch CI.
+- [x] Commit and push; watch CI (run 40616793502 passed, artifact 243 MB).
 - [ ] User rebuild and live sign-in check.
