@@ -154,6 +154,26 @@ def test_add_links_classifies(qapp, isolated_appdata):
     window.close()
 
 
+def test_add_links_accepts_facebook_and_instagram(qapp, isolated_appdata):
+    window = MainWindow()
+    window.links.setPlainText(
+        "https://www.facebook.com/reel/1234567890\n"
+        "https://www.instagram.com/reel/Cabc123/\n"
+        "https://www.facebook.com/MrBeast\n"
+    )
+    window.add_links()
+
+    urls = {job.url for job in window.jobs}
+    assert urls == {
+        "https://www.facebook.com/reel/1234567890",
+        "https://www.instagram.com/reel/Cabc123/",
+    }
+    status = window.status_bar.text()
+    assert "Added 2 links" in status
+    assert "1 skipped" in status
+    window.close()
+
+
 def test_add_links_routes_tiktok_profile_to_expand_queue(qapp, isolated_appdata):
     window = MainWindow()
     window._start_next_expand = lambda: None  # don't spawn a real network thread

@@ -32,6 +32,8 @@ from s_q_ali_media_downloader.agent.schema import (
 )
 from s_q_ali_media_downloader.core.exporter import to_csv, write_export
 from s_q_ali_media_downloader.theme import C
+from s_q_ali_media_downloader.ui.activity_log import ActivityLog
+from s_q_ali_media_downloader.ui.settings_page import discovery_browser_is_visible
 from s_q_ali_media_downloader.ui.social_discovery_page import SocialDiscoveryPage
 
 MODE_YOUTUBE = "YouTube → Socials (FB/IG/TikTok)"
@@ -43,6 +45,7 @@ class AgentWorkerThread(QThread):
     """Background worker thread for running AgentOrchestrator without blocking Qt main loop."""
 
     progress_updated = Signal(int, str)
+    log = Signal(str)
     search_finished = Signal(object)
     search_failed = Signal(str)
 
@@ -59,6 +62,7 @@ class AgentWorkerThread(QThread):
         api_key: str,
         mode: str = MODE_YOUTUBE,
         cookiefile: str | None = None,
+        show_browser: bool = True,
     ):
         super().__init__()
         self.query = query
@@ -72,12 +76,15 @@ class AgentWorkerThread(QThread):
         self.api_key = api_key
         self.mode = mode
         self.cookiefile = cookiefile
+        self.show_browser = show_browser
 
     def run(self):
         try:
             orchestrator = AgentOrchestrator(
                 api_key=self.api_key,
                 progress_callback=lambda pct, msg: self.progress_updated.emit(pct, msg),
+                log_callback=self.log.emit,
+                show_browser=self.show_browser,
             )
             if self.mode == MODE_TIKTOK:
                 result = orchestrator.run_tiktok_discovery(
@@ -98,6 +105,7 @@ class AgentWorkerThread(QThread):
                 )
             self.search_finished.emit(result)
         except Exception as e:
+            self.log.emit(f"Error: {e}")
             self.search_failed.emit(str(e))
 
 
@@ -112,6 +120,7 @@ class AgentTabWidget(QWidget):
         self.search_result: AgentSearchResult = None
         self.worker: AgentWorkerThread = None
         self._init_ui()
+        self.social_page.log.connect(self.activity.append_line)
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
@@ -303,6 +312,11 @@ class AgentTabWidget(QWidget):
 
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.lbl_status)
+
+        # 2b. The activity log stays visible in every mode, so the steps of a
+        # run that ends with no rows are not lost.
+        self.activity = ActivityLog()
+        main_layout.addWidget(self.activity)
 
         # 3. Results Table (QTableWidget) — columns adapt to the discovery mode
         self.table = QTableWidget()
@@ -498,9 +512,11 @@ class AgentTabWidget(QWidget):
             api_key=self.api_key_edit.text().strip(),
             mode=mode,
             cookiefile=self.cookies_edit.text().strip() or None,
+            show_browser=discovery_browser_is_visible(),
         )
 
         self.worker.progress_updated.connect(self._on_progress)
+        self.worker.log.connect(self.activity.append_line)
         self.worker.search_finished.connect(self._on_finished)
         self.worker.search_failed.connect(self._on_failed)
         self.worker.start()

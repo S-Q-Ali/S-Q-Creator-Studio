@@ -106,6 +106,73 @@ def test_send_selected_to_queue_uses_inline_status(qapp, isolated_appdata, monke
     tab.deleteLater()
 
 
+def test_the_activity_log_stays_visible_in_every_mode(qapp, isolated_appdata):
+    from s_q_ali_media_downloader.ui.agent_tab import MODE_SOCIAL
+
+    tab = AgentTabWidget()
+
+    assert tab.activity.isVisibleTo(tab)
+    tab.mode_combo.setCurrentText(MODE_SOCIAL)
+    assert tab.social_page.isVisibleTo(tab)
+    assert tab.activity.isVisibleTo(tab)
+    tab.deleteLater()
+
+
+def test_social_discovery_lines_reach_the_shared_log(qapp, isolated_appdata):
+    tab = AgentTabWidget()
+
+    tab.social_page.log.emit("AI hand-off: Groq first, Gemini fallback")
+
+    assert "AI hand-off" in tab.activity.text()
+    tab.deleteLater()
+
+
+def test_the_worker_forwards_orchestrator_log_lines(
+    qapp, isolated_appdata, monkeypatch
+):
+    from s_q_ali_media_downloader.agent.schema import AgentSearchResult
+    from s_q_ali_media_downloader.ui import agent_tab as at
+
+    seen = {}
+
+    class FakeOrchestrator:
+        def __init__(
+            self,
+            api_key=None,
+            progress_callback=None,
+            log_callback=None,
+            show_browser=True,
+        ):
+            self.log_callback = log_callback
+            seen["show_browser"] = show_browser
+
+        def run_discovery(self, **kwargs):
+            self.log_callback("Search backend: yt-dlp scraper")
+            return AgentSearchResult(query="x")
+
+    monkeypatch.setattr(at, "AgentOrchestrator", FakeOrchestrator)
+    worker = at.AgentWorkerThread(
+        query="x",
+        max_channels=10,
+        min_subs=0,
+        check_fb=True,
+        check_ig=True,
+        check_tiktok=False,
+        only_no_socials=False,
+        only_no_youtube=False,
+        api_key="",
+        mode=at.MODE_YOUTUBE,
+        show_browser=False,
+    )
+    lines = []
+    worker.log.connect(lines.append)
+
+    worker.run()
+
+    assert lines == ["Search backend: yt-dlp scraper"]
+    assert seen["show_browser"] is False
+
+
 def test_agent_table_is_read_only_and_clean(qapp, isolated_appdata):
     tab = AgentTabWidget()
     assert tab.table.editTriggers() == QAbstractItemView.EditTrigger.NoEditTriggers

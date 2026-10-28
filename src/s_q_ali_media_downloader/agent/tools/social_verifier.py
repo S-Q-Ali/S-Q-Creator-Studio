@@ -10,6 +10,8 @@ Precision rules:
 
 import asyncio
 import logging
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
@@ -18,6 +20,7 @@ from s_q_ali_media_downloader.agent.schema import (
     SocialPresence,
     SocialStatus,
 )
+from s_q_ali_media_downloader.agent.tools.social_verify import read_profile
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +85,99 @@ class SocialVerifierTool:
     from Facebook, Instagram, and TikTok during bulk discovery.
     """
 
-    def __init__(self, delay_between_requests: float = 2.0, timeout: float = 10.0):
+    def __init__(
+        self,
+        delay_between_requests: float = 2.0,
+        timeout: float = 10.0,
+        rendered_checker: Callable[[str], object] | None = None,
+        log_callback: Callable[[str], None] | None = None,
+    ):
         self.delay = delay_between_requests
         self.timeout = timeout
+        self.rendered_checker = rendered_checker
+        self.log_callback = log_callback
+        # A browser session is not thread-safe. One worker means the three
+        # platform fallbacks can be gathered without racing each other.
+        self._browser_executor = (
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="social-render")
+            if rendered_checker is not None
+            else None
+        )
         self._request_count = 0
         self._last_request_time = 0.0
         self._retry_after_header = 0.0
+
+    def _log(self, message: str) -> None:
+        logger.info(message)
+        if self.log_callback:
+            try:
+                self.log_callback(message)
+            except Exception as exc:
+                logger.warning("Log callback error: %s", exc)
+
+    def close(self) -> None:
+        """Close the rendered-page browser, if it was ever started."""
+        executor = self._browser_executor
+        self._browser_executor = None
+        if executor is None:
+            return
+        try:
+            if self.rendered_checker is not None:
+                closer = getattr(self.rendered_checker, "close", None)
+                if closer is not None:
+                    executor.submit(closer).result(timeout=15)
+        except Exception as exc:
+            logger.debug("closing the rendered-page browser failed: %s", exc)
+        finally:
+            executor.shutdown(wait=False)
+
+    async def _rendered_fallback(
+        self, presence: SocialPresence, platform: str
+    ) -> SocialPresence:
+        """Try a rendered page when the HTTP probe could not decide."""
+        if (
+            self.rendered_checker is None
+            or self._browser_executor is None
+            or not presence.verified_url
+        ):
+            return presence
+        if presence.status not in (
+            SocialStatus.INCONCLUSIVE,
+            SocialStatus.UNVERIFIED_HANDLE,
+        ):
+            return presence
+
+        loop = asyncio.get_running_loop()
+        try:
+            page = await loop.run_in_executor(
+                self._browser_executor, self.rendered_checker, presence.verified_url
+            )
+        except Exception as exc:
+            self._log(
+                f"Rendered {platform} check failed for {presence.verified_url}: {exc}"
+            )
+            return presence
+
+        exists, name, handle, detail = read_profile(page, platform)
+        is_bio_link = presence.source == "bio_link"
+        if not exists:
+            if is_bio_link:
+                presence.status = SocialStatus.UNVERIFIED_HANDLE
+                presence.confidence_score = 0.55
+            else:
+                presence.status = SocialStatus.NOT_FOUND
+                presence.confidence_score = 0.0
+        elif name or "follower count" in detail:
+            presence.status = (
+                SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
+            )
+            presence.confidence_score = 0.95 if is_bio_link else 0.60
+            presence.handle = handle or presence.handle
+        self._log(
+            f"Rendered {platform} check for {presence.verified_url}: "
+            f"{presence.status.value} ({detail})"
+        )
+        return presence
 
     def _enforce_rate_limit(self) -> None:
         """Enforce rate limiting with exponential backoff on 429 errors.
@@ -359,4 +449,8 @@ class SocialVerifierTool:
         tiktok_task = self.verify_tiktok_presence(candidate_tiktok, channel_handle)
 
         fb_res, ig_res, tiktok_res = await asyncio.gather(fb_task, ig_task, tiktok_task)
+        if self.rendered_checker is not None:
+            fb_res = await self._rendered_fallback(fb_res, "facebook")
+            ig_res = await self._rendered_fallback(ig_res, "instagram")
+            tiktok_res = await self._rendered_fallback(tiktok_res, "tiktok")
         return fb_res, ig_res, tiktok_res

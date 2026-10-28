@@ -1,8 +1,14 @@
 """Unit tests for SocialVerifierTool using asyncio.run."""
 
 import asyncio
+import threading
 
-from s_q_ali_media_downloader.agent.schema import SocialStatus
+from s_q_ali_media_downloader.agent.schema import (
+    SocialPlatform,
+    SocialPresence,
+    SocialStatus,
+)
+from s_q_ali_media_downloader.agent.tools.browser import Page
 from s_q_ali_media_downloader.agent.tools.social_verifier import SocialVerifierTool
 
 
@@ -189,3 +195,123 @@ def test_handle_guess_network_failure_is_inconclusive(monkeypatch):
     presence = asyncio.run(_test())
     assert presence.status == SocialStatus.INCONCLUSIVE
     assert presence.source == "handle_guess"
+
+
+def _presence(status, source="handle_guess", url="https://www.instagram.com/creator/"):
+    return SocialPresence(
+        platform=SocialPlatform.INSTAGRAM,
+        status=status,
+        verified_url=url,
+        source=source,
+    )
+
+
+def test_a_rendered_page_confirms_an_inconclusive_probe():
+    page = Page(
+        url="https://www.instagram.com/creator/",
+        meta={"ogTitle": "Creator (@creator) - Instagram photos and videos"},
+    )
+    verifier = SocialVerifierTool(rendered_checker=lambda url: page)
+    presence = _presence(SocialStatus.INCONCLUSIVE)
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert presence.status == SocialStatus.UNVERIFIED_HANDLE
+    assert presence.confidence_score >= 0.6
+    assert presence.handle == "creator"
+    verifier.close()
+
+
+def test_a_rendered_page_confirms_a_bio_link_as_verified():
+    page = Page(
+        url="https://www.instagram.com/creator/",
+        meta={"ogTitle": "Creator (@creator) - Instagram photos and videos"},
+    )
+    verifier = SocialVerifierTool(rendered_checker=lambda url: page)
+    presence = _presence(SocialStatus.UNVERIFIED_HANDLE, source="bio_link")
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert presence.status == SocialStatus.VERIFIED
+    verifier.close()
+
+
+def test_a_rendered_missing_page_marks_a_guess_not_found():
+    page = Page(url="https://www.instagram.com/creator/", title="Profile isn't available")
+    verifier = SocialVerifierTool(rendered_checker=lambda url: page)
+    presence = _presence(SocialStatus.INCONCLUSIVE)
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert presence.status == SocialStatus.NOT_FOUND
+    verifier.close()
+
+
+def test_a_rendered_missing_page_never_erases_a_bio_link():
+    page = Page(url="https://www.instagram.com/creator/", title="Profile isn't available")
+    verifier = SocialVerifierTool(rendered_checker=lambda url: page)
+    presence = _presence(SocialStatus.UNVERIFIED_HANDLE, source="bio_link")
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert presence.status == SocialStatus.UNVERIFIED_HANDLE
+    verifier.close()
+
+
+def test_a_login_wall_is_not_evidence_of_an_account():
+    page = Page(url="https://www.instagram.com/creator/", text="Log in to Instagram")
+    verifier = SocialVerifierTool(rendered_checker=lambda url: page)
+    presence = _presence(SocialStatus.INCONCLUSIVE)
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert presence.status == SocialStatus.INCONCLUSIVE
+    verifier.close()
+
+
+def test_a_decisive_http_probe_never_opens_the_browser():
+    calls = []
+    verifier = SocialVerifierTool(rendered_checker=lambda url: calls.append(url))
+    presence = _presence(SocialStatus.VERIFIED, source="bio_link")
+
+    asyncio.run(verifier._rendered_fallback(presence, "instagram"))
+
+    assert calls == []
+    verifier.close()
+
+
+def test_all_rendered_checks_use_one_thread():
+    threads = []
+
+    def checker(url):
+        threads.append(threading.current_thread().name)
+        return Page(url=url, title="Profile isn't available")
+
+    verifier = SocialVerifierTool(rendered_checker=checker)
+
+    async def _test():
+        presences = [_presence(SocialStatus.INCONCLUSIVE) for _ in range(3)]
+        return await asyncio.gather(
+            *(verifier._rendered_fallback(item, "instagram") for item in presences)
+        )
+
+    asyncio.run(_test())
+
+    assert len(set(threads)) == 1
+    verifier.close()
+
+
+def test_closing_the_verifier_closes_the_browser():
+    closed = []
+
+    class Checker:
+        def __call__(self, url):
+            return Page(url=url)
+
+        def close(self):
+            closed.append(True)
+
+    verifier = SocialVerifierTool(rendered_checker=Checker())
+    verifier.close()
+
+    assert closed == [True]

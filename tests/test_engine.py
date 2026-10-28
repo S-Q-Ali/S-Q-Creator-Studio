@@ -67,6 +67,19 @@ def test_tidy_error():
     assert "bot" in bot_check.lower() and "wait" in bot_check.lower()
     profile_flake = tidy_error(Exception("Unable to extract secondary user ID"))
     assert "profile" in profile_flake.lower() and "retry" in profile_flake.lower()
+    instagram_wall = tidy_error(
+        Exception(
+            "Requested content is not available, rate-limit reached or login "
+            "required. Use --cookies-from-browser or --cookies for the "
+            "authentication."
+        )
+    )
+    assert "login" in instagram_wall.lower()
+    assert "cookies" in instagram_wall.lower()
+    facebook_wall = tidy_error(
+        Exception("This video is only available to registered users")
+    )
+    assert "login" in facebook_wall.lower()
     assert not is_permanent(bot_check)
     assert not is_permanent(profile_flake)
 

@@ -30,8 +30,12 @@ from s_q_ali_media_downloader.agent.social_discovery import (
     DiscoveryResult,
     discover,
 )
-from s_q_ali_media_downloader.agent.tools.browser import BrowserSession
+from s_q_ali_media_downloader.agent.tools.browser import (
+    BrowserSession,
+    default_profile_dir,
+)
 from s_q_ali_media_downloader.core import exporter
+from s_q_ali_media_downloader.ui.settings_page import discovery_browser_is_visible
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +52,8 @@ def _backend_summary(result: DiscoveryResult) -> str:
     if result.ai_used:
         count = result.ai_candidates
         ai = f"AI {count} candidate{'s' if count != 1 else ''}"
+        if result.ai_provider:
+            ai += f" via {result.ai_provider}"
     else:
         ai = "AI not used"
     return (
@@ -60,30 +66,40 @@ class SocialDiscoveryWorker(QThread):
     """Runs the discovery for a list of channels, one after the other."""
 
     progress = Signal(str)
+    log = Signal(str)
     finished_one = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, queries: list[str], parent=None):
+    def __init__(self, queries: list[str], show_browser: bool = True, parent=None):
         super().__init__(parent)
         self.queries = queries
+        self.show_browser = show_browser
         self._cancelled = False
 
     def cancel(self) -> None:
         self._cancelled = True
 
+    def _say(self, message: str) -> None:
+        self.progress.emit(message)
+        self.log.emit(message)
+
     def run(self) -> None:  # pragma: no cover - exercised through the page
         try:
-            with BrowserSession() as session:
+            self._say(f"Opening the browser for {len(self.queries)} channel(s) ...")
+            with BrowserSession(
+                headless=not self.show_browser,
+                profile_dir=default_profile_dir(),
+            ) as session:
                 for index, query in enumerate(self.queries, start=1):
                     if self._cancelled:
-                        self.progress.emit("Cancelled.")
+                        self._say("Cancelled.")
                         return
                     total = len(self.queries)
-                    self.progress.emit(f"[{index}/{total}] {query} ...")
+                    self._say(f"[{index}/{total}] {query} ...")
                     result = discover(
                         session,
                         query,
-                        progress=lambda message, q=query, i=index, n=total: self.progress.emit(
+                        progress=lambda message, q=query, i=index, n=total: self._say(
                             f"[{i}/{n}] {q}: {message}"
                         ),
                     )
@@ -92,11 +108,14 @@ class SocialDiscoveryWorker(QThread):
                     self.finished_one.emit(result)
         except Exception as exc:
             logger.warning("Social discovery failed", exc_info=True)
+            self.log.emit(f"Failed: {exc}")
             self.failed.emit(str(exc))
 
 
 class SocialDiscoveryPage(QWidget):
     """Paste a channel, get the creator's other accounts."""
+
+    log = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -120,8 +139,9 @@ class SocialDiscoveryPage(QWidget):
         hint = QLabel(
             "Paste a YouTube channel URL, an @handle, or a channel name — one per line "
             "for a batch. The YouTube channel is resolved first with yt-dlp (or the "
-            "YouTube API key if set), its bio links are checked, Groq (optional) "
-            "proposes extra handles, and only a real browser confirms an account."
+            "YouTube API key if set), its bio links are checked, Groq proposes extra "
+            "handles (Gemini runs if Groq has no key or fails), and only a real "
+            "browser confirms an account."
         )
         hint.setWordWrap(True)
         hint.setProperty("role", "hint")
@@ -226,8 +246,13 @@ class SocialDiscoveryPage(QWidget):
         self.btn_json.setEnabled(False)
         self.status_label.setText(f"Working on {len(queries)} channel(s) ...")
 
-        self.worker = SocialDiscoveryWorker(queries, parent=self)
+        self.worker = SocialDiscoveryWorker(
+            queries,
+            show_browser=discovery_browser_is_visible(),
+            parent=self,
+        )
         self.worker.progress.connect(self.status_label.setText)
+        self.worker.log.connect(self.log.emit)
         self.worker.finished_one.connect(self._on_result)
         self.worker.failed.connect(self._on_failed)
         self.worker.finished.connect(self._on_finished)
@@ -305,9 +330,11 @@ class SocialDiscoveryPage(QWidget):
         if result.warning:
             status += f"  ·  {result.warning}"
         self.status_label.setText(status)
+        self.log.emit(status)
 
     def _on_failed(self, message: str) -> None:
         self.status_label.setText(f"Failed: {message}")
+        self.log.emit(f"Failed: {message}")
 
     def _on_finished(self) -> None:
         self.btn_find.setEnabled(True)
@@ -316,9 +343,11 @@ class SocialDiscoveryPage(QWidget):
         self.btn_json.setEnabled(bool(self._results))
         if self._results:
             total = sum(r.found_count for r in self._results)
-            self.status_label.setText(
+            summary = (
                 f"Done — {total} found account(s) across {len(self._results)} channel(s)."
             )
+            self.status_label.setText(summary)
+            self.log.emit(summary)
 
     # ------------------------------------------------------------------ #
     # The detail line

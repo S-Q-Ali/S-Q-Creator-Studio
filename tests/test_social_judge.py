@@ -120,6 +120,195 @@ def test_the_stored_key_is_used_when_the_environment_has_none(monkeypatch):
     assert sj.groq_key() == "stored-key"
 
 
+def test_the_gemini_key_comes_from_the_environment_first(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-from-env")
+    monkeypatch.setattr(sj.settings_store, "get_setting", lambda key: "stored-gemini")
+
+    assert sj.gemini_key() == "gemini-from-env"
+
+
+def test_the_stored_gemini_key_is_used_when_the_environment_has_none(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.setattr(sj.settings_store, "get_setting", lambda key: "stored-gemini")
+
+    assert sj.gemini_key() == "stored-gemini"
+
+
+def test_groq_is_tried_first_and_gemini_is_not_called(monkeypatch):
+    seen = {"gemini": False}
+
+    def fake_groq(payload, key, timeout=60.0):
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "facebook": ["MrBeast"],
+                                "instagram": [],
+                                "tiktok": [],
+                                "reason": "known",
+                                "confidence": "high",
+                            }
+                        )
+                    }
+                }
+            ],
+            "usage": {"total_tokens": 11},
+        }
+
+    def fake_gemini(payload, key, timeout=60.0):
+        seen["gemini"] = True
+        raise AssertionError("Gemini must not run when Groq answered")
+
+    monkeypatch.setattr(sj, "_post_groq", fake_groq)
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: "gsk_test")
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    proposal = sj.propose("MrBeast", "MrBeast")
+
+    assert proposal.provider == "groq"
+    assert proposal.candidates["facebook"] == ["MrBeast"]
+    assert seen["gemini"] is False
+
+
+def test_groq_failure_falls_back_to_gemini(monkeypatch):
+    answer = json.dumps(
+        {
+            "facebook": [],
+            "instagram": ["mrbeast"],
+            "tiktok": [],
+            "reason": "the model knows this creator",
+            "confidence": "medium",
+        }
+    )
+
+    def fake_groq(payload, key, timeout=60.0):
+        raise sj.JudgeUnavailable("Groq answered 503: unavailable")
+
+    def fake_gemini(payload, key, timeout=60.0):
+        assert payload["model"] == sj.GEMINI_MODEL
+        assert payload["response_format"]["mime_type"] == "application/json"
+        return {
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [{"type": "text", "text": answer}],
+                }
+            ],
+            "usage": {"total_tokens": 42},
+        }
+
+    monkeypatch.setattr(sj, "_post_groq", fake_groq)
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: "gsk_test")
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    proposal = sj.propose("MrBeast", "MrBeast")
+
+    assert proposal.provider == "gemini"
+    assert proposal.model == sj.GEMINI_MODEL
+    assert proposal.tokens == 42
+    assert proposal.candidates["instagram"] == ["mrbeast"]
+
+
+def test_without_a_groq_key_gemini_is_used(monkeypatch):
+    def fake_gemini(payload, key, timeout=60.0):
+        return {
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "facebook": [],
+                                    "instagram": [],
+                                    "tiktok": ["mrbeast"],
+                                    "reason": "known",
+                                    "confidence": "high",
+                                }
+                            ),
+                        }
+                    ],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+
+    proposal = sj.propose("MrBeast", "MrBeast")
+
+    assert proposal.provider == "gemini"
+    assert proposal.candidates["tiktok"] == ["mrbeast"]
+
+
+def test_with_no_ai_key_at_all_both_providers_are_named(monkeypatch):
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: None)
+
+    with pytest.raises(sj.JudgeUnavailable) as excinfo:
+        sj.propose("MrBeast", "MrBeast")
+
+    message = str(excinfo.value).lower()
+    assert "groq" in message
+    assert "gemini" in message
+
+
+def test_both_provider_errors_are_reported(monkeypatch):
+    monkeypatch.setattr(sj, "groq_key", lambda: "gsk_test")
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+    monkeypatch.setattr(
+        sj,
+        "_post_groq",
+        lambda *a, **k: (_ for _ in ()).throw(sj.JudgeUnavailable("Groq 503")),
+    )
+    monkeypatch.setattr(
+        sj,
+        "_post_gemini",
+        lambda *a, **k: (_ for _ in ()).throw(sj.JudgeUnavailable("Gemini 429")),
+    )
+
+    with pytest.raises(sj.JudgeUnavailable) as excinfo:
+        sj.propose("MrBeast", "MrBeast")
+
+    message = str(excinfo.value)
+    assert "Groq 503" in message
+    assert "Gemini 429" in message
+
+
+def test_the_gemini_key_test_sends_one_small_request(monkeypatch):
+    seen = {}
+
+    def fake_post(payload, key, timeout=60.0):
+        seen["payload"] = payload
+        seen["key"] = key
+        seen["timeout"] = timeout
+        return {
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [{"type": "text", "text": "OK"}],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(sj, "_post_gemini", fake_post)
+
+    model = sj.test_gemini_key("gemini_test")
+
+    assert model == sj.GEMINI_MODEL
+    assert seen["key"] == "gemini_test"
+    assert seen["payload"]["model"] == sj.GEMINI_MODEL
+    assert seen["payload"]["generation_config"]["max_output_tokens"] <= 16
+    assert seen["timeout"] <= 30
+
+
 def test_the_key_test_sends_one_small_request(monkeypatch):
     seen = {}
 

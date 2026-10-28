@@ -86,3 +86,73 @@ def test_a_running_key_test_is_reported(qapp, isolated_appdata):
     page._groq_worker = FakeWorker()
 
     assert page.key_test_running() is True
+
+
+def test_the_gemini_key_has_its_own_test_button(qapp, isolated_appdata):
+    page = SettingsPage()
+
+    assert page.btn_test_gemini.text() == "Test"
+    assert "Gemini" in page.btn_test_gemini.toolTip()
+
+
+def test_testing_without_a_gemini_key_reports_it(qapp, isolated_appdata):
+    page = SettingsPage()
+    page.gemini_edit.clear()
+
+    page._test_gemini_key()
+
+    assert "Enter a Gemini API key" in page.gemini_status.text()
+    assert page._gemini_worker is None
+
+
+def test_a_successful_gemini_test_shows_the_model(qapp, isolated_appdata):
+    page = SettingsPage()
+    page.gemini_edit.setText("gemini-key")
+    page._gemini_tested_key = "gemini-key"
+
+    page._on_gemini_test_ok("gemini-3.8-flash")
+
+    assert "works" in page.gemini_status.text()
+    assert "gemini-3.8-flash" in page.gemini_status.text()
+
+
+def test_a_failed_gemini_test_shows_the_error(qapp, isolated_appdata):
+    page = SettingsPage()
+    page.gemini_edit.setText("gemini-key")
+    page._gemini_tested_key = "gemini-key"
+
+    page._on_gemini_test_failed("Gemini answered 401: invalid key")
+
+    assert "failed" in page.gemini_status.text().lower()
+    assert "401" in page.gemini_status.text()
+
+
+def test_a_running_gemini_test_is_reported(qapp, isolated_appdata):
+    class FakeWorker:
+        def isRunning(self):
+            return True
+
+    page = SettingsPage()
+    page._gemini_worker = FakeWorker()
+
+    assert page.key_test_running() is True
+
+
+def test_the_discovery_browser_is_shown_by_default_and_can_be_hidden(
+    qapp, isolated_appdata
+):
+    from s_q_ali_media_downloader.ui import settings_page as sp
+
+    page = SettingsPage()
+    page.load()
+
+    assert page.show_browser_check.isChecked() is True
+    assert sp.discovery_browser_is_visible() is True
+
+    page.show_browser_check.setChecked(False)
+    page.save()
+
+    assert sp.discovery_browser_is_visible() is False
+
+    page.show_browser_check.setChecked(True)
+    page.save()

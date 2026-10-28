@@ -67,6 +67,7 @@ class DiscoveryResult:
     error: str = ""
     bio_candidates: int = 0
     ai_used: bool = False
+    ai_provider: str = ""
     ai_candidates: int = 0
     browser_checks: int = 0
 
@@ -95,6 +96,7 @@ def discover(
     """
 
     def say(message: str) -> None:
+        logger.info(message)
         if progress:
             progress(message)
 
@@ -102,6 +104,7 @@ def discover(
     try:
         record = resolve_channel(text, session=session)
     except ChannelUnresolved as exc:
+        say(f"Could not resolve that channel: {exc}")
         return DiscoveryResult(query=text, error=str(exc))
 
     result = DiscoveryResult(
@@ -111,18 +114,27 @@ def discover(
         url=record.url,
         subscribers=record.subscribers,
     )
+    say(
+        f"Resolved {record.title} (@{record.handle}) — "
+        f"{record.subscribers:,} subscribers."
+    )
 
     candidates = {
         platform: list(urls) for platform, urls in record.platform_candidates().items() if urls
     }
     bio_urls = {url for urls in candidates.values() for url in urls}
     result.bio_candidates = len(bio_urls)
+    say(f"Bio links: {result.bio_candidates} candidate(s).")
 
     # Ask the agent once per channel. The bio may list one platform and the
     # model can propose the rest; a missing key only matters when it is the
     # only source of candidates.
-    if api_key or judge.groq_key() or not candidates:
-        say("Asking the AI agent ...")
+    if api_key or judge.any_key() or not candidates:
+        say("Asking the AI agent (Groq first, Gemini fallback) ...")
+        logger.info(
+            "AI hand-off for %s: Groq first, Gemini fallback",
+            record.handle or record.title,
+        )
         try:
             proposal = judge.propose(
                 record.title,
@@ -132,20 +144,32 @@ def discover(
                 api_key=api_key,
             )
         except judge.JudgeUnavailable as exc:
+            logger.warning("AI step unavailable for %s: %s", record.handle or record.title, exc)
             if not candidates:
                 result.reason = str(exc)
                 result.error = str(exc)
                 return result
-            if "No Groq API key configured" not in str(exc):
+            if "No AI key configured" not in str(exc):
                 # The bio results are still good, but the user should know
                 # why the other platforms are missing.
                 result.warning = str(exc)
         else:
             result.reason = proposal.reason
             result.ai_used = True
+            result.ai_provider = proposal.provider
             proposed = judge.candidate_urls(proposal)
             result.ai_candidates = sum(len(urls) for urls in proposed.values())
-            say(f"The agent proposed {result.ai_candidates} candidates.")
+            say(
+                f"The {proposal.provider.title()} agent ({proposal.model}) "
+                f"proposed {result.ai_candidates} candidates."
+            )
+            logger.info(
+                "AI %s (%s) proposed %d candidates for %s",
+                proposal.provider,
+                proposal.model,
+                result.ai_candidates,
+                record.handle or record.title,
+            )
             for platform, urls in proposed.items():
                 existing = candidates.setdefault(platform, [])
                 for url in urls:
@@ -171,6 +195,10 @@ def discover(
         for check in verify_candidates(
             session, creator, {platform: urls}, bio_urls, on_check=count_check
         ):
+            say(
+                f"{platform}: {check.verdict.value} — "
+                f"{check.url or check.detail or 'no URL'}"
+            )
             result.platforms.append(
                 PlatformOutcome(
                     platform=platform,

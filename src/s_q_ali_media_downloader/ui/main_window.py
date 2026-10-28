@@ -54,6 +54,8 @@ from s_q_ali_media_downloader.engine import (
     app_storage_dir,
     default_output_dir,
     impersonation_summary,
+    is_facebook_url,
+    is_instagram_url,
     is_profile_url,
     is_tiktok_url,
     is_youtube_channel_url,
@@ -289,7 +291,7 @@ class MainWindow(QMainWindow):
         self.links = QPlainTextEdit()
         self.links.setMinimumHeight(120)
         self.links.setPlaceholderText(
-            "One TikTok or YouTube link per line.\n\n"
+            "One TikTok, YouTube, Facebook or Instagram link per line.\n\n"
             "Playlists, channels and TikTok profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
@@ -885,7 +887,12 @@ class MainWindow(QMainWindow):
                 existing.add(url)
                 expand_links.append(url)
                 continue
-            if is_tiktok_url(url) or is_youtube_url(url):
+            if (
+                is_tiktok_url(url)
+                or is_youtube_url(url)
+                or is_facebook_url(url)
+                or is_instagram_url(url)
+            ):
                 if url in existing:
                     duplicates += 1
                     continue
@@ -906,7 +913,9 @@ class MainWindow(QMainWindow):
         if duplicates:
             parts.append(f"{duplicates} already queued.")
         if skipped:
-            parts.append(f"{skipped} skipped — TikTok or YouTube links only.")
+            parts.append(
+                f"{skipped} skipped — use single video, reel or post links."
+            )
 
         self.set_status(" ".join(parts))
         self._update_stats()

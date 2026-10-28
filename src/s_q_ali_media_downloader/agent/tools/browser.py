@@ -9,8 +9,11 @@ Discovery feature drives a browser.
 
 Two things make that practical in a desktop app:
 
-* The browser Windows already has is used first (``channel="msedge"``), so
-  nothing has to be downloaded. The Playwright browser is the fallback.
+* The browser Windows already has is used first — real Chrome, then Edge —
+  so nothing has to be downloaded. The shipped Playwright Chromium is the
+  fallback.
+* The browser keeps a profile under the app's storage, so a sign-in survives
+  between runs. A fresh profile would meet the same login wall every time.
 * Playwright is an optional dependency. Without it the feature explains
   what to install instead of crashing the app.
 
@@ -29,12 +32,16 @@ from typing import Self
 
 logger = logging.getLogger(__name__)
 
-#: The browsers to try, in order. ``None`` means the Playwright-managed
-#: Chromium, which has to be shipped with the app.
-BROWSER_CHANNELS: tuple[str | None, ...] = ("msedge", "chrome", None)
+#: The browsers to try, in order. Real Chrome and Edge keep the sign-in the
+#: user already has; ``None`` means the Playwright-managed Chromium, which has
+#: to be shipped with the app.
+BROWSER_CHANNELS: tuple[str | None, ...] = ("chrome", "msedge", None)
 
 #: Where the shipped browser lives, relative to the app.
 BROWSER_DIR_NAME = "browsers"
+
+#: The persistent profile, under the app's storage folder.
+PROFILE_DIR_NAME = "browser-profile"
 
 #: How long a single navigation may take.
 DEFAULT_TIMEOUT_MS = 30_000
@@ -131,6 +138,13 @@ def use_bundled_browsers() -> Path | None:
     return folder
 
 
+def default_profile_dir() -> Path:
+    """The persistent browser profile, next to the queue and the downloads."""
+    from s_q_ali_media_downloader.engine import app_storage_dir
+
+    return Path(app_storage_dir()) / PROFILE_DIR_NAME
+
+
 class BrowserSession:
     """One browser, one context, many pages."""
 
@@ -142,12 +156,16 @@ class BrowserSession:
         settle_ms: int = SETTLE_MS,
         user_agent: str | None = None,
         locale: str = "en-US",
+        profile_dir: str | os.PathLike | None = None,
+        channel: str | None = None,
     ):
         self.headless = headless
         self.timeout_ms = timeout_ms
         self.settle_ms = settle_ms
         self.user_agent = user_agent
         self.locale = locale
+        self.profile_dir = profile_dir
+        self.channel = channel
         self._playwright = None
         self._browser = None
         self._context = None
@@ -162,7 +180,7 @@ class BrowserSession:
 
     def start(self) -> BrowserSession:
         """Start the browser. Raises BrowserUnavailable when there is none."""
-        if self._browser is not None:
+        if self._context is not None:
             return self
         try:
             from playwright.sync_api import sync_playwright
@@ -174,33 +192,47 @@ class BrowserSession:
             ) from exc
 
         self._playwright = sync_playwright().start()
+        use_bundled_browsers()
+        channels = (self.channel,) if self.channel else BROWSER_CHANNELS
+        profile = Path(self.profile_dir) if self.profile_dir else None
+        if profile is not None:
+            profile.mkdir(parents=True, exist_ok=True)
+        context_args = {
+            "locale": self.locale,
+            "viewport": {"width": 1280, "height": 900},
+            **({"user_agent": self.user_agent} if self.user_agent else {}),
+        }
+
         errors: list[str] = []
-        bundled = use_bundled_browsers()
-        # The shipped Chromium matches this Playwright version, so it is
-        # tried before the browsers Windows may or may not have.
-        channels: tuple[str | None, ...] = (
-            ((None,) if bundled is not None else ()) + BROWSER_CHANNELS
-        )
         for channel in channels:
             try:
-                self._browser = self._playwright.chromium.launch(
-                    channel=channel, headless=self.headless
+                if profile is not None:
+                    self._context = self._playwright.chromium.launch_persistent_context(
+                        str(profile),
+                        channel=channel,
+                        headless=self.headless,
+                        **context_args,
+                    )
+                    self._browser = getattr(self._context, "browser", None)
+                else:
+                    self._browser = self._playwright.chromium.launch(
+                        channel=channel, headless=self.headless
+                    )
+                    self._context = self._browser.new_context(**context_args)
+                logger.info(
+                    "browser started (channel=%r, profile=%s, headless=%s)",
+                    channel,
+                    profile,
+                    self.headless,
                 )
-                logger.info("browser started (channel=%r)", channel)
                 break
             except Exception as exc:
                 errors.append(f"{channel or 'chromium'}: {exc}")
-        if self._browser is None:
+        if self._context is None:
             self.close()
             raise BrowserUnavailable(
                 "No usable browser was found. Tried: " + "; ".join(errors)
             )
-
-        self._context = self._browser.new_context(
-            locale=self.locale,
-            viewport={"width": 1280, "height": 900},
-            **({"user_agent": self.user_agent} if self.user_agent else {}),
-        )
         return self
 
     def close(self) -> None:
@@ -235,7 +267,7 @@ class BrowserSession:
         Raises PageUnavailable when the page cannot be read — the caller
         turns that into "unknown", never into "not found".
         """
-        if self._browser is None:
+        if self._context is None:
             self.start()
         page = self._context.new_page()
         try:
@@ -314,3 +346,36 @@ class BrowserSession:
             links=links,
             meta=meta,
         )
+
+
+class RenderedProfileChecker:
+    """A sync callable that reads one profile page in a persistent browser.
+
+    The browser is started on first use, so a run whose HTTP probes are
+    decisive never pays for it. The caller must use this from one thread;
+    ``SocialVerifierTool`` gives it a single-worker executor.
+    """
+
+    def __init__(
+        self,
+        *,
+        headless: bool = True,
+        profile_dir: str | os.PathLike | None = None,
+    ):
+        self.headless = headless
+        self.profile_dir = profile_dir
+        self._session: BrowserSession | None = None
+
+    def __call__(self, url: str) -> Page:
+        if self._session is None:
+            self._session = BrowserSession(
+                headless=self.headless,
+                profile_dir=self.profile_dir,
+            ).start()
+        return self._session.open(url)
+
+    def close(self) -> None:
+        session = self._session
+        self._session = None
+        if session is not None:
+            session.close()

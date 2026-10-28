@@ -232,6 +232,34 @@ def is_profile_url(url):
     return ("tiktok.com/@" in low) and ("/video/" not in low) and ("/photo/" not in low)
 
 
+def is_facebook_url(url):
+    """A single Facebook video, reel or share link — not a profile or group."""
+    low = url.strip().lower()
+    if not low.startswith(("http://", "https://")):
+        return False
+    if re.search(r"(^|[./])fb\.watch/", low):
+        return True
+    if not re.search(r"(^|[./])facebook\.com", low):
+        return False
+    if re.search(r"facebook\.com/watch/?\?(?:[^#]*&)?v=\d+", low):
+        return True
+    if re.search(r"facebook\.com/(?:[^/]+/)?videos/(?:[^/]+/)?\d+", low):
+        return True
+    if re.search(r"facebook\.com/reel/\d+", low):
+        return True
+    return re.search(r"facebook\.com/share/[vr]/[a-z0-9_-]+", low) is not None
+
+
+def is_instagram_url(url):
+    """A single Instagram post, reel or IGTV video — not a profile or story."""
+    low = url.strip().lower()
+    if not low.startswith(("http://", "https://")):
+        return False
+    if not re.search(r"(^|[./])instagram\.com", low):
+        return False
+    return re.search(r"instagram\.com/(?:p|reel|reels|tv)/[a-z0-9_-]+", low) is not None
+
+
 def is_youtube_url(url):
     """Check if a URL is a YouTube video URL.
 
@@ -295,6 +323,10 @@ def platform_of(url):
         return "TikTok"
     if re.search(r"(^|[./])youtu(?:\.be|be\.com)", low):
         return "YouTube"
+    if re.search(r"(^|[./])(?:facebook\.com|fb\.watch)", low):
+        return "Facebook"
+    if re.search(r"(^|[./])instagram\.com", low):
+        return "Instagram"
     return None
 
 
@@ -556,6 +588,15 @@ def tidy_error(exc):
         return "TikTok refused the request — rate limited."
     if "secondary user id" in lowered:
         return "TikTok didn't return the profile page — retry in a few minutes."
+    if (
+        "login required" in lowered
+        or "login to continue" in lowered
+        or "only available to registered users" in lowered
+    ):
+        return (
+            "Facebook or Instagram needs a login. Sign in to Chrome, close it, "
+            "then enable Chrome cookies."
+        )
     if "sign in to confirm" in lowered or "use --cookies" in lowered:
         return (
             "YouTube asked to verify you're not a bot. Wait 10-30 minutes and "

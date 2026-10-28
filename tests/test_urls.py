@@ -1,6 +1,8 @@
 """URL classification and account normalisation."""
 
 from s_q_ali_media_downloader.engine import (
+    is_facebook_url,
+    is_instagram_url,
     is_profile_url,
     is_tiktok_url,
     is_youtube_channel_url,
@@ -84,11 +86,46 @@ def test_a_shorts_link_is_a_single_video_not_a_channel_or_playlist():
     assert platform_of(shorts) == "YouTube"
 
 
+def test_facebook_video_urls():
+    assert is_facebook_url("https://www.facebook.com/watch/?v=1234567890")
+    assert is_facebook_url("https://www.facebook.com/watch?v=1234567890")
+    assert is_facebook_url("https://www.facebook.com/MrBeast/videos/1234567890/")
+    assert is_facebook_url("https://www.facebook.com/reel/1234567890")
+    assert is_facebook_url("https://fb.watch/abc123/")
+    assert is_facebook_url("https://m.facebook.com/watch/?v=1234567890")
+
+
+def test_facebook_non_media_rejected():
+    assert not is_facebook_url("https://www.facebook.com/MrBeast")
+    assert not is_facebook_url("https://www.facebook.com/profile.php?id=123")
+    assert not is_facebook_url("https://www.facebook.com/login")
+    assert not is_facebook_url("https://www.facebook.com/groups/123")
+    assert not is_facebook_url("https://www.facebook.com/")
+    assert not is_facebook_url("https://example.com/watch?v=123")
+
+
+def test_instagram_post_urls():
+    assert is_instagram_url("https://www.instagram.com/p/Cabc123/")
+    assert is_instagram_url("https://www.instagram.com/reel/Cabc123/")
+    assert is_instagram_url("https://www.instagram.com/reels/Cabc123/")
+    assert is_instagram_url("https://www.instagram.com/tv/Cabc123/")
+
+
+def test_instagram_non_media_rejected():
+    assert not is_instagram_url("https://www.instagram.com/mrbeast/")
+    assert not is_instagram_url("https://www.instagram.com/")
+    assert not is_instagram_url("https://www.instagram.com/explore/")
+    assert not is_instagram_url("https://www.instagram.com/stories/mrbeast/123")
+    assert not is_instagram_url("https://example.com/p/Cabc123/")
+
+
 def test_platform_of():
     assert platform_of("https://www.tiktok.com/@u/video/1") == "TikTok"
     assert platform_of("https://youtu.be/x") == "YouTube"
     assert platform_of("https://www.youtube.com/watch?v=x") == "YouTube"
     assert platform_of("https://www.youtube.com/shorts/x") == "YouTube"
+    assert platform_of("https://www.facebook.com/reel/123") == "Facebook"
+    assert platform_of("https://www.instagram.com/p/Cabc123/") == "Instagram"
     assert platform_of("https://example.com") is None
 
 

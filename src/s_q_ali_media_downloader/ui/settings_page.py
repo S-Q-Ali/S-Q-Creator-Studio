@@ -55,8 +55,10 @@ SETTINGS_VERSION = "2.1"
 
 # The keys the app keeps in the sealed store rather than in QSettings.
 GROQ_KEY = "groq_api_key"
+GEMINI_KEY = "gemini_api_key"
 YOUTUBE_KEY = "youtube_api_key"
 COOKIES_FILE_KEY = "youtube_cookies_file"
+SHOW_BROWSER_KEY = "show_discovery_browser"
 
 
 class GroqKeyTestWorker(QThread):
@@ -80,6 +82,27 @@ class GroqKeyTestWorker(QThread):
             self.ok.emit(model)
 
 
+class GeminiKeyTestWorker(QThread):
+    """Sends one small request so the Gemini key can be tested."""
+
+    ok = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, api_key: str, parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+
+    def run(self) -> None:  # pragma: no cover - the request is real
+        from s_q_ali_media_downloader.agent.tools import social_judge
+
+        try:
+            model = social_judge.test_gemini_key(self.api_key)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+        else:
+            self.ok.emit(model)
+
+
 def make_settings() -> QSettings:
     """The app's preferences.
 
@@ -93,6 +116,11 @@ def make_settings() -> QSettings:
     return QSettings(ORG, APP_NAME)
 
 
+def discovery_browser_is_visible() -> bool:
+    """Whether discovery should show its browser window (the default)."""
+    return make_settings().value(SHOW_BROWSER_KEY, "true") != "false"
+
+
 class SettingsPage(QWidget):
     """Every setting of the app, in three cards."""
 
@@ -104,6 +132,8 @@ class SettingsPage(QWidget):
         self.settings = make_settings()
         self._groq_worker: GroqKeyTestWorker | None = None
         self._groq_tested_key = ""
+        self._gemini_worker: GeminiKeyTestWorker | None = None
+        self._gemini_tested_key = ""
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -202,6 +232,35 @@ class SettingsPage(QWidget):
         groq_lay.addWidget(groq_line)
         groq_lay.addWidget(self.groq_status)
 
+        self.gemini_edit = QLineEdit()
+        self.gemini_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.gemini_edit.setPlaceholderText("AIza...")
+        self.gemini_edit.setMaximumWidth(460)
+        self.gemini_edit.textChanged.connect(self._save_keys)
+        self.gemini_edit.textChanged.connect(self._on_gemini_key_edited)
+
+        gemini_line = QWidget()
+        gemini_line_lay = QHBoxLayout(gemini_line)
+        gemini_line_lay.setContentsMargins(0, 0, 0, 0)
+        gemini_line_lay.setSpacing(8)
+        gemini_line_lay.addWidget(self.gemini_edit, 1)
+        self.btn_test_gemini = QPushButton("Test")
+        self.btn_test_gemini.setToolTip("Send one small request to Gemini to check the key.")
+        self.btn_test_gemini.clicked.connect(self._test_gemini_key)
+        gemini_line_lay.addWidget(self.btn_test_gemini)
+
+        self.gemini_status = QLabel("")
+        self.gemini_status.setProperty("role", "hint")
+        self.gemini_status.setWordWrap(True)
+        self.gemini_status.setVisible(False)
+
+        gemini_row = QWidget()
+        gemini_lay = QVBoxLayout(gemini_row)
+        gemini_lay.setContentsMargins(0, 0, 0, 0)
+        gemini_lay.setSpacing(4)
+        gemini_lay.addWidget(gemini_line)
+        gemini_lay.addWidget(self.gemini_status)
+
         self.youtube_key_edit = QLineEdit()
         self.youtube_key_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         self.youtube_key_edit.setPlaceholderText("AIza... (optional)")
@@ -235,8 +294,17 @@ class SettingsPage(QWidget):
                 "Groq API key",
                 groq_row,
                 (
-                    "Used by Social Discovery: the agent proposes the accounts, a "
-                    "real browser confirms them. Leave it empty to search by name only."
+                    "Tried first by Social Discovery: the agent proposes the accounts, "
+                    "a real browser confirms them. Leave both AI keys empty to search "
+                    "by bio links only."
+                ),
+            ),
+            (
+                "Gemini API key",
+                gemini_row,
+                (
+                    "Used automatically when Groq has no key or fails. The same "
+                    "proposal prompt and JSON schema are sent to Gemini."
                 ),
             ),
             (
@@ -330,9 +398,24 @@ class SettingsPage(QWidget):
         self.density_note.setWordWrap(True)
         self.density_note.setMaximumWidth(460)
 
+        self.show_browser_check = QCheckBox("Show the browser during discovery")
+        self.show_browser_check.setToolTip(
+            "Sign in to Facebook, Instagram or TikTok once in the window that "
+            "opens; the profile is kept under the app's storage."
+        )
+
         return [
             ("", self.compact_check, ""),
             ("", self.density_note, ""),
+            (
+                "",
+                self.show_browser_check,
+                (
+                    "Discovery keeps a browser profile in the app's storage, so "
+                    "a sign-in survives between runs. Hide the window once you "
+                    "are signed in."
+                ),
+            ),
         ]
 
     # ------------------------------------------------------------------ #
@@ -366,17 +449,27 @@ class SettingsPage(QWidget):
         )
 
         self.cookies.setChecked(self.settings.value("cookies") == "true")
+        self.show_browser_check.setChecked(
+            self.settings.value(SHOW_BROWSER_KEY, "true") != "false"
+        )
 
         self.groq_status.setText("")
         self.groq_status.setVisible(False)
+        self.gemini_status.setText("")
+        self.gemini_status.setVisible(False)
         self.groq_edit.setText(settings_store.get_setting(GROQ_KEY) or "")
+        self.gemini_edit.setText(settings_store.get_setting(GEMINI_KEY) or "")
         self.youtube_key_edit.setText(settings_store.get_setting(YOUTUBE_KEY) or "")
         cookies_path = settings_store.get_setting(COOKIES_FILE_KEY) or ""
         self.cookies_file_edit.setText(cookies_path)
 
         unreadable = [
             name
-            for key, name in ((GROQ_KEY, "Groq API key"), (YOUTUBE_KEY, "YouTube API key"))
+            for key, name in (
+                (GROQ_KEY, "Groq API key"),
+                (GEMINI_KEY, "Gemini API key"),
+                (YOUTUBE_KEY, "YouTube API key"),
+            )
             if settings_store.secret_is_unreadable(key)
         ]
         if unreadable:
@@ -410,6 +503,10 @@ class SettingsPage(QWidget):
         self.settings.setValue("passes", self.passes.currentText())
         self.settings.setValue("parallel", self.parallel.currentText())
         self.settings.setValue("cookies", "true" if self.cookies.isChecked() else "false")
+        self.settings.setValue(
+            SHOW_BROWSER_KEY,
+            "true" if self.show_browser_check.isChecked() else "false",
+        )
         self.settings.sync()
 
     def _save_keys(self) -> None:
@@ -418,6 +515,7 @@ class SettingsPage(QWidget):
             return
         for key, edit in (
             (GROQ_KEY, self.groq_edit),
+            (GEMINI_KEY, self.gemini_edit),
             (YOUTUBE_KEY, self.youtube_key_edit),
             (COOKIES_FILE_KEY, self.cookies_file_edit),
         ):
@@ -479,9 +577,59 @@ class SettingsPage(QWidget):
         self.groq_status.setStyleSheet(f"color: {color};")
         self.groq_status.setVisible(True)
 
+    # ------------------------------------------------------------------ #
+    # The Gemini key test
+    # ------------------------------------------------------------------ #
+    def _test_gemini_key(self) -> None:
+        if self._gemini_worker is not None and self._gemini_worker.isRunning():
+            return
+        key = self.gemini_edit.text().strip()
+        if not key:
+            self._show_gemini_status("Enter a Gemini API key first.", "#FFB020")
+            return
+
+        self.btn_test_gemini.setEnabled(False)
+        self.btn_test_gemini.setText("Testing ...")
+        self._show_gemini_status("Sending one small request to Gemini ...", "#9C93AE")
+
+        worker = GeminiKeyTestWorker(key, parent=self)
+        worker.ok.connect(self._on_gemini_test_ok)
+        worker.failed.connect(self._on_gemini_test_failed)
+        worker.finished.connect(self._on_gemini_test_finished)
+        worker.finished.connect(worker.deleteLater)
+        self._gemini_worker = worker
+        self._gemini_tested_key = key
+        worker.start()
+
+    def _on_gemini_key_edited(self) -> None:
+        if not self.gemini_status.isHidden():
+            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+
+    def _on_gemini_test_ok(self, model: str) -> None:
+        if self.gemini_edit.text().strip() != self._gemini_tested_key:
+            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+            return
+        self._show_gemini_status(f"Gemini key works · {model}", "#2DD4BF")
+
+    def _on_gemini_test_failed(self, message: str) -> None:
+        if self.gemini_edit.text().strip() != self._gemini_tested_key:
+            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+            return
+        self._show_gemini_status(f"Gemini key test failed: {message}", "#F2547D")
+
+    def _on_gemini_test_finished(self) -> None:
+        self.btn_test_gemini.setEnabled(True)
+        self.btn_test_gemini.setText("Test")
+        self._gemini_worker = None
+
+    def _show_gemini_status(self, text: str, color: str) -> None:
+        self.gemini_status.setText(text)
+        self.gemini_status.setStyleSheet(f"color: {color};")
+        self.gemini_status.setVisible(True)
+
     def key_test_running(self) -> bool:
-        worker = self._groq_worker
-        return worker is not None and worker.isRunning()
+        workers = (self._groq_worker, self._gemini_worker)
+        return any(worker is not None and worker.isRunning() for worker in workers)
 
     def _refresh_identity(self) -> None:
         ok, label = impersonation_summary()

@@ -9,6 +9,8 @@ needs a browser is skipped when the machine has none.
 from __future__ import annotations
 
 import os
+import sys
+import types
 
 import pytest
 
@@ -122,3 +124,144 @@ def test_without_a_shipped_browser_the_environment_is_left_alone(monkeypatch):
 
     assert br.use_bundled_browsers() is None
     assert "PLAYWRIGHT_BROWSERS_PATH" not in os.environ
+
+
+# --------------------------------------------------------------------------- #
+# The persistent profile and the channel order (no real browser needed)
+# --------------------------------------------------------------------------- #
+class _FakeContext:
+    def __init__(self):
+        self.closed = False
+        self.browser = None
+
+    def close(self):
+        self.closed = True
+
+
+class _FakeBrowser:
+    def __init__(self):
+        self.closed = False
+        self.context_kwargs = None
+
+    def new_context(self, **kwargs):
+        self.context_kwargs = kwargs
+        return _FakeContext()
+
+    def close(self):
+        self.closed = True
+
+
+class _FakeChromium:
+    def __init__(self, fail_channels=()):
+        self.fail_channels = set(fail_channels)
+        self.launch_calls = []
+        self.persistent_calls = []
+        self.browser = _FakeBrowser()
+
+    def launch(self, **kwargs):
+        self.launch_calls.append(kwargs)
+        return self.browser
+
+    def launch_persistent_context(self, user_data_dir, **kwargs):
+        self.persistent_calls.append((user_data_dir, kwargs))
+        if kwargs.get("channel") in self.fail_channels:
+            raise RuntimeError("this channel is not installed")
+        return _FakeContext()
+
+
+class _FakePlaywright:
+    def __init__(self, chromium):
+        self.chromium = chromium
+        self.stopped = False
+
+    def stop(self):
+        self.stopped = True
+
+
+def _install_fake_playwright(monkeypatch, chromium):
+    playwright = _FakePlaywright(chromium)
+    module = types.SimpleNamespace(
+        sync_playwright=lambda: types.SimpleNamespace(start=lambda: playwright)
+    )
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", module)
+    return playwright
+
+
+def test_the_persistent_profile_is_used_and_chrome_is_tried_first(tmp_path, monkeypatch):
+    chromium = _FakeChromium()
+    _install_fake_playwright(monkeypatch, chromium)
+    profile = tmp_path / "browser-profile"
+    session = br.BrowserSession(profile_dir=profile, headless=False)
+
+    session.start()
+
+    assert profile.is_dir()
+    assert chromium.persistent_calls == [
+        (str(profile), {"channel": "chrome", "headless": False, "locale": "en-US", "viewport": {"width": 1280, "height": 900}})
+    ]
+    assert chromium.launch_calls == []
+    session.close()
+
+
+def test_edge_and_the_shipped_chromium_are_the_fallbacks(tmp_path, monkeypatch):
+    chromium = _FakeChromium(fail_channels={"chrome", "msedge"})
+    _install_fake_playwright(monkeypatch, chromium)
+    session = br.BrowserSession(profile_dir=tmp_path / "profile")
+
+    session.start()
+
+    channels = [call[1]["channel"] for call in chromium.persistent_calls]
+    assert channels == ["chrome", "msedge", None]
+    session.close()
+
+
+def test_without_a_profile_a_fresh_context_is_used(monkeypatch):
+    chromium = _FakeChromium()
+    playwright = _install_fake_playwright(monkeypatch, chromium)
+    session = br.BrowserSession()
+
+    session.start()
+
+    assert chromium.launch_calls == [{"channel": "chrome", "headless": True}]
+    assert chromium.browser.context_kwargs["locale"] == "en-US"
+    assert chromium.persistent_calls == []
+    session.close()
+    assert chromium.browser.closed is True
+    assert playwright.stopped is True
+
+
+def test_the_default_profile_lives_under_app_storage(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    assert br.default_profile_dir() == (
+        tmp_path / "S-Q-Ali Media Downloader" / "storage" / "browser-profile"
+    )
+
+
+def test_the_rendered_checker_reuses_one_session(tmp_path, monkeypatch):
+    created = []
+    closed = []
+
+    class FakeSession:
+        def __init__(self, **kwargs):
+            created.append(kwargs)
+
+        def start(self):
+            return self
+
+        def open(self, url):
+            return br.Page(url=url)
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(br, "BrowserSession", FakeSession)
+    checker = br.RenderedProfileChecker(headless=False, profile_dir=tmp_path)
+
+    checker("https://example.com/a")
+    checker("https://example.com/b")
+
+    assert len(created) == 1
+    assert created[0] == {"headless": False, "profile_dir": tmp_path}
+    checker.close()
+    assert closed == [True]

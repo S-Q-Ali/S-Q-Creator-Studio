@@ -70,11 +70,12 @@ jobs:
           Stop-Process -Id $proc.Id -Force
           Write-Output "App stayed alive for 30 seconds"
 
-      - name: Upload app build
+      - name: Upload portable build
         uses: actions/upload-artifact@v7
         with:
           name: portable-build
-          # build.bat writes the PyInstaller output here before copying it
-          # to release\portable. Fail loudly if the path ever drifts again.
-          path: build\out\S-Q Creator Studio
+          # release\portable is the complete build: the PyInstaller output
+          # plus the shipped browser and bin\ffmpeg.exe. build\out alone is
+          # only the app and would not run Social Discovery or merge video.
+          path: release\portable
           if-no-files-found: error

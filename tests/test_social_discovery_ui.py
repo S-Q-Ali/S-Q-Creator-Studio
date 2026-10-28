@@ -192,6 +192,28 @@ def test_shutdown_reports_a_worker_that_will_not_stop(qapp):
     assert page.shutdown() is False
 
 
+def test_a_failure_reaches_the_activity_log(qapp):
+    page = SocialDiscoveryPage()
+    lines = []
+    page.log.connect(lines.append)
+
+    page._on_failed("no browser available")
+
+    assert lines == ["Failed: no browser available"]
+
+
+def test_a_finished_result_reaches_the_activity_log(qapp):
+    page = SocialDiscoveryPage()
+    lines = []
+    page.log.connect(lines.append)
+    result = _result()
+    result.platforms = [_found("facebook")]
+
+    page._on_result(result)
+
+    assert any("1 found" in line for line in lines)
+
+
 def test_a_warning_is_shown_with_the_row(qapp):
     page = SocialDiscoveryPage()
     result = _result(warning="Groq answered 401: invalid_api_key")

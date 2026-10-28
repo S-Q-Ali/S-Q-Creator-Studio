@@ -13,9 +13,10 @@ from s_q_ali_media_downloader.agent.tools import social_verify as sv
 
 
 @pytest.fixture(autouse=True)
-def _no_groq_key(monkeypatch):
+def _no_ai_key(monkeypatch):
     """Keep the tests offline unless a test asks for a key."""
     monkeypatch.setattr(judge, "groq_key", lambda: None)
+    monkeypatch.setattr(judge, "gemini_key", lambda: None)
 
 
 class _FakeChannel:
@@ -120,6 +121,8 @@ def test_an_empty_bio_asks_the_agent(monkeypatch):
     class FakeProposal:
         candidates: ClassVar[dict] = {"facebook": ["MrBeast"]}
         reason = "the model knows this creator"
+        provider = "groq"
+        model = "openai/gpt-oss-120b"
 
     monkeypatch.setattr(
         judge, "propose", lambda *a, **k: FakeProposal()
@@ -153,6 +156,8 @@ def test_a_bio_link_does_not_stop_the_agent(monkeypatch):
     class FakeProposal:
         candidates: ClassVar[dict] = {"instagram": ["MrBeast"]}
         reason = "the model knows this creator"
+        provider = "groq"
+        model = "openai/gpt-oss-120b"
 
     monkeypatch.setattr(judge, "propose", lambda *a, **k: FakeProposal())
     session = _FakeSession(
@@ -175,6 +180,33 @@ def test_a_bio_link_does_not_stop_the_agent(monkeypatch):
     assert result.browser_checks == 2
     assert result.outcome("facebook").source == sd.SOURCE_BIO
     assert result.outcome("instagram").source == sd.SOURCE_MODEL
+
+
+def test_the_progress_lines_name_the_ai_hand_off_and_the_verdict(monkeypatch):
+    monkeypatch.setattr(
+        sd,
+        "resolve_channel",
+        lambda text, session=None: _record([]),
+    )
+
+    class FakeProposal:
+        candidates: ClassVar[dict] = {"facebook": ["MrBeast"]}
+        reason = "the model knows this creator"
+        provider = "gemini"
+        model = "gemini-3.8-flash"
+
+    monkeypatch.setattr(judge, "propose", lambda *a, **k: FakeProposal())
+    session = _FakeSession(
+        {"https://www.facebook.com/MrBeast": _found_page("https://www.facebook.com/MrBeast")}
+    )
+    lines = []
+
+    sd.discover(session, "@MrBeast", progress=lines.append)
+
+    text = "\n".join(lines)
+    assert "Groq first, Gemini fallback" in text
+    assert "Gemini agent (gemini-3.8-flash)" in text
+    assert "facebook: found" in text
 
 
 def test_a_channel_that_cannot_be_resolved_reports_why(monkeypatch):

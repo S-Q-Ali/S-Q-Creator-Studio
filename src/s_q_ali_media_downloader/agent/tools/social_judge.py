@@ -30,6 +30,11 @@ logger = logging.getLogger(__name__)
 GROQ_BASE = "https://api.groq.com/openai/v1"
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 
+#: Groq is tried first; Gemini is the fallback. The Interactions API is the
+#: documented REST shape for structured output in 2026.
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
+GEMINI_MODEL = "gemini-3.8-flash"
+
 #: The description is untrusted text and only this much of it is sent.
 DESCRIPTION_LIMIT = 600
 
@@ -77,6 +82,7 @@ class Proposal:
     candidates: dict[str, list[str]] = field(default_factory=dict)
     reason: str = ""
     confidence: str = "none"
+    provider: str = "groq"
     model: str = DEFAULT_MODEL
     tokens: int = 0
 
@@ -97,6 +103,21 @@ def groq_key() -> str | None:
         return from_env
     stored = (settings_store.get_setting("groq_api_key") or "").strip()
     return stored or None
+
+
+def gemini_key() -> str | None:
+    """The Gemini key: the environment's first, then the stored one."""
+    for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        from_env = (os.environ.get(name) or "").strip()
+        if from_env:
+            return from_env
+    stored = (settings_store.get_setting("gemini_api_key") or "").strip()
+    return stored or None
+
+
+def any_key() -> bool:
+    """True when at least one AI provider has a key."""
+    return bool(groq_key() or gemini_key())
 
 
 def _error_detail(text: str) -> str:
@@ -128,6 +149,58 @@ def _post_groq(payload: dict, api_key: str, timeout: float = 60.0) -> dict:
             f"Groq answered {response.status_code}: {_error_detail(response.text)}"
         )
     return response.json()
+
+
+def _post_gemini(payload: dict, api_key: str, timeout: float = 60.0) -> dict:
+    """Ask Gemini's Interactions API. One request, a timeout, no key logged."""
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(
+                f"{GEMINI_BASE}/interactions",
+                headers={
+                    "x-goog-api-key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+    except httpx.HTTPError as exc:
+        raise JudgeUnavailable(f"Could not reach Gemini: {exc}") from exc
+    if response.status_code != 200:
+        raise JudgeUnavailable(
+            f"Gemini answered {response.status_code}: {_error_detail(response.text)}"
+        )
+    return response.json()
+
+
+def _gemini_text(answer: dict) -> str:
+    """The text of an Interactions response: steps[].content[].text."""
+    parts: list[str] = []
+    for step in (answer or {}).get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        for content in step.get("content") or []:
+            if not isinstance(content, dict):
+                continue
+            if content.get("type") == "text" and content.get("text"):
+                parts.append(str(content["text"]))
+    if not parts:
+        output = (answer or {}).get("output_text")
+        if isinstance(output, str) and output.strip():
+            parts.append(output)
+    return "\n".join(parts).strip()
+
+
+def _gemini_payload(prompt: str, model: str, max_tokens: int) -> dict:
+    return {
+        "model": model,
+        "input": prompt,
+        "generation_config": {"max_output_tokens": max_tokens},
+        "response_format": {
+            "type": "text",
+            "mime_type": "application/json",
+            "schema": RESPONSE_SCHEMA,
+        },
+    }
 
 
 def build_prompt(title: str, handle: str, subscribers: int, description: str) -> str:
@@ -177,11 +250,7 @@ def parse_response(raw: str) -> Proposal:
 
 
 def test_key(api_key: str | None = None) -> str:
-    """Send one small request and return the model that answered.
-
-    The Settings page's Test button uses this. A bad key fails here, so the
-    page can show the exact answer instead of claiming the key works.
-    """
+    """Send one small request to Groq and return the model that answered."""
     key = (api_key or groq_key() or "").strip()
     if not key:
         raise JudgeUnavailable(
@@ -202,25 +271,29 @@ def test_key(api_key: str | None = None) -> str:
     return DEFAULT_MODEL
 
 
-def propose(
-    title: str,
-    handle: str,
-    subscribers: int = 0,
-    description: str = "",
-    *,
-    api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
-) -> Proposal:
-    """Ask the model for the creator's other accounts."""
-    key = (api_key or groq_key() or "").strip()
+def test_gemini_key(api_key: str | None = None) -> str:
+    """Send one small request to Gemini and return the model that answered."""
+    key = (api_key or gemini_key() or "").strip()
     if not key:
         raise JudgeUnavailable(
-            "No Groq API key configured. Add one in Settings > AI Keys."
+            "No Gemini API key configured. Add one in Settings > AI Keys."
         )
 
     payload = {
+        "model": GEMINI_MODEL,
+        "input": "Reply with OK.",
+        "generation_config": {"max_output_tokens": 8},
+    }
+    answer = _post_gemini(payload, key, timeout=20.0)
+    if not _gemini_text(answer):
+        raise JudgeUnavailable("Gemini's answer had no text.")
+    return GEMINI_MODEL
+
+
+def _propose_with_groq(prompt: str, key: str, model: str) -> Proposal:
+    payload = {
         "model": model,
-        "messages": [{"role": "user", "content": build_prompt(title, handle, subscribers, description)}],
+        "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "max_completion_tokens": 600,
         "response_format": {
@@ -235,9 +308,66 @@ def propose(
         raise JudgeUnavailable("The model's answer had no content.") from exc
 
     proposal = parse_response(content)
+    proposal.provider = "groq"
     proposal.model = model
     proposal.tokens = int((answer.get("usage") or {}).get("total_tokens") or 0)
     return proposal
+
+
+def _propose_with_gemini(prompt: str, key: str, model: str) -> Proposal:
+    answer = _post_gemini(_gemini_payload(prompt, model, 600), key)
+    content = _gemini_text(answer)
+    if not content:
+        raise JudgeUnavailable("Gemini's answer had no text.")
+
+    proposal = parse_response(content)
+    proposal.provider = "gemini"
+    proposal.model = model
+    usage = answer.get("usage") or {}
+    proposal.tokens = int(
+        usage.get("total_tokens")
+        or (int(usage.get("total_input_tokens") or 0) + int(usage.get("total_output_tokens") or 0))
+    )
+    return proposal
+
+
+def propose(
+    title: str,
+    handle: str,
+    subscribers: int = 0,
+    description: str = "",
+    *,
+    api_key: str | None = None,
+    model: str = DEFAULT_MODEL,
+    gemini_model: str = GEMINI_MODEL,
+) -> Proposal:
+    """Ask the models for the creator's other accounts.
+
+    Groq is first. Gemini runs when Groq has no key or did not answer, so a
+    Groq outage does not remove the AI step from Social Discovery.
+    """
+    groq = (api_key or groq_key() or "").strip()
+    gemini = (gemini_key() or "").strip()
+    if not groq and not gemini:
+        raise JudgeUnavailable(
+            "No AI key configured. Add a Groq or Gemini API key in "
+            "Settings > AI Keys."
+        )
+
+    prompt = build_prompt(title, handle, subscribers, description)
+    errors: list[str] = []
+    if groq:
+        try:
+            return _propose_with_groq(prompt, groq, model)
+        except JudgeUnavailable as exc:
+            errors.append(str(exc))
+    if gemini:
+        try:
+            return _propose_with_gemini(prompt, gemini, gemini_model)
+        except JudgeUnavailable as exc:
+            errors.append(str(exc))
+
+    raise JudgeUnavailable("No AI provider answered. " + " | ".join(errors))
 
 
 def candidate_urls(proposal: Proposal) -> dict[str, list[str]]:

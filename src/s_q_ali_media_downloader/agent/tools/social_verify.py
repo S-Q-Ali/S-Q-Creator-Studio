@@ -280,6 +280,19 @@ _READERS = {
 }
 
 
+def read_profile(page: Page, platform: str) -> tuple[bool, str, str, str]:
+    """Read one rendered profile page: (exists, name, handle, detail).
+
+    ``exists`` means the page did not say the account is missing. It does
+    not mean the page identifies the account: a login wall returns True
+    with an empty name, and the caller must not treat that as evidence.
+    """
+    reader = _READERS.get(platform)
+    if reader is None:
+        return False, "", "", "unknown platform"
+    return reader(page)
+
+
 # --------------------------------------------------------------------------- #
 # Deciding
 # --------------------------------------------------------------------------- #
