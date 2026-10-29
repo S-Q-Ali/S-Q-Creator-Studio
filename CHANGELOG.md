@@ -3,6 +3,21 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **A `#tag` query in the TikTok mode finds creators again.** TikTok no longer
+  lists a tag or a keyword for an anonymous visitor (measured 2026-10-29: the
+  tag page is a 390 KB shell with zero creators, the signed listing API
+  answers with an empty body, and a rendered page is blank too), so the mode
+  only worked for `@handle` seeds. When the listing is empty, the app now asks
+  the search-grounded AI for public TikTok profiles that match the niche and
+  runs them through the same YouTube check. The handles are proposals, not
+  findings — TikTok walls the profile reads that would confirm them — and the
+  run says so. Costs one search call per run, from the existing per-run
+  budget; without an AI key the mode says why it has nothing.
+
 ## [2.9.0] — 2026-10-29
 
 ### Added
