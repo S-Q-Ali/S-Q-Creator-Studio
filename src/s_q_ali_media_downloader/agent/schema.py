@@ -70,6 +70,12 @@ class TikTokProfileMetadata(BaseModel):
     youtube: SocialPresence = Field(
         default_factory=lambda: SocialPresence(platform=SocialPlatform.YOUTUBE)
     )
+    facebook: SocialPresence = Field(
+        default_factory=lambda: SocialPresence(platform=SocialPlatform.FACEBOOK)
+    )
+    instagram: SocialPresence = Field(
+        default_factory=lambda: SocialPresence(platform=SocialPlatform.INSTAGRAM)
+    )
     has_youtube: bool = False
     opportunity_flag: str = "PROSPECT"
 

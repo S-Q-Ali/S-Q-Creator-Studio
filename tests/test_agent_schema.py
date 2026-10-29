@@ -39,3 +39,15 @@ def test_agent_search_result_dump():
     assert result.query == "IShowSpeed edits"
     assert result.total_searched == 10
     assert len(result.channels) == 0
+
+
+def test_a_tiktok_profile_carries_all_three_platforms():
+    from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
+
+    profile = TikTokProfileMetadata(profile_id="1", handle="creator")
+
+    assert profile.facebook.platform == SocialPlatform.FACEBOOK
+    assert profile.instagram.platform == SocialPlatform.INSTAGRAM
+    assert profile.youtube.platform == SocialPlatform.YOUTUBE
+    assert profile.facebook.status == SocialStatus.NOT_FOUND
+    assert profile.instagram.status == SocialStatus.NOT_FOUND

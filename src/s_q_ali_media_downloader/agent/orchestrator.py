@@ -5,7 +5,6 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
-from functools import partial
 
 from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.schema import (
@@ -516,18 +515,15 @@ class AgentOrchestrator:
             detail=presence.status.value,
         )
 
-    def _suggest_youtube_handle(self, profile: TikTokProfileMetadata) -> str | None:
-        """Ask the AI for the creator's YouTube handle.
-
-        Without it a creator who spells their name differently on YouTube is
-        flagged as having no channel at all.
-        """
+    def _tiktok_proposal(self, profile: TikTokProfileMetadata) -> judge.Proposal | None:
+        """One ask for the creator's Facebook page, Instagram profile and
+        YouTube channel."""
         if not judge.any_key():
             return None
         if not self._take_ai_budget():
             return None
         try:
-            proposal = judge.propose_youtube(
+            proposal = judge.propose_tiktok_socials(
                 profile.nickname,
                 profile.handle,
                 profile.followers,
@@ -537,13 +533,12 @@ class AgentOrchestrator:
         except judge.JudgeUnavailable as exc:
             self._log(f"  AI step skipped for @{profile.handle}: {exc}")
             return None
-        handles = proposal.candidates.get("youtube") or []
-        if handles:
-            self._log(
-                f"  AI ({proposal.provider}) proposed YouTube @{handles[0]} "
-                f"for @{profile.handle}."
-            )
-        return handles[0] if handles else None
+        proposed = sum(len(urls) for urls in proposal.candidates.values())
+        self._log(
+            f"  AI ({proposal.provider}) proposed {proposed} account(s) "
+            f"for @{profile.handle}."
+        )
+        return proposal
 
     def _second_check_youtube(
         self, profile: TikTokProfileMetadata, presence: SocialPresence
@@ -620,30 +615,6 @@ class AgentOrchestrator:
         )
         return presence
 
-    def _tiktok_proposer(self) -> Callable[[str, int], list[str]] | None:
-        """The web's answer for a niche, bounded by the run's search budget.
-
-        None when no AI key is configured: the tool then keeps its honest
-        note instead of claiming a search that never happened. The handles
-        are proposals — TikTok walls the profile reads that would confirm
-        them.
-        """
-        if not (self.api_key or judge.gemini_key() or judge.groq_key()):
-            return None
-
-        def propose(niche: str, limit: int) -> list[str]:
-            found = ask_the_web(
-                lambda: judge.propose_tiktok_creators(
-                    niche, limit, api_key=self.api_key, ops=self.ops
-                ),
-                budget=self.search_budget,
-                platforms=("tiktok",),
-                ops=self.ops,
-            )
-            return list(found or [])
-
-        return propose
-
     def run_tiktok_discovery(
         self,
         query: str,
@@ -655,21 +626,15 @@ class AgentOrchestrator:
         start_time = time.time()
         self._log(
             f"TikTok discovery: {query!r}; backend TikTok search "
-            f"(yt-dlp + HTML fallback); cookies {'yes' if cookiefile else 'no'}."
+            f"(seeds, signed API, yt-dlp); cookies {'yes' if cookiefile else 'no'}."
         )
         self._emit(5, f"Initializing TikTok Agent... Searching TikTok for '{query}'...")
 
         self.tiktok_tool.cookiefile = cookiefile
         self.ops.start("tiktok.search", "tiktok", query, detail=f"up to {max_profiles} profiles")
         started = time.monotonic()
-        raw_profiles = self.tiktok_tool.search_profiles(
-            query, max_profiles=max_profiles, proposer=self._tiktok_proposer()
-        )
+        raw_profiles = self.tiktok_tool.search_profiles(query, max_profiles=max_profiles)
         source = self.tiktok_tool.discovered_by or "none"
-        if source == "ai":
-            self._log(
-                f"AI proposed {len(raw_profiles)} TikTok handle(s) for {query!r}."
-            )
         self.ops.ok(
             "tiktok.search",
             "tiktok",
@@ -690,9 +655,20 @@ class AgentOrchestrator:
                 f"Checking YouTube presence of @{profile.handle} ({idx + 1}/{total_found})...",
             )
 
+            proposal = self._tiktok_proposal(profile)
+            candidates = judge.candidate_urls(proposal) if proposal else {}
+            youtube_url = (candidates.get("youtube") or [None])[0]
+            suggested_handle = (
+                (
+                    lambda url=youtube_url: LinkParserTool.extract_handle_from_url(url)
+                )
+                if youtube_url
+                else None
+            )
+
             presence = self.youtube_existence_tool.check_youtube_presence(
                 profile,
-                suggested_handle=partial(self._suggest_youtube_handle, profile),
+                suggested_handle=suggested_handle,
             )
             presence = self._second_check_youtube(profile, presence)
             profile.youtube = presence
@@ -701,6 +677,34 @@ class AgentOrchestrator:
                 SocialStatus.UNVERIFIED_HANDLE,
             )
             self._log(f"  @{profile.handle}: YouTube {presence.status.value}.")
+
+            facebook_url = (candidates.get("facebook") or [None])[0]
+            instagram_url = (candidates.get("instagram") or [None])[0]
+            sources = {
+                platform: "model"
+                for platform, url in (
+                    ("facebook", facebook_url),
+                    ("instagram", instagram_url),
+                )
+                if url
+            }
+            profile.facebook, profile.instagram = self._loop.run_until_complete(
+                self.verifier_tool.verify_creator_socials(
+                    facebook_url,
+                    instagram_url,
+                    channel_handle=profile.handle,
+                    candidate_sources=sources,
+                    creator=CreatorRef(
+                        title=profile.nickname,
+                        handle=profile.handle,
+                        url=profile.profile_url,
+                    ),
+                )
+            )
+            self._log(
+                f"  @{profile.handle}: Facebook {profile.facebook.status.value}, "
+                f"Instagram {profile.instagram.status.value}."
+            )
 
             if profile.has_youtube:
                 profile.opportunity_flag = "HAS_YOUTUBE"

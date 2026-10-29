@@ -373,10 +373,11 @@ def test_a_truncated_gemini_answer_is_a_failure(monkeypatch):
         sj.propose("MrBeast", "MrBeast")
 
 
-def test_the_tiktok_mode_asks_for_a_youtube_handle(monkeypatch):
+def test_the_tiktok_mode_asks_for_all_three_platforms(monkeypatch):
     def fake_gemini(payload, key, timeout=60.0):
-        assert payload["response_format"]["schema"] is sj.YOUTUBE_SCHEMA
+        assert payload["response_format"]["schema"] is sj.TIKTOK_SOCIALS_SCHEMA
         assert "TikTok handle: mrbeast" in payload["input"]
+        assert "untrusted data" in payload["input"]
         return {
             "steps": [
                 {
@@ -386,6 +387,8 @@ def test_the_tiktok_mode_asks_for_a_youtube_handle(monkeypatch):
                             "type": "text",
                             "text": json.dumps(
                                 {
+                                    "facebook": ["MrBeast"],
+                                    "instagram": ["mrbeast"],
                                     "youtube": ["mkbhd"],
                                     "reason": "same creator",
                                     "confidence": "high",
@@ -401,10 +404,15 @@ def test_the_tiktok_mode_asks_for_a_youtube_handle(monkeypatch):
     monkeypatch.setattr(sj, "groq_key", lambda: None)
     monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
 
-    proposal = sj.propose_youtube("MrBeast", "mrbeast", 500000, "tech videos")
+    proposal = sj.propose_tiktok_socials("MrBeast", "mrbeast", 500000, "tech videos")
 
+    assert proposal.candidates["facebook"] == ["MrBeast"]
+    assert proposal.candidates["instagram"] == ["mrbeast"]
     assert proposal.candidates["youtube"] == ["mkbhd"]
-    assert sj.candidate_urls(proposal)["youtube"] == ["https://www.youtube.com/@mkbhd"]
+    urls = sj.candidate_urls(proposal)
+    assert urls["facebook"] == ["https://www.facebook.com/MrBeast"]
+    assert urls["instagram"] == ["https://www.instagram.com/mrbeast/"]
+    assert urls["youtube"] == ["https://www.youtube.com/@mkbhd"]
 
 
 def test_without_a_groq_key_gemini_is_used(monkeypatch):
@@ -581,150 +589,8 @@ def test_a_network_error_is_reported_as_unavailable(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Asking the web which TikTok creators a niche has
+# The search-grounded asks
 # ---------------------------------------------------------------------------
-def _grounded_answer(text):
-    """A Gemini answer with the given text, shaped the way the API returns it."""
-    return {
-        "steps": [
-            {
-                "type": "model_output",
-                "content": [{"type": "text", "text": text}],
-            }
-        ]
-    }
-
-
-def test_a_json_creator_list_becomes_handles():
-    text = json.dumps(
-        {
-            "creators": [
-                "https://www.tiktok.com/@catlover",
-                "https://www.tiktok.com/@Dog.Videos",
-            ]
-        }
-    )
-
-    assert list(sj._parse_creator_handles(text)) == ["catlover", "dog.videos"]
-
-
-def test_a_fenced_creator_list_is_read():
-    text = (
-        "```json\n"
-        + json.dumps({"creators": ["https://tiktok.com/@catlover"]})
-        + "\n```"
-    )
-
-    assert list(sj._parse_creator_handles(text)) == ["catlover"]
-
-
-def test_profile_urls_in_prose_are_read():
-    text = (
-        "These match: https://www.tiktok.com/@first_one and "
-        "https://www.tiktok.com/@second."
-    )
-
-    assert list(sj._parse_creator_handles(text)) == ["first_one", "second"]
-
-
-def test_a_bare_word_is_not_a_handle():
-    text = json.dumps(
-        {"creators": ["catlover", "https://instagram.com/cat", "nonsense"]}
-    )
-
-    assert sj._parse_creator_handles(text) == {}
-
-
-def test_a_handle_is_kept_once():
-    text = json.dumps(
-        {
-            "creators": [
-                "https://www.tiktok.com/@cat",
-                "https://www.tiktok.com/@CAT/",
-                "https://www.tiktok.com/@cat?lang=en",
-            ]
-        }
-    )
-
-    assert list(sj._parse_creator_handles(text)) == ["cat"]
-
-
-def test_the_proposer_returns_the_handles_in_order(monkeypatch):
-    def fake_gemini(payload, key, timeout=60.0):
-        assert payload["tools"] == [{"type": "google_search"}]
-        return _grounded_answer(
-            json.dumps(
-                {
-                    "creators": [
-                        "https://www.tiktok.com/@first",
-                        "https://www.tiktok.com/@second",
-                    ]
-                }
-            )
-        )
-
-    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
-    monkeypatch.setattr(sj, "groq_key", lambda: None)
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-
-    assert sj.propose_tiktok_creators("#cats", 5) == ["first", "second"]
-
-
-def test_the_proposer_stops_at_the_limit(monkeypatch):
-    def fake_gemini(payload, key, timeout=60.0):
-        return _grounded_answer(
-            json.dumps(
-                {
-                    "creators": [
-                        f"https://www.tiktok.com/@creator{i}" for i in range(10)
-                    ]
-                }
-            )
-        )
-
-    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
-    monkeypatch.setattr(sj, "groq_key", lambda: None)
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-
-    assert sj.propose_tiktok_creators("cats", 3) == [
-        "creator0",
-        "creator1",
-        "creator2",
-    ]
-
-
-def test_the_prompt_carries_the_niche_as_data(monkeypatch):
-    seen = {}
-
-    def fake_gemini(payload, key, timeout=60.0):
-        seen["prompt"] = payload["input"]
-        return _grounded_answer(json.dumps({"creators": []}))
-
-    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
-    monkeypatch.setattr(sj, "groq_key", lambda: None)
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-
-    with pytest.raises(sj.JudgeUnavailable):
-        sj.propose_tiktok_creators("#cat videos", 5)
-
-    prompt = seen["prompt"]
-    assert "untrusted data" in prompt
-    assert "#cat videos" in prompt
-    assert "up to 5" in prompt
-
-
-def test_an_answer_without_creators_is_a_failure(monkeypatch):
-    def fake_gemini(payload, key, timeout=60.0):
-        return _grounded_answer("I could not find any TikTok creators for that.")
-
-    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
-    monkeypatch.setattr(sj, "groq_key", lambda: None)
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-
-    with pytest.raises(sj.JudgeUnavailable):
-        sj.propose_tiktok_creators("#cats", 5)
-
-
 def test_the_groq_fallback_searches_with_the_model_that_can(monkeypatch):
     """Measured 2026-10-30: gpt-oss-120b's browser search died at Cloudflare
     (524 after 125 s); gpt-oss-20b answered with real profile URLs in 4 s."""
@@ -740,7 +606,13 @@ def test_the_groq_fallback_searches_with_the_model_that_can(monkeypatch):
                 {
                     "message": {
                         "content": json.dumps(
-                            {"creators": ["https://www.tiktok.com/@ishowspeed"]}
+                            {
+                                "youtube": {
+                                    "exists": "yes",
+                                    "url": "https://www.youtube.com/@MrBeast",
+                                    "quote": "youtube.com/@MrBeast",
+                                }
+                            }
                         )
                     }
                 }
@@ -752,7 +624,11 @@ def test_the_groq_fallback_searches_with_the_model_that_can(monkeypatch):
     monkeypatch.setattr(sj, "groq_key", lambda: "gsk_test")
     monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
 
-    assert sj.propose_tiktok_creators("#cats", 5) == ["ishowspeed"]
+    answer = sj.propose_youtube_searched("MrBeast", "mrbeast")
+
+    assert answer.provider == "groq"
+    assert answer.model == sj.GROQ_SEARCH_MODEL
+    assert answer.get("youtube").url == "https://www.youtube.com/@MrBeast"
 
 
 def test_the_groq_search_is_bounded_and_patient(monkeypatch):

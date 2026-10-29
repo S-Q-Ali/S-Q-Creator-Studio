@@ -580,3 +580,78 @@ def test_a_page_is_judged_the_same_way_by_the_browser_and_the_agent():
 
     assert read.status == told.status
     assert read.confidence_score == told.confidence_score
+
+
+# --------------------------------------------------------------------------- #
+# A TikTok creator's Facebook and Instagram: the TikTok profile is the input
+# --------------------------------------------------------------------------- #
+def test_creator_socials_probe_facebook_and_instagram_only(monkeypatch):
+    verifier = SocialVerifierTool()
+    probed = []
+
+    async def fake_fb(url, handle=None, source=None):
+        probed.append(("facebook", url, handle, source))
+        return SocialPresence(platform=SocialPlatform.FACEBOOK)
+
+    async def fake_ig(url, handle=None, source=None):
+        probed.append(("instagram", url, handle, source))
+        return SocialPresence(platform=SocialPlatform.INSTAGRAM)
+
+    async def no_fallback(presence, platform, creator=None):
+        return presence
+
+    def no_tiktok(*args, **kwargs):
+        raise AssertionError("a TikTok creator's own platform is not probed")
+
+    monkeypatch.setattr(verifier, "verify_facebook_presence", fake_fb)
+    monkeypatch.setattr(verifier, "verify_instagram_presence", fake_ig)
+    monkeypatch.setattr(verifier, "verify_tiktok_presence", no_tiktok)
+    monkeypatch.setattr(verifier, "_rendered_fallback", no_fallback)
+    monkeypatch.setattr(verifier, "_agent_fallback", no_fallback)
+
+    fb, ig = asyncio.run(
+        verifier.verify_creator_socials(
+            "https://www.facebook.com/speed",
+            None,
+            channel_handle="ishowspeed",
+            candidate_sources={"facebook": "model"},
+            creator=CREATOR,
+        )
+    )
+
+    assert fb.platform == SocialPlatform.FACEBOOK
+    assert ig.platform == SocialPlatform.INSTAGRAM
+    assert probed == [
+        ("facebook", "https://www.facebook.com/speed", "ishowspeed", "model"),
+        ("instagram", None, "ishowspeed", None),
+    ]
+
+
+def test_creator_socials_run_the_fallbacks_for_both_platforms(monkeypatch):
+    verifier = SocialVerifierTool()
+    calls = []
+
+    async def fallback(presence, platform, creator=None):
+        calls.append(platform)
+        return presence
+
+    async def fb(url, handle=None, source=None):
+        return SocialPresence(platform=SocialPlatform.FACEBOOK)
+
+    async def ig(url, handle=None, source=None):
+        return SocialPresence(platform=SocialPlatform.INSTAGRAM)
+
+    monkeypatch.setattr(verifier, "verify_facebook_presence", fb)
+    monkeypatch.setattr(verifier, "verify_instagram_presence", ig)
+    monkeypatch.setattr(verifier, "_rendered_fallback", fallback)
+    monkeypatch.setattr(verifier, "_agent_fallback", fallback)
+
+    asyncio.run(
+        verifier.verify_creator_socials(
+            "https://www.facebook.com/speed",
+            "https://www.instagram.com/speed/",
+            creator=CREATOR,
+        )
+    )
+
+    assert calls == ["facebook", "instagram", "facebook", "instagram"]

@@ -1,7 +1,5 @@
 """Tests for AgentOrchestrator control flow (no network: search stubbed)."""
 
-from typing import ClassVar
-
 from s_q_ali_media_downloader.agent.orchestrator import AgentOrchestrator
 
 
@@ -174,28 +172,40 @@ def test_a_channel_that_links_everything_is_not_asked_about(monkeypatch):
     assert channel.facebook.verified_url == "https://www.facebook.com/mkbhd"
 
 
-def test_the_tiktok_mode_asks_for_the_youtube_channel(monkeypatch):
-    from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
+def _fake_tiktok_proposal(monkeypatch, candidates):
     from s_q_ali_media_downloader.agent.tools import social_judge as judge
 
     class FakeProposal:
-        candidates: ClassVar[dict[str, list[str]]] = {"youtube": ["mkbhd"]}
-        reason = "known"
+        reason = "the model knows this creator"
         provider = "gemini"
         model = "gemini-3.6-flash"
 
+    fake = FakeProposal()
+    fake.candidates = candidates
     monkeypatch.setattr(judge, "any_key", lambda: True)
-    monkeypatch.setattr(judge, "propose_youtube", lambda *a, **k: FakeProposal())
+    monkeypatch.setattr(judge, "propose_tiktok_socials", lambda *a, **k: fake)
+    return fake
+
+
+def test_the_tiktok_mode_asks_once_for_all_three_platforms(monkeypatch):
+    from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
+
+    _fake_tiktok_proposal(
+        monkeypatch,
+        {"facebook": ["MrBeast"], "instagram": ["mrbeast"], "youtube": ["MrBeast"]},
+    )
     profile = TikTokProfileMetadata(
         profile_id="1",
-        handle="mkbhd",
-        nickname="Marques Brownlee",
+        handle="mrbeast",
+        nickname="MrBeast",
         followers=1000,
     )
 
-    handle = AgentOrchestrator()._suggest_youtube_handle(profile)
+    proposal = AgentOrchestrator()._tiktok_proposal(profile)
 
-    assert handle == "mkbhd"
+    assert proposal.candidates["facebook"] == ["MrBeast"]
+    assert proposal.candidates["instagram"] == ["mrbeast"]
+    assert proposal.candidates["youtube"] == ["MrBeast"]
 
 
 def test_the_tiktok_mode_copes_without_an_ai_key(monkeypatch):
@@ -205,7 +215,57 @@ def test_the_tiktok_mode_copes_without_an_ai_key(monkeypatch):
     monkeypatch.setattr(judge, "any_key", lambda: False)
     profile = TikTokProfileMetadata(profile_id="1", handle="mkbhd")
 
-    assert AgentOrchestrator()._suggest_youtube_handle(profile) is None
+    assert AgentOrchestrator()._tiktok_proposal(profile) is None
+
+
+def test_a_spent_ai_budget_leaves_the_tiktok_run_working(monkeypatch):
+    from s_q_ali_media_downloader.agent.schema import (
+        SocialPlatform,
+        SocialPresence,
+        TikTokProfileMetadata,
+    )
+    from s_q_ali_media_downloader.agent.tools import social_judge as judge
+
+    def boom(*args, **kwargs):
+        raise AssertionError("the budget is spent; the AI must not be asked")
+
+    monkeypatch.setattr(judge, "any_key", lambda: True)
+    monkeypatch.setattr(judge, "propose_tiktok_socials", boom)
+
+    orchestrator = AgentOrchestrator()
+    orchestrator._ai_proposals = 10_000
+
+    def fake_search(query, max_profiles=50):
+        return [
+            TikTokProfileMetadata(
+                profile_id="1", handle="creator_a", profile_url="https://tiktok.com/@creator_a"
+            )
+        ]
+
+    async def fake_creator_socials(fb, ig, **kwargs):
+        return (
+            SocialPresence(platform=SocialPlatform.FACEBOOK),
+            SocialPresence(platform=SocialPlatform.INSTAGRAM),
+        )
+
+    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
+    monkeypatch.setattr(
+        orchestrator.youtube_existence_tool,
+        "check_youtube_presence",
+        lambda profile, suggested_handle=None: SocialPresence(
+            platform=SocialPlatform.YOUTUBE
+        ),
+    )
+    monkeypatch.setattr(
+        orchestrator, "_second_check_youtube", lambda profile, presence: presence
+    )
+    monkeypatch.setattr(
+        orchestrator.verifier_tool, "verify_creator_socials", fake_creator_socials
+    )
+
+    result = orchestrator.run_tiktok_discovery("@creator_a", max_profiles=5)
+
+    assert [profile.handle for profile in result.profiles] == ["creator_a"]
 
 
 def test_the_verifier_is_told_who_the_creator_is(monkeypatch):
@@ -239,7 +299,7 @@ def test_the_verifier_is_told_who_the_creator_is(monkeypatch):
     assert creator.url == "https://www.youtube.com/@mkbhd"
 
 # ---------------------------------------------------------------------------
-# The TikTok mode asks the web when TikTok lists nothing
+# The TikTok mode hands the query to the tool
 # ---------------------------------------------------------------------------
 def _one_profile():
     from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
@@ -251,88 +311,121 @@ def _one_profile():
     )
 
 
-def test_the_tiktok_run_passes_the_web_proposer_to_the_tool(monkeypatch):
+def test_the_tiktok_run_hands_the_query_to_the_tool(monkeypatch):
     from s_q_ali_media_downloader.agent.schema import (
         SocialPlatform,
         SocialPresence,
     )
 
-    lines = []
-    orchestrator = AgentOrchestrator(log_callback=lines.append)
-    asked = {}
+    orchestrator = AgentOrchestrator()
+    seen = {}
 
-    def fake_proposer(niche, limit, **kwargs):
-        asked["niche"] = niche
-        return ["creator_a"]
-
-    def fake_search(query, max_profiles, *, proposer=None):
-        asked["handles"] = proposer("cats", max_profiles)
-        orchestrator.tiktok_tool.discovered_by = "ai"
+    def fake_search(query, max_profiles=50):
+        seen["query"] = query
+        seen["max_profiles"] = max_profiles
+        orchestrator.tiktok_tool.discovered_by = "seed"
         return [_one_profile()]
 
-    def fake_presence(profile, suggested_handle=None):
-        return SocialPresence(platform=SocialPlatform.YOUTUBE)
-
-    from s_q_ali_media_downloader.agent.tools import social_judge as sj
-
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-    monkeypatch.setattr(sj, "propose_tiktok_creators", fake_proposer)
     monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
     monkeypatch.setattr(
-        orchestrator.youtube_existence_tool, "check_youtube_presence", fake_presence
+        orchestrator.youtube_existence_tool,
+        "check_youtube_presence",
+        lambda profile, suggested_handle=None: SocialPresence(
+            platform=SocialPlatform.YOUTUBE
+        ),
     )
     monkeypatch.setattr(
         orchestrator, "_second_check_youtube", lambda profile, presence: presence
     )
 
-    result = orchestrator.run_tiktok_discovery("cats", max_profiles=5)
+    result = orchestrator.run_tiktok_discovery("@creator_a", max_profiles=5)
 
-    assert asked["handles"] == ["creator_a"]
-    assert len(result.profiles) == 1
-    assert any("AI proposed 1 TikTok handle" in line for line in lines)
-    assert any("source=ai" in line for line in lines)
+    assert seen == {"query": "@creator_a", "max_profiles": 5}
+    assert [profile.handle for profile in result.profiles] == ["creator_a"]
 
 
-def test_a_spent_search_budget_leaves_the_tiktok_run_working(monkeypatch):
-    from s_q_ali_media_downloader.agent.tools.dual_check import SearchBudget
+def test_a_tiktok_run_with_no_rows_shows_the_tools_note(monkeypatch):
+    emitted = []
+    orchestrator = AgentOrchestrator(
+        progress_callback=lambda percent, message: emitted.append((percent, message))
+    )
+    note = "TikTok returned 0 profiles. Paste the creators' @handles."
 
-    orchestrator = AgentOrchestrator()
-    orchestrator.search_budget = SearchBudget(limit=0)
-    seen = {}
+    monkeypatch.setattr(
+        orchestrator.tiktok_tool,
+        "search_profiles",
+        lambda query, max_profiles=50: [],
+    )
+    orchestrator.tiktok_tool.search_note = note
 
-    def fake_proposer(niche, limit, **kwargs):
-        raise AssertionError("the budget is spent; the web must not be asked")
+    orchestrator.run_tiktok_discovery("#ishowspeedlive", max_profiles=5)
 
-    def fake_search(query, max_profiles, *, proposer=None):
-        seen["handles"] = proposer("cats", max_profiles)
-        return []
-
-    from s_q_ali_media_downloader.agent.tools import social_judge as sj
-
-    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
-    monkeypatch.setattr(sj, "propose_tiktok_creators", fake_proposer)
-    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
-
-    result = orchestrator.run_tiktok_discovery("cats", max_profiles=5)
-
-    assert seen["handles"] == []
-    assert result.profiles == []
+    assert emitted[-1] == (100, note)
 
 
-def test_without_an_ai_key_the_tiktok_run_asks_nobody(monkeypatch):
-    from s_q_ali_media_downloader.agent.tools import social_judge as sj
+def test_the_seeded_run_checks_all_three_platforms(monkeypatch):
+    from s_q_ali_media_downloader.agent.schema import (
+        SocialPlatform,
+        SocialPresence,
+        SocialStatus,
+    )
 
-    orchestrator = AgentOrchestrator()
-    seen = {}
+    _fake_tiktok_proposal(
+        monkeypatch,
+        {"facebook": ["speed"], "instagram": ["speed"], "youtube": ["ishowspeed"]},
+    )
+    lines = []
+    orchestrator = AgentOrchestrator(log_callback=lines.append)
+    asked = {}
 
-    def fake_search(query, max_profiles, *, proposer=None):
-        seen["proposer"] = proposer
-        return []
+    def fake_youtube(profile, suggested_handle=None):
+        asked["youtube"] = suggested_handle()
+        return SocialPresence(platform=SocialPlatform.YOUTUBE)
 
-    monkeypatch.setattr(sj, "gemini_key", lambda: None)
-    monkeypatch.setattr(sj, "groq_key", lambda: None)
-    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
+    async def fake_creator_socials(fb, ig, **kwargs):
+        asked["fb"], asked["ig"], asked["kwargs"] = fb, ig, kwargs
+        return (
+            SocialPresence(
+                platform=SocialPlatform.FACEBOOK,
+                status=SocialStatus.UNVERIFIED_HANDLE,
+                verified_url=fb,
+                source="model",
+            ),
+            SocialPresence(
+                platform=SocialPlatform.INSTAGRAM,
+                status=SocialStatus.UNVERIFIED_HANDLE,
+                verified_url=ig,
+                source="model",
+            ),
+        )
 
-    orchestrator.run_tiktok_discovery("cats", max_profiles=5)
+    monkeypatch.setattr(
+        orchestrator.tiktok_tool, "search_profiles", lambda query, max_profiles=50: [_one_profile()]
+    )
+    monkeypatch.setattr(
+        orchestrator.youtube_existence_tool, "check_youtube_presence", fake_youtube
+    )
+    monkeypatch.setattr(
+        orchestrator, "_second_check_youtube", lambda profile, presence: presence
+    )
+    monkeypatch.setattr(
+        orchestrator.verifier_tool, "verify_creator_socials", fake_creator_socials
+    )
 
-    assert seen["proposer"] is None
+    result = orchestrator.run_tiktok_discovery("@creator_a", max_profiles=5)
+
+    assert asked["youtube"] == "ishowspeed"
+    assert asked["fb"] == "https://www.facebook.com/speed"
+    assert asked["ig"] == "https://www.instagram.com/speed/"
+    assert asked["kwargs"]["channel_handle"] == "creator_a"
+    assert asked["kwargs"]["candidate_sources"] == {
+        "facebook": "model",
+        "instagram": "model",
+    }
+    profile = result.profiles[0]
+    assert profile.facebook.verified_url == "https://www.facebook.com/speed"
+    assert profile.instagram.verified_url == "https://www.instagram.com/speed/"
+    assert any(
+        "Facebook unverified_handle" in line and "Instagram unverified_handle" in line
+        for line in lines
+    )

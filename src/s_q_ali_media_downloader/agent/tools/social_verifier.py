@@ -710,6 +710,34 @@ class SocialVerifierTool:
         )
         return presence
 
+    async def verify_creator_socials(
+        self,
+        candidate_fb: str | None,
+        candidate_ig: str | None,
+        channel_handle: str | None = None,
+        candidate_sources: dict[str, str] | None = None,
+        creator: CreatorRef | None = None,
+    ) -> tuple[SocialPresence, SocialPresence]:
+        """Probes a creator's Facebook page and Instagram profile in parallel.
+
+        The creator's own platform is the input, so TikTok is never probed
+        here. A missing candidate is guessed from ``channel_handle``.
+        """
+        sources = candidate_sources or {}
+        fb_res, ig_res = await asyncio.gather(
+            self.verify_facebook_presence(
+                candidate_fb, channel_handle, sources.get("facebook")
+            ),
+            self.verify_instagram_presence(
+                candidate_ig, channel_handle, sources.get("instagram")
+            ),
+        )
+        fb_res = await self._rendered_fallback(fb_res, "facebook", creator)
+        ig_res = await self._rendered_fallback(ig_res, "instagram", creator)
+        fb_res = await self._agent_fallback(fb_res, "facebook", creator)
+        ig_res = await self._agent_fallback(ig_res, "instagram", creator)
+        return fb_res, ig_res
+
     async def verify_channel_socials(
         self,
         candidate_fb: str | None,
