@@ -8,17 +8,17 @@ the TikTok Agent its best-effort capability:
 1. Netscape cookies.txt loader (values are never logged).
 2. X-Bogus signing (pure Python, custom Base64 + RC4) for the
    challenge/item_list and search/item/full endpoints.
-3. Cookies-aware HTML harvesting of www/m tag and search pages.
 
-When TikTok still rejects the request, callers get an explicit reason
-("listing blocked") instead of a silent zero so the UI can guide the
-user to seed profiles (@handles / profile URLs), which always work.
+The HTML tag/search pages are not read: measured 2026-10-30 with a
+logged-in cookie set, they are a ~392 KB JS shell whose only uniqueId is
+the viewer's own account. When TikTok rejects the request, callers get an
+explicit reason ("listing blocked") instead of a silent zero so the UI can
+guide the user to seed profiles (@handles / profile URLs), which always work.
 """
 
 import base64
 import hashlib
 import logging
-import re
 import struct
 import time
 from urllib.parse import urlencode
@@ -38,9 +38,6 @@ WEB_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-
-HANDLE_PATTERN = re.compile(r"tiktok\.com/@([A-Za-z0-9\._]{2,30})")
-UNIQUE_ID_PATTERN = re.compile(r'"uniqueId"\s*:\s*"([A-Za-z0-9\._]{2,30})"')
 
 EXCLUDED_HANDLES = {
     "tiktok",
@@ -114,11 +111,11 @@ def _clean_handles(handles: list[str]) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
     for raw in handles:
-        handle = raw.lstrip(".").lower()
+        handle = raw.strip(".").lower()
         if (
             handle in seen
             or handle in EXCLUDED_HANDLES
-            or "." in raw
+            or raw.startswith(".")
             or len(handle) < 2
             or len(handle) > 30
         ):
@@ -209,27 +206,14 @@ class TikTokApiSession:
         return f"https://www.tiktok.com{path}?{query}&X-Bogus={generate_xbogus(query, self.user_agent)}"
 
     def fetch_tag_handles(self, tag: str, limit: int = 40) -> list[str]:
-        handles: list[str] = []
         params = self._sign_base_params()
         params.update({"challengeName": tag, "count": str(limit), "cursor": "0", "sort_type": "0"})
-        handles += self._api_handles("/api/challenge/item_list/", params)
-        if len(handles) >= limit:
-            return _clean_handles(handles)[:limit]
-        handles += self._html_handles(f"https://www.tiktok.com/tag/{tag}")
-        if len(handles) >= limit:
-            return _clean_handles(handles)[:limit]
-        handles += self._html_handles(f"https://m.tiktok.com/tag/{tag}")
-        return _clean_handles(handles)[:limit]
+        return _clean_handles(self._api_handles("/api/challenge/item_list/", params))[:limit]
 
     def fetch_search_handles(self, keyword: str, limit: int = 40) -> list[str]:
-        handles: list[str] = []
         params = self._sign_base_params()
         params.update({"keyword": keyword, "count": str(limit), "cursor": "0", "search_channel": "aweme_video_web"})
-        handles += self._api_handles("/api/search/item/full/", params)
-        if len(handles) >= limit:
-            return _clean_handles(handles)[:limit]
-        handles += self._html_handles(f"https://www.tiktok.com/search?q={keyword}")
-        return _clean_handles(handles)[:limit]
+        return _clean_handles(self._api_handles("/api/search/item/full/", params))[:limit]
 
     def _api_handles(self, path: str, params: dict) -> list[str]:
         url = self._signed_url(path, params)
@@ -252,17 +236,4 @@ class TikTokApiSession:
             unique_id = author.get("uniqueId") or author.get("unique_id") or ""
             if unique_id:
                 handles.append(unique_id)
-        return handles
-
-    def _html_handles(self, url: str) -> list[str]:
-        try:
-            with self._client() as client:
-                resp = client.get(url)
-                if resp.status_code != 200:
-                    return []
-                html = resp.text
-        except Exception as e:
-            logger.warning("TikTok HTML harvest failed for %s: %s", url, e)
-            return []
-        handles = HANDLE_PATTERN.findall(html) + UNIQUE_ID_PATTERN.findall(html)
         return handles

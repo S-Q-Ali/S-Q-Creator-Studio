@@ -42,7 +42,6 @@ def test_search_profiles_dedupes_and_excludes(monkeypatch):
     monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda query: list(handles))
     monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
     monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
-    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
     monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
     profiles = tool.search_profiles("query", max_profiles=50)
     names = [p.handle for p in profiles]
@@ -464,16 +463,16 @@ def test_fetch_tag_handles_cleans_and_caps(tmp_path, monkeypatch):
     from s_q_ali_media_downloader.agent.tools.tiktok_api import TikTokApiSession
 
     session = TikTokApiSession()
-    monkeypatch.setattr(session, "_api_handles", lambda *a, **k: ["..bad", "ok_creator", "tiktok"])
-    monkeypatch.setattr(session, "_html_handles", lambda *a, **k: [])
-    assert session.fetch_tag_handles("test", limit=40) == ["ok_creator"]
+    monkeypatch.setattr(
+        session, "_api_handles", lambda *a, **k: ["..bad", "ok.creator", "tiktok"]
+    )
+    assert session.fetch_tag_handles("test", limit=40) == ["ok.creator"]
 
 
 def test_zero_results_sets_actionable_note(monkeypatch):
     tool = TikTokSearchTool()
     monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
     monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
-    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
     monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda url: [])
     monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
     profiles = tool.search_profiles("#sometag", max_profiles=10)
@@ -523,60 +522,17 @@ def test_note_when_cookiefile_loaded_but_blocked(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# The web's creators, when TikTok lists nothing
+# Every listing tier empty
 # ---------------------------------------------------------------------------
 def _empty_listing(monkeypatch, tool):
     """Every TikTok listing tier answers with nothing."""
     monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
     monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
-    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
     monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda url: [])
     monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
 
 
-def test_the_proposer_supplies_creators_when_tiktok_lists_none(monkeypatch):
-    tool = TikTokSearchTool()
-    _empty_listing(monkeypatch, tool)
-    asked = []
-
-    def proposer(niche, limit):
-        asked.append((niche, limit))
-        return ["creator_a", "creator_b"]
-
-    profiles = tool.search_profiles("#sometag", max_profiles=10, proposer=proposer)
-
-    assert [p.handle for p in profiles] == ["creator_a", "creator_b"]
-    assert asked == [("sometag", 10)]
-    assert tool.discovered_by == "ai"
-
-
-def test_the_proposers_handles_are_cleaned_like_any_other(monkeypatch):
-    tool = TikTokSearchTool()
-    _empty_listing(monkeypatch, tool)
-
-    def proposer(niche, limit):
-        return ["creator_a", "tiktok", "x", "creator_a"]
-
-    profiles = tool.search_profiles("cats", max_profiles=10, proposer=proposer)
-
-    assert [p.handle for p in profiles] == ["creator_a"]
-    assert tool.discovered_by == "ai"
-
-
-def test_a_seed_query_never_asks_the_web(monkeypatch):
-    tool = TikTokSearchTool()
-    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
-
-    def proposer(niche, limit):
-        raise AssertionError("a seed must not ask the web")
-
-    profiles = tool.search_profiles("@creator_a", max_profiles=10, proposer=proposer)
-
-    assert [p.handle for p in profiles] == ["creator_a"]
-    assert tool.discovered_by == "seed"
-
-
-def test_without_a_proposer_a_tag_still_says_which_handles_never_come(monkeypatch):
+def test_an_empty_tag_listing_returns_no_rows_and_asks_for_handles(monkeypatch):
     tool = TikTokSearchTool()
     _empty_listing(monkeypatch, tool)
 
@@ -587,12 +543,97 @@ def test_without_a_proposer_a_tag_still_says_which_handles_never_come(monkeypatc
     assert "@handles" in tool.search_note
 
 
-def test_a_proposer_that_finds_nothing_says_the_web_was_asked(monkeypatch):
+def test_a_seed_query_never_runs_a_listing_tier(monkeypatch):
     tool = TikTokSearchTool()
-    _empty_listing(monkeypatch, tool)
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
 
-    profiles = tool.search_profiles("#sometag", max_profiles=10, proposer=lambda n, l: [])
+    def _fail(*a, **k):
+        raise AssertionError("a seed must not run a listing tier")
+
+    monkeypatch.setattr(tool.api_session, "fetch_tag_handles", _fail)
+    monkeypatch.setattr(tool.api_session, "fetch_search_handles", _fail)
+    monkeypatch.setattr(tool, "_discover_via_ytdlp", _fail)
+
+    profiles = tool.search_profiles("@creator_a", max_profiles=10)
+
+    assert [p.handle for p in profiles] == ["creator_a"]
+    assert tool.discovered_by == "seed"
+
+
+# ---------------------------------------------------------------------------
+# The session user is never a creator
+# ---------------------------------------------------------------------------
+
+
+class _ShellResponse:
+    status_code = 200
+
+    def __init__(self, text):
+        self.text = text
+
+    def json(self):
+        return {}
+
+
+class _ShellClient:
+    """Serves the same logged-in page shell for every URL."""
+
+    def __init__(self, text):
+        self.text = text
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def get(self, url, headers=None):
+        return _ShellResponse(self.text)
+
+
+def test_a_search_page_shell_never_becomes_a_creator(monkeypatch):
+    """The shell's only uniqueId is the viewer. It is not a creator."""
+    tool = TikTokSearchTool()
+    shell = '<script>{"uniqueId":"syed.qasim0688"}</script>'
+    monkeypatch.setattr(tool.api_session, "_client", lambda: _ShellClient(shell))
+    monkeypatch.setattr(tool.api_session, "_api_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda url: [])
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
+
+    profiles = tool.search_profiles("ishowspeedlive", max_profiles=10)
 
     assert profiles == []
-    assert tool.discovered_by == ""
-    assert "AI" in tool.search_note
+    assert "syed.qasim0688" not in [p.handle for p in profiles]
+
+
+def test_the_query_becomes_a_hashtag_and_keywords():
+    tags, keywords = TikTokSearchTool._parse_query("IShowSpeed edits, ishowspeedlive")
+
+    assert tags == ["ishowspeedlive"]
+    assert keywords == "IShowSpeed edits"
+
+
+def test_hash_tags_are_stripped_lowercased_and_deduped():
+    tags, keywords = TikTokSearchTool._parse_query("#Cats, #cats, dogs")
+
+    assert tags == ["cats", "dogs"]
+    assert keywords == ""
+
+
+def test_a_multi_word_segment_stays_a_keyword():
+    tags, keywords = TikTokSearchTool._parse_query("cat videos")
+
+    assert tags == []
+    assert keywords == "cat videos"
+
+
+def test_the_blocked_note_names_the_cookies_and_all_three_platforms(tmp_path):
+    p = tmp_path / "cookies.txt"
+    _write_netscape_cookies(p, [(".tiktok.com", "sessionid", "abc")])
+    tool = TikTokSearchTool(cookiefile=str(p))
+
+    note = tool._build_no_results_note(tags=["sometag"])
+
+    assert "1 cookies" in note
+    assert "blocked" in note
+    assert "YouTube, Instagram and Facebook" in note

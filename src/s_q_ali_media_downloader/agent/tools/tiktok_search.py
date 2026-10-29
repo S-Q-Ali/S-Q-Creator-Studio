@@ -1,20 +1,16 @@
-"""TikTok Creator Discovery Engine (yt-dlp flat extraction + HTML fallback, zero keys).
+"""TikTok Creator Discovery Engine (yt-dlp flat extraction, zero keys).
 
-Three input modes (checked in order):
+Two input modes (checked in order):
 1. Seed profiles — @handle tokens or tiktok.com/@handle URLs in the query are
-   used directly (always works, no scraping of listings needed).
-2. Hashtag pages — '#tag' queries hit https://www.tiktok.com/tag/<tag> via
-   yt-dlp (search pages are NOT supported by yt-dlp and TikTok serves empty
-   JS shells to anonymous visitors, so tags need cookies to yield data).
-3. Keyword search — last resort; subject to the same TikTok restrictions.
-
-All tiers use the app's curl_cffi Chrome impersonation and an optional
-cookies.txt file (exported from a logged-in browser) to unlock listing data.
+   used directly (always works, no listing needed).
+2. Hashtag / keyword pages — best effort. Measured 2026-10-30, TikTok serves
+   an empty JS shell and an empty signed API even with a logged-in
+   cookies.txt, so this tier normally returns nothing and the note asks for
+   the creators' own handles.
 """
 
 import logging
 import re
-from collections.abc import Callable
 
 import yt_dlp
 
@@ -45,7 +41,7 @@ class TikTokSearchTool:
         self.api_session = TikTokApiSession(timeout=timeout)
         self._cookiefile: str | None = None
         self.search_note: str | None = None
-        #: Where the last listing's handles came from: seed, listing, ai, or none.
+        #: Where the last result's handles came from: seed, listing, or none.
         self.discovered_by = ""
         self.cookie_count = 0
         if cookiefile:
@@ -66,18 +62,13 @@ class TikTokSearchTool:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def search_profiles(
-        self,
-        query: str,
-        max_profiles: int = 50,
-        *,
-        proposer: Callable[[str, int], list[str]] | None = None,
-    ) -> list[TikTokProfileMetadata]:
-        """Entry point: seed profiles > tag pages > keyword search > the web.
+    def search_profiles(self, query: str, max_profiles: int = 50) -> list[TikTokProfileMetadata]:
+        """Entry point: seed profiles > tag pages > keyword search.
 
-        ``proposer`` asks the web for the creators of a niche. It runs only
-        when TikTok itself listed nothing, because every listing tier is
-        blocked for an anonymous visitor.
+        TikTok blocks listing for an anonymous visitor, and measured
+        2026-10-30 it blocks it for a logged-in one too. The listing tiers
+        stay as a best effort; when they all come back empty the note asks
+        for the creators' own @handles, which always work.
         """
         self.search_note = None
         self.discovered_by = ""
@@ -85,73 +76,32 @@ class TikTokSearchTool:
         if seeds:
             logger.info(f"Query contains {len(seeds)} seed profile(s); skipping discovery.")
             self.discovered_by = "seed"
-            return self._build_profiles(seeds, max_profiles)
+            return self._finalize_profiles(seeds, max_profiles)
 
+        tags, keywords = self._parse_query(query)
         handles: list[str] = []
-        tags = [t.lstrip("#").strip(".").lower() for t in query.split() if t.startswith("#")]
-        keywords = " ".join(w for w in query.split() if not w.startswith("#")).strip()
 
-        # 2. Tag pages (signed web API, then cookies-aware HTML, then yt-dlp)
         for tag in tags:
             handles += self.api_session.fetch_tag_handles(tag, limit=max_profiles)
-            if len(handles) >= max_profiles:
-                break
-            handles += self._discover_via_html(TAG_URL.format(tag=tag))
             if len(handles) >= max_profiles:
                 break
             handles += self._discover_via_ytdlp(TAG_URL.format(tag=tag))
             if len(handles) >= max_profiles:
                 break
 
-        # 3. Keyword search (subject to TikTok's anonymous-access restrictions)
         if not handles:
-            base = keywords or query
+            base = keywords or " ".join(tags)
             handles += self.api_session.fetch_search_handles(base, limit=max_profiles)
-            if len(handles) < max_profiles:
-                handles += self._discover_via_html(SEARCH_URL.format(query=base))
             if not handles:
                 handles += self._discover_via_ytdlp(SEARCH_URL.format(query=base))
 
-        # 4. The web, when TikTok itself listed nothing: the handles are
-        #    proposals, because TikTok walls the profile reads that would
-        #    confirm them.
-        asked_ai = False
-        if not handles and proposer is not None:
-            asked_ai = True
-            handles = list(proposer(keywords or " ".join(tags), max_profiles))
         if handles:
-            self.discovered_by = "ai" if asked_ai else "listing"
-
-        if not handles:
-            self.search_note = self._build_no_results_note(tags, asked_ai=asked_ai)
+            self.discovered_by = "listing"
+        else:
+            self.search_note = self._build_no_results_note(tags)
             logger.warning(self.search_note)
 
-        # Dedupe, filter, cap
-        seen: set[str] = set()
-        profiles: list[TikTokProfileMetadata] = []
-        for handle in handles:
-            handle = handle.strip(".").lower()
-            if handle in seen or handle in EXCLUDED_HANDLES or len(handle) < 2:
-                continue
-            seen.add(handle)
-            profiles.append(
-                TikTokProfileMetadata(
-                    profile_id=handle,
-                    handle=handle,
-                    profile_url=PROFILE_URL.format(handle=handle),
-                )
-            )
-            if len(profiles) >= max_profiles:
-                break
-
-        # Enrich each profile with bio / follower data (best effort)
-        for idx, profile in enumerate(profiles):
-            try:
-                self.enrich_profile(profile)
-            except Exception as e:
-                logger.warning(f"TikTok profile enrichment failed for @{profile.handle}: {e}")
-
-        return profiles
+        return self._finalize_profiles(handles, max_profiles)
 
     # ------------------------------------------------------------------
     # Tier 1: yt-dlp
@@ -191,7 +141,36 @@ class TikTokSearchTool:
             out.append(handle)
         return out
 
-    def _build_profiles(self, handles: list[str], max_profiles: int) -> list[TikTokProfileMetadata]:
+    @staticmethod
+    def _parse_query(query: str) -> tuple[list[str], str]:
+        """Splits a comma/newline query into tags and keyword phrases.
+
+        A ``#word`` is a tag; so is a bare single word (``ishowspeedlive``),
+        because that is how a hashtag is typed. A segment with spaces stays a
+        keyword phrase, so ``IShowSpeed edits, ishowspeedlive`` searches the
+        tag and keeps the phrase for the keyword leg.
+        """
+        tags: list[str] = []
+        keywords: list[str] = []
+        for raw in re.split(r"[,\n]+", query):
+            segment = raw.strip()
+            if not segment:
+                continue
+            if segment.startswith("#"):
+                tag = segment.lstrip("#").strip(".").lower()
+                if tag:
+                    tags.append(tag)
+            elif len(segment.split()) == 1:
+                tag = segment.strip(".").lower()
+                if tag:
+                    tags.append(tag)
+            else:
+                keywords.append(segment)
+        return list(dict.fromkeys(tags)), " ".join(keywords)
+
+    def _finalize_profiles(
+        self, handles: list[str], max_profiles: int
+    ) -> list[TikTokProfileMetadata]:
         """Dedupes handles into profiles and enriches them (best effort)."""
         seen: set[str] = set()
         profiles: list[TikTokProfileMetadata] = []
@@ -215,15 +194,17 @@ class TikTokSearchTool:
                 self.enrich_profile(profile)
             except Exception as e:
                 logger.warning(f"TikTok profile enrichment failed for @{profile.handle}: {e}")
+            if profile.nickname == "TikTok Creator":
+                # A walled profile read leaves the default; the handle is
+                # the only true name we have.
+                profile.nickname = profile.handle
         return profiles
 
-    def _build_no_results_note(self, tags: list[str], asked_ai: bool = False) -> str:
+    def _build_no_results_note(self, tags: list[str]) -> str:
         note = (
-            "TikTok returned 0 profiles. TikTok blocks anonymous #tag/search "
-            "listing; the signed listing API was also empty."
+            "TikTok returned 0 profiles. TikTok blocks #tag and search listing "
+            "even with a logged-in cookies.txt; the signed listing API was empty too."
         )
-        if asked_ai:
-            note += " The AI web search was asked too and proposed no profiles."
         if not self.cookiefile:
             note += " No cookies.txt was provided."
         elif self.cookie_count:
@@ -233,10 +214,10 @@ class TikTokSearchTool:
             )
         else:
             note += " A cookies.txt path was set but it failed to load (0 cookies)."
-        if tags:
-            note += " Tip: paste @handles or profile URLs of known creators for this hashtag instead."
-        else:
-            note += " Tip: paste @handles / profile URLs (guaranteed to work), or export fresh cookies."
+        note += (
+            " Paste the creators' @handles or profile URLs; each one is then "
+            "checked on YouTube, Instagram and Facebook."
+        )
         return note
 
     def _discover_via_ytdlp(self, url: str) -> list[str]:
@@ -273,13 +254,6 @@ class TikTokSearchTool:
         if re.fullmatch(r"[A-Za-z0-9\._]{2,30}", uploader):
             return uploader
         return None
-
-    # ------------------------------------------------------------------
-    # Tier 2: HTML harvest
-    # ------------------------------------------------------------------
-    def _discover_via_html(self, url: str) -> list[str]:
-        """Cookies-aware harvest of uniqueId / @handle tokens from TikTok HTML."""
-        return self.api_session._html_handles(url)
 
     # ------------------------------------------------------------------
     # Profile enrichment
