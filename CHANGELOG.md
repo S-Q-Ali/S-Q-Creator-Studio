@@ -3,7 +3,34 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [2.9.2] — 2026-10-30
+
+### Fixed
+
+- **The TikTok mode no longer shows the logged-in account as a creator.** With
+  a cookies file, the tag page's HTML was read for creators, and the only
+  account in that page is the one that owns the cookies — so a `#tag` run
+  returned that single bogus profile and ran the YouTube check on it. That
+  harvest is gone. The mode now works from creators you paste (`@handles`,
+  profile URLs, comma- or newline-separated; a bare word is read as a
+  `#hashtag`, and the hashtag/keyword tiers still run as a best effort), and
+  when TikTok lists nobody the note says so and asks for handles.
+
+### Added
+
+- **Each TikTok creator is checked on YouTube, Instagram and Facebook.** One
+  AI ask per creator proposes all three accounts, the YouTube candidate goes
+  through the existing channel check, and the Facebook and Instagram
+  candidates are opened and verified in the browser. When the AI is silent or
+  has no key, the creator's own handle is tried on each platform. The results
+  table and the CSV export carry Facebook and Instagram status and links, and
+  the copy buttons work in this mode.
+
+### Removed
+
+- **The AI listing leg for TikTok (2.9.1).** Asking the web for a niche's
+  creators is gone: it could not be confirmed against TikTok, and the pasted
+  creator list is the path that actually works.
 
 ## [2.9.1] — 2026-10-29
 
