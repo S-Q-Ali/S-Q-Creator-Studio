@@ -5,6 +5,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.9.1] — 2026-10-29
+
 ### Added
 
 - **A `#tag` query in the TikTok mode finds creators again.** TikTok no longer

@@ -28,6 +28,18 @@ proposed by the AI rather than read from TikTok.
 | yt-dlp profile, real and fake handle | both fail: "Unable to extract secondary user ID" |
 | Public mirror (tikwm) | Cloudflare / empty list |
 
+### Measured provider constraints (2026-10-30)
+
+| Provider | Result |
+|---|---|
+| Gemini grounded (`google_search`), 3 models | HTTP 200 without the tool, 429 "quota exceeded" with it: the free grounded quota is spent |
+| Groq `gpt-oss-120b` + `browser_search` | Cloudflare 524 after ~125 s on every request |
+| Groq `gpt-oss-20b` + `browser_search`, short prompt | 200 in 4-6 s, real `tiktok.com/@handle` with 10 cited results |
+| Groq `gpt-oss-20b` free tier | 8 000 tokens/minute and 200 000 tokens/day |
+
+So the Groq search leg now names `gpt-oss-20b`; the 120b model stays for
+plain asks. A keyless or quota-spent run still ends in the honest note.
+
 ## Assumptions
 
 1. This mode already needs an AI key for the YouTube check, so a grounded

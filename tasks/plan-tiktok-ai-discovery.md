@@ -20,6 +20,10 @@ current YouTube-presence check. Seeds (`@handle`) keep today's path.
   per-run `SearchBudget` and its ops lines apply unchanged.
 - **No false confidence.** TikTok walls profile reads, so nothing claims the
   proposed handles exist; the log and the tool note say "proposed".
+- **The search leg names its own Groq model.** Measured 2026-10-30: 120b's
+  `browser_search` dies at Cloudflare (524) while 20b answers in seconds, so
+  `GROQ_SEARCH_MODEL` is 20b and every search-grounded ask defaults to it;
+  the plain asks keep `DEFAULT_MODEL`.
 
 ## Task list
 

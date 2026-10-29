@@ -87,8 +87,38 @@ one user-visible bullet; no invented version numbers.
 - [x] `ui/agent_tab.py` hint
 - [x] `CHANGELOG.md` bullet
 
+## Phase 5 — Live verification and release (2026-10-30)
+
+### Task 8: the search leg names a Groq model that can search
+**Acceptance:** `GROQ_SEARCH_MODEL` is `openai/gpt-oss-20b`; every
+search-grounded ask (proposer, YouTube search, discovery) defaults to it;
+plain asks keep `DEFAULT_MODEL`; a test pins the payload model.
+**Verify:** `pytest tests/test_social_judge.py`.
+**Files:** `agent/tools/social_judge.py`, `tests/test_social_judge.py`
+
+- [x] Constant and defaults
+- [x] Test pins the payload model
+
+### Task 9: live run with the stored key
+**Acceptance:** a real `#ishowspeed` run proposes handles through the
+configured providers and the log names the source; no key material in any
+line.
+**Verify:** `tasks/spike_tiktok_live.py` output.
+
+- [ ] Stage A (grounded propose) returns handles
+- [ ] Stage B (tool fallback) returns profiles
+
+### Task 10: 2.9.1 artifact
+**Acceptance:** EXE and installer built; bundle markers carry the new code;
+bundled smoke passes.
+**Verify:** `tasks/spike_verify_bundle.py`, release file timestamps.
+
+- [x] Version bumped in `__init__.py` and `pyproject.toml`
+- [ ] PyInstaller and Inno succeed
+- [ ] Markers PASS on the frozen bundle
+
 ## Checkpoint: Complete
 
 - [x] Offline suite and ruff clean
-- [ ] `graphify update .` run and committed
-- [ ] User asked before the EXE rebuild
+- [x] `graphify update .` run and committed
+- [x] User asked before the EXE rebuild
