@@ -105,8 +105,9 @@ configured providers and the log names the source; no key material in any
 line.
 **Verify:** `tasks/spike_tiktok_live.py` output.
 
-- [ ] Stage A (grounded propose) returns handles
-- [ ] Stage B (tool fallback) returns profiles
+- [x] Stage A (grounded propose) returns handles — 2026-10-30: `['ishowspeed']`; a direct capped probe returned 3 handles with 52 cited sources
+- [x] Stage B (tool fallback) returns profiles — `source='ai'`, 1 profile
+- [ ] In-app `#ishowspeed` run — blocked the same day: the free Gemini grounded quota was spent and Groq's 200 000 tokens/day ran out; the honest note path was exercised live instead
 
 ### Task 10: 2.9.1 artifact
 **Acceptance:** EXE and installer built; bundle markers carry the new code;
@@ -114,8 +115,9 @@ bundled smoke passes.
 **Verify:** `tasks/spike_verify_bundle.py`, release file timestamps.
 
 - [x] Version bumped in `__init__.py` and `pyproject.toml`
-- [ ] PyInstaller and Inno succeed
-- [ ] Markers PASS on the frozen bundle
+- [x] PyInstaller and Inno succeed
+- [x] Markers PASS on the frozen bundle (23 markers, 0 problems)
+- [x] Bundled smoke PASS in 40.1 s
 
 ## Checkpoint: Complete
 
