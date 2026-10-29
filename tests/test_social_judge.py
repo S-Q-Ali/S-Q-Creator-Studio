@@ -578,3 +578,148 @@ def test_a_network_error_is_reported_as_unavailable(monkeypatch):
         sj._post_groq({}, "gsk_test")
 
     assert "reach" in str(excinfo.value).lower()
+
+
+# ---------------------------------------------------------------------------
+# Asking the web which TikTok creators a niche has
+# ---------------------------------------------------------------------------
+def _grounded_answer(text):
+    """A Gemini answer with the given text, shaped the way the API returns it."""
+    return {
+        "steps": [
+            {
+                "type": "model_output",
+                "content": [{"type": "text", "text": text}],
+            }
+        ]
+    }
+
+
+def test_a_json_creator_list_becomes_handles():
+    text = json.dumps(
+        {
+            "creators": [
+                "https://www.tiktok.com/@catlover",
+                "https://www.tiktok.com/@Dog.Videos",
+            ]
+        }
+    )
+
+    assert list(sj._parse_creator_handles(text)) == ["catlover", "dog.videos"]
+
+
+def test_a_fenced_creator_list_is_read():
+    text = (
+        "```json\n"
+        + json.dumps({"creators": ["https://tiktok.com/@catlover"]})
+        + "\n```"
+    )
+
+    assert list(sj._parse_creator_handles(text)) == ["catlover"]
+
+
+def test_profile_urls_in_prose_are_read():
+    text = (
+        "These match: https://www.tiktok.com/@first_one and "
+        "https://www.tiktok.com/@second."
+    )
+
+    assert list(sj._parse_creator_handles(text)) == ["first_one", "second"]
+
+
+def test_a_bare_word_is_not_a_handle():
+    text = json.dumps(
+        {"creators": ["catlover", "https://instagram.com/cat", "nonsense"]}
+    )
+
+    assert sj._parse_creator_handles(text) == {}
+
+
+def test_a_handle_is_kept_once():
+    text = json.dumps(
+        {
+            "creators": [
+                "https://www.tiktok.com/@cat",
+                "https://www.tiktok.com/@CAT/",
+                "https://www.tiktok.com/@cat?lang=en",
+            ]
+        }
+    )
+
+    assert list(sj._parse_creator_handles(text)) == ["cat"]
+
+
+def test_the_proposer_returns_the_handles_in_order(monkeypatch):
+    def fake_gemini(payload, key, timeout=60.0):
+        assert payload["tools"] == [{"type": "google_search"}]
+        return _grounded_answer(
+            json.dumps(
+                {
+                    "creators": [
+                        "https://www.tiktok.com/@first",
+                        "https://www.tiktok.com/@second",
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    assert sj.propose_tiktok_creators("#cats", 5) == ["first", "second"]
+
+
+def test_the_proposer_stops_at_the_limit(monkeypatch):
+    def fake_gemini(payload, key, timeout=60.0):
+        return _grounded_answer(
+            json.dumps(
+                {
+                    "creators": [
+                        f"https://www.tiktok.com/@creator{i}" for i in range(10)
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    assert sj.propose_tiktok_creators("cats", 3) == [
+        "creator0",
+        "creator1",
+        "creator2",
+    ]
+
+
+def test_the_prompt_carries_the_niche_as_data(monkeypatch):
+    seen = {}
+
+    def fake_gemini(payload, key, timeout=60.0):
+        seen["prompt"] = payload["input"]
+        return _grounded_answer(json.dumps({"creators": []}))
+
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    with pytest.raises(sj.JudgeUnavailable):
+        sj.propose_tiktok_creators("#cat videos", 5)
+
+    prompt = seen["prompt"]
+    assert "untrusted data" in prompt
+    assert "#cat videos" in prompt
+    assert "up to 5" in prompt
+
+
+def test_an_answer_without_creators_is_a_failure(monkeypatch):
+    def fake_gemini(payload, key, timeout=60.0):
+        return _grounded_answer("I could not find any TikTok creators for that.")
+
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    with pytest.raises(sj.JudgeUnavailable):
+        sj.propose_tiktok_creators("#cats", 5)

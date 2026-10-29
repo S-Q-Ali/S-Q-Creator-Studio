@@ -89,6 +89,7 @@ class AgentOrchestrator:
             log_callback=self._log,
             ops=self.ops,
         )
+        self.api_key = api_key
         self.tiktok_tool = TikTokSearchTool()
         self.youtube_existence_tool = YouTubeExistenceTool(api_key=api_key, ops=self.ops)
         self.progress_callback = progress_callback
@@ -619,6 +620,30 @@ class AgentOrchestrator:
         )
         return presence
 
+    def _tiktok_proposer(self) -> Callable[[str, int], list[str]] | None:
+        """The web's answer for a niche, bounded by the run's search budget.
+
+        None when no AI key is configured: the tool then keeps its honest
+        note instead of claiming a search that never happened. The handles
+        are proposals — TikTok walls the profile reads that would confirm
+        them.
+        """
+        if not (self.api_key or judge.gemini_key() or judge.groq_key()):
+            return None
+
+        def propose(niche: str, limit: int) -> list[str]:
+            found = ask_the_web(
+                lambda: judge.propose_tiktok_creators(
+                    niche, limit, api_key=self.api_key, ops=self.ops
+                ),
+                budget=self.search_budget,
+                platforms=("tiktok",),
+                ops=self.ops,
+            )
+            return list(found or [])
+
+        return propose
+
     def run_tiktok_discovery(
         self,
         query: str,
@@ -637,12 +662,19 @@ class AgentOrchestrator:
         self.tiktok_tool.cookiefile = cookiefile
         self.ops.start("tiktok.search", "tiktok", query, detail=f"up to {max_profiles} profiles")
         started = time.monotonic()
-        raw_profiles = self.tiktok_tool.search_profiles(query, max_profiles=max_profiles)
+        raw_profiles = self.tiktok_tool.search_profiles(
+            query, max_profiles=max_profiles, proposer=self._tiktok_proposer()
+        )
+        source = self.tiktok_tool.discovered_by or "none"
+        if source == "ai":
+            self._log(
+                f"AI proposed {len(raw_profiles)} TikTok handle(s) for {query!r}."
+            )
         self.ops.ok(
             "tiktok.search",
             "tiktok",
             query,
-            detail=f"{len(raw_profiles)} profile(s)",
+            detail=f"{len(raw_profiles)} profile(s), source={source}",
             duration_ms=int((time.monotonic() - started) * 1000),
         )
         total_found = len(raw_profiles)

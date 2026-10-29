@@ -281,7 +281,7 @@ class AgentTabWidget(QWidget):
         lbl_cookies.setProperty("role", "hint")
         self.cookies_edit = QLineEdit()
         self.cookies_edit.setPlaceholderText(
-            "Paste @handles or profile URLs above, or load a cookies.txt to unlock #tag search"
+            "Optional: TikTok blocks #tag search; an AI key (Settings) fills it from the web"
         )
         self.btn_browse_cookies = QPushButton("Browse...")
         self.btn_browse_cookies.clicked.connect(self._browse_cookies)

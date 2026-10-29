@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from typing import TypeVar
 
 from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.schema import SocialStatus
-from s_q_ali_media_downloader.agent.tools.social_judge import AiAnswer, JudgeUnavailable
+from s_q_ali_media_downloader.agent.tools.social_judge import JudgeUnavailable
 from s_q_ali_media_downloader.agent.tools.social_verify import Reconciled
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,8 @@ logger = logging.getLogger(__name__)
 #: a daily allowance per model and every call is one request: without a
 #: cap a run with fifty channels spends the whole day on the first one.
 MAX_SEARCHES_PER_RUN = 5
+
+T = TypeVar("T")
 
 
 class SearchBudget:
@@ -64,12 +67,12 @@ def needs_the_second_check(
 
 
 def ask_the_web(
-    ask: Callable[[], AiAnswer],
+    ask: Callable[[], T],
     *,
     budget: SearchBudget,
     platforms: Sequence[str],
     ops: Ops | None = None,
-) -> AiAnswer | None:
+) -> T | None:
     """Ask the web about the platforms, if the budget allows one more call.
 
     None when the budget is spent or no provider answered: the browser's

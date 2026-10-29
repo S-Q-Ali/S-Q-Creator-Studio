@@ -237,3 +237,102 @@ def test_the_verifier_is_told_who_the_creator_is(monkeypatch):
     assert creator.handle == "mkbhd"
     assert creator.channel_id == "UC1"
     assert creator.url == "https://www.youtube.com/@mkbhd"
+
+# ---------------------------------------------------------------------------
+# The TikTok mode asks the web when TikTok lists nothing
+# ---------------------------------------------------------------------------
+def _one_profile():
+    from s_q_ali_media_downloader.agent.schema import TikTokProfileMetadata
+
+    return TikTokProfileMetadata(
+        profile_id="creator_a",
+        handle="creator_a",
+        profile_url="https://www.tiktok.com/@creator_a",
+    )
+
+
+def test_the_tiktok_run_passes_the_web_proposer_to_the_tool(monkeypatch):
+    from s_q_ali_media_downloader.agent.schema import (
+        SocialPlatform,
+        SocialPresence,
+    )
+
+    lines = []
+    orchestrator = AgentOrchestrator(log_callback=lines.append)
+    asked = {}
+
+    def fake_proposer(niche, limit, **kwargs):
+        asked["niche"] = niche
+        return ["creator_a"]
+
+    def fake_search(query, max_profiles, *, proposer=None):
+        asked["handles"] = proposer("cats", max_profiles)
+        orchestrator.tiktok_tool.discovered_by = "ai"
+        return [_one_profile()]
+
+    def fake_presence(profile, suggested_handle=None):
+        return SocialPresence(platform=SocialPlatform.YOUTUBE)
+
+    from s_q_ali_media_downloader.agent.tools import social_judge as sj
+
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+    monkeypatch.setattr(sj, "propose_tiktok_creators", fake_proposer)
+    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
+    monkeypatch.setattr(
+        orchestrator.youtube_existence_tool, "check_youtube_presence", fake_presence
+    )
+    monkeypatch.setattr(
+        orchestrator, "_second_check_youtube", lambda profile, presence: presence
+    )
+
+    result = orchestrator.run_tiktok_discovery("cats", max_profiles=5)
+
+    assert asked["handles"] == ["creator_a"]
+    assert len(result.profiles) == 1
+    assert any("AI proposed 1 TikTok handle" in line for line in lines)
+    assert any("source=ai" in line for line in lines)
+
+
+def test_a_spent_search_budget_leaves_the_tiktok_run_working(monkeypatch):
+    from s_q_ali_media_downloader.agent.tools.dual_check import SearchBudget
+
+    orchestrator = AgentOrchestrator()
+    orchestrator.search_budget = SearchBudget(limit=0)
+    seen = {}
+
+    def fake_proposer(niche, limit, **kwargs):
+        raise AssertionError("the budget is spent; the web must not be asked")
+
+    def fake_search(query, max_profiles, *, proposer=None):
+        seen["handles"] = proposer("cats", max_profiles)
+        return []
+
+    from s_q_ali_media_downloader.agent.tools import social_judge as sj
+
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+    monkeypatch.setattr(sj, "propose_tiktok_creators", fake_proposer)
+    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
+
+    result = orchestrator.run_tiktok_discovery("cats", max_profiles=5)
+
+    assert seen["handles"] == []
+    assert result.profiles == []
+
+
+def test_without_an_ai_key_the_tiktok_run_asks_nobody(monkeypatch):
+    from s_q_ali_media_downloader.agent.tools import social_judge as sj
+
+    orchestrator = AgentOrchestrator()
+    seen = {}
+
+    def fake_search(query, max_profiles, *, proposer=None):
+        seen["proposer"] = proposer
+        return []
+
+    monkeypatch.setattr(sj, "gemini_key", lambda: None)
+    monkeypatch.setattr(sj, "groq_key", lambda: None)
+    monkeypatch.setattr(orchestrator.tiktok_tool, "search_profiles", fake_search)
+
+    orchestrator.run_tiktok_discovery("cats", max_profiles=5)
+
+    assert seen["proposer"] is None

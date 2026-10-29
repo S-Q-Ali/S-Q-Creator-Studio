@@ -520,3 +520,79 @@ def test_note_when_cookiefile_loaded_but_blocked(tmp_path):
     note = tool._build_no_results_note(tags=["tech"])
     assert "1 cookies" in note
     assert "listing stayed blocked" in note
+
+
+# ---------------------------------------------------------------------------
+# The web's creators, when TikTok lists nothing
+# ---------------------------------------------------------------------------
+def _empty_listing(monkeypatch, tool):
+    """Every TikTok listing tier answers with nothing."""
+    monkeypatch.setattr(tool.api_session, "fetch_tag_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool.api_session, "fetch_search_handles", lambda *a, **k: [])
+    monkeypatch.setattr(tool, "_discover_via_html", lambda url: [])
+    monkeypatch.setattr(tool, "_discover_via_ytdlp", lambda url: [])
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
+
+
+def test_the_proposer_supplies_creators_when_tiktok_lists_none(monkeypatch):
+    tool = TikTokSearchTool()
+    _empty_listing(monkeypatch, tool)
+    asked = []
+
+    def proposer(niche, limit):
+        asked.append((niche, limit))
+        return ["creator_a", "creator_b"]
+
+    profiles = tool.search_profiles("#sometag", max_profiles=10, proposer=proposer)
+
+    assert [p.handle for p in profiles] == ["creator_a", "creator_b"]
+    assert asked == [("sometag", 10)]
+    assert tool.discovered_by == "ai"
+
+
+def test_the_proposers_handles_are_cleaned_like_any_other(monkeypatch):
+    tool = TikTokSearchTool()
+    _empty_listing(monkeypatch, tool)
+
+    def proposer(niche, limit):
+        return ["creator_a", "tiktok", "x", "creator_a"]
+
+    profiles = tool.search_profiles("cats", max_profiles=10, proposer=proposer)
+
+    assert [p.handle for p in profiles] == ["creator_a"]
+    assert tool.discovered_by == "ai"
+
+
+def test_a_seed_query_never_asks_the_web(monkeypatch):
+    tool = TikTokSearchTool()
+    monkeypatch.setattr(tool, "enrich_profile", lambda p: p)
+
+    def proposer(niche, limit):
+        raise AssertionError("a seed must not ask the web")
+
+    profiles = tool.search_profiles("@creator_a", max_profiles=10, proposer=proposer)
+
+    assert [p.handle for p in profiles] == ["creator_a"]
+    assert tool.discovered_by == "seed"
+
+
+def test_without_a_proposer_a_tag_still_says_which_handles_never_come(monkeypatch):
+    tool = TikTokSearchTool()
+    _empty_listing(monkeypatch, tool)
+
+    profiles = tool.search_profiles("#sometag", max_profiles=10)
+
+    assert profiles == []
+    assert tool.discovered_by == ""
+    assert "@handles" in tool.search_note
+
+
+def test_a_proposer_that_finds_nothing_says_the_web_was_asked(monkeypatch):
+    tool = TikTokSearchTool()
+    _empty_listing(monkeypatch, tool)
+
+    profiles = tool.search_profiles("#sometag", max_profiles=10, proposer=lambda n, l: [])
+
+    assert profiles == []
+    assert tool.discovered_by == ""
+    assert "AI" in tool.search_note

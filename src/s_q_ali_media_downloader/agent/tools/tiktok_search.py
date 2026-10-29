@@ -14,6 +14,7 @@ cookies.txt file (exported from a logged-in browser) to unlock listing data.
 
 import logging
 import re
+from collections.abc import Callable
 
 import yt_dlp
 
@@ -44,6 +45,8 @@ class TikTokSearchTool:
         self.api_session = TikTokApiSession(timeout=timeout)
         self._cookiefile: str | None = None
         self.search_note: str | None = None
+        #: Where the last listing's handles came from: seed, listing, ai, or none.
+        self.discovered_by = ""
         self.cookie_count = 0
         if cookiefile:
             self.cookiefile = cookiefile
@@ -63,12 +66,25 @@ class TikTokSearchTool:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def search_profiles(self, query: str, max_profiles: int = 50) -> list[TikTokProfileMetadata]:
-        """Entry point: seed profiles > tag pages > keyword search."""
+    def search_profiles(
+        self,
+        query: str,
+        max_profiles: int = 50,
+        *,
+        proposer: Callable[[str, int], list[str]] | None = None,
+    ) -> list[TikTokProfileMetadata]:
+        """Entry point: seed profiles > tag pages > keyword search > the web.
+
+        ``proposer`` asks the web for the creators of a niche. It runs only
+        when TikTok itself listed nothing, because every listing tier is
+        blocked for an anonymous visitor.
+        """
         self.search_note = None
+        self.discovered_by = ""
         seeds = self._parse_seed_handles(query)
         if seeds:
             logger.info(f"Query contains {len(seeds)} seed profile(s); skipping discovery.")
+            self.discovered_by = "seed"
             return self._build_profiles(seeds, max_profiles)
 
         handles: list[str] = []
@@ -96,8 +112,18 @@ class TikTokSearchTool:
             if not handles:
                 handles += self._discover_via_ytdlp(SEARCH_URL.format(query=base))
 
+        # 4. The web, when TikTok itself listed nothing: the handles are
+        #    proposals, because TikTok walls the profile reads that would
+        #    confirm them.
+        asked_ai = False
+        if not handles and proposer is not None:
+            asked_ai = True
+            handles = list(proposer(keywords or " ".join(tags), max_profiles))
+        if handles:
+            self.discovered_by = "ai" if asked_ai else "listing"
+
         if not handles:
-            self.search_note = self._build_no_results_note(tags)
+            self.search_note = self._build_no_results_note(tags, asked_ai=asked_ai)
             logger.warning(self.search_note)
 
         # Dedupe, filter, cap
@@ -191,11 +217,13 @@ class TikTokSearchTool:
                 logger.warning(f"TikTok profile enrichment failed for @{profile.handle}: {e}")
         return profiles
 
-    def _build_no_results_note(self, tags: list[str]) -> str:
+    def _build_no_results_note(self, tags: list[str], asked_ai: bool = False) -> str:
         note = (
             "TikTok returned 0 profiles. TikTok blocks anonymous #tag/search "
             "listing; the signed listing API was also empty."
         )
+        if asked_ai:
+            note += " The AI web search was asked too and proposed no profiles."
         if not self.cookiefile:
             note += " No cookies.txt was provided."
         elif self.cookie_count:
