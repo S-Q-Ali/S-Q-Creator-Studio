@@ -38,7 +38,13 @@ jobs:
         run: pytest -m "not live"
 
       - name: Audit dependencies (OSV/pip-audit)
-        run: python -m pip_audit
+        # Audit the app's own runtime requirements. browser-use (the optional
+        # agent extra) exact-pins its whole dependency set, including anyio,
+        # mcp, pillow and pypdf; an environment-wide audit would report
+        # advisories in those upstream pins even though the agent never
+        # reaches their PDF, image or MCP paths. The core runtime stays
+        # audited, and requirements-dev.txt records the pin.
+        run: python -m pip_audit -r requirements.txt
 
       - name: Install the browser and ffmpeg the app ships
         # The installer bundles both. windows-latest has Inno Setup, but not

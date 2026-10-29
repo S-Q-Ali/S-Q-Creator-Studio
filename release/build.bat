@@ -68,6 +68,9 @@ echo.
     --collect-all yt_dlp ^
     --collect-all curl_cffi ^
     --collect-all playwright ^
+    --collect-all browser_use ^
+    --collect-all browser_harness ^
+    --collect-all cdp_use ^
     --workpath "%WORKPATH%" ^
     --distpath "%DISTPATH%" ^
     "%ENTRY%"
@@ -89,7 +92,7 @@ if exist "%PORTABLE%" (
     rem Read-only attributes make rmdir fail with "Access is denied", and a
     rem running copy of the app - or a virus scanner - can hold a lock on the
     rem old DLLs. The browser folder alone is ~1500 files, so the removal is
-    retried for a while and the copy never prompts: a build that waits for
+    rem retried for a while and the copy never prompts: a build that waits for
     rem an answer is a hung build.
     set "EMPTY_DIR=%TEMP%\sq_empty_%RANDOM%"
     mkdir "%EMPTY_DIR%" >nul 2>nul
@@ -108,7 +111,7 @@ if exist "%PORTABLE%" (
         rem The files are locked - a running copy of the app, most likely.
         rem Windows will not delete them and will not even rename the
         rem folder, so the build goes into a fresh one and the installer
-        ; is told to read from there. The running app keeps its files.
+        rem is told to read from there. The running app keeps its files.
         echo           The old build is in use - the app is probably running.
         echo           Building into release\portable-new instead.
         set "PORTABLE=release\portable-new"
@@ -140,16 +143,19 @@ if not defined FFMPEG_EXE (
     for /f "delims=" %%F in ('dir /b /s "%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg_*\bin\ffmpeg.exe" 2^>nul') do if not defined FFMPEG_EXE set "FFMPEG_EXE=%%F"
 )
 
-rem The Social Discovery feature drives a real browser. The Playwright
-rem headless shell ships with the app so the feature works on a machine
-rem that has no Edge and no Chrome. It is the headless shell and not the
-rem full Chromium because the feature only ever runs headless.
+rem The Social Discovery feature drives a real browser. The full Chromium
+rem ships with the app so the feature works on a machine that has no Edge
+rem and no Chrome, in both headless and windowed mode. The headless shell
+rem is not enough: Playwright needs the full build for channel="chromium".
 set "BROWSERS_SRC=%PLAYWRIGHT_BROWSERS_PATH%"
 if not defined BROWSERS_SRC set "BROWSERS_SRC=%LOCALAPPDATA%\ms-playwright"
 if exist "%BROWSERS_SRC%" (
-    for /d %%D in ("%BROWSERS_SRC%\chromium_headless_shell-*") do (
-        echo Shipping browser: %%~nxD
-        xcopy /e /i /q /y "%%D" "%PORTABLE%\browsers\%%~nxD" >nul
+    for /d %%D in ("%BROWSERS_SRC%\chromium-*") do (
+        echo %%~nxD | findstr /r /b /c:"chromium-[0-9]" >nul
+        if not errorlevel 1 (
+            echo Shipping browser: %%~nxD
+            xcopy /e /i /q /y "%%D" "%PORTABLE%\browsers\%%~nxD" >nul
+        )
     )
 ) else (
     echo [WARNING] No Playwright browser found in "%BROWSERS_SRC%".
