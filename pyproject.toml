@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "s-q-ali-media-downloader"
-version = "2.9.1"
+version = "2.9.2"
 description = "AI-powered bulk video downloader for TikTok, YouTube, Instagram & Facebook with neon theme and cross-platform social discovery."
 readme = "README.md"
 requires-python = ">=3.10"
