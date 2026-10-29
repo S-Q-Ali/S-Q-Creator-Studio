@@ -201,9 +201,14 @@ def _meta(page: Page, key: str) -> str:
 
 def _name_before(text: str, position: int) -> str:
     """The display name in front of the handle, without the navigation."""
+    # The name sits on the line above the handle. The words before that
+    # line are the page's own footer ("© 2026 TikTok"), and reading them as
+    # the name turns "MrBeast" into "2026 MrBeast" — which is then read as
+    # a different account.
+    lines = [line.strip() for line in text[:position].splitlines() if line.strip()]
     words = [
         word
-        for word in text[:position].split()
+        for word in (lines[-1] if lines else "").split()
         if word.lower().strip(".,·•") not in _NAV_WORDS
     ]
     return " ".join(words[-3:]).strip(" .,·•")

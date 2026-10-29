@@ -83,6 +83,35 @@ def test_a_tiktok_bio_that_repeats_the_handle_keeps_the_profile_name():
     assert result.verdict is sv.Verdict.FOUND
 
 
+def test_a_tiktok_footer_above_the_name_is_not_part_of_the_name():
+    """The page's own footer ("© 2026 TikTok") sits above the profile line.
+
+    Reading it as the name gives "2026 MrBeast", which is then read as a
+    different account — measured on the live page on 2026-10-29.
+    """
+    page = Page(
+        url="https://www.tiktok.com/@mrbeast",
+        title="MrBeast (@mrbeast) | TikTok",
+        text=(
+            "TikTok\nSearch\nFor You\nExplore\nFollowing\nShort dramas\n"
+            "LIVE\nUpload\nProfile\nMore\nLog in\nCompany\nProgram\n"
+            "Terms & Policies\n© 2026 TikTok\n"
+            "MrBeast\nmrbeast\n346\nFollowing\n145.1M\nFollowers\n1.6B\nLikes\n"
+            "Follow\nMessage\nCheckout My New Book!👇\n"
+            "themostdangerousgames.com\n\nSuggested accounts\n\n"
+            "Kanwalay🎶\n\n22M followers\n\nFollow"
+        ),
+        links=[],
+        meta={},
+    )
+
+    result = sv.verify_page(page, "tiktok", CREATOR)
+
+    assert result.display_name == "MrBeast"
+    assert "name_match" in result.evidence
+    assert result.verdict is sv.Verdict.FOUND
+
+
 # --------------------------------------------------------------------------- #
 # The made-up ones
 # --------------------------------------------------------------------------- #
