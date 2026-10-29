@@ -331,9 +331,11 @@ body, never in a URL or a log line.
       **Depends on:** Task 7.
 
 ### Checkpoint: Ship
-- [ ] `pytest -m "not live"` green, `ruff check src tests` clean.
-- [ ] The EXE smoke test passes with the new dependency bundled.
-- [ ] Manual run: IG profile → queue → downloaded file on disk.
+- [x] `pytest -m "not live"` green, `ruff check src tests` clean.
+- [x] The EXE smoke test passes with the new dependency bundled.
+- [x] Manual run: IG profile → queue → downloaded file on disk.
+- [x] The shipped 2.9.0 carries the Instagram speedup and the Facebook
+      paging (rebuilt and verified inside the bundle — Task 13).
 
 ## Risks and Mitigations
 

@@ -100,6 +100,8 @@ Spec: `tasks/spec-instagram-facebook-bulk.md`
       `instaloader` and `instaloader-4.16.dist-info`, the bundled package
       imports and lists a live profile, and the built app starts and stays
       up.
+      **Rebuilt after Task 12** (Task 13): the first build predated the
+      Instagram speedup and the Facebook paging.
 - [x] Manual run: Instagram profile → queue → a video file on disk.
       **Done:** the expansion listed `nasa`, the queue took the first
       permalink and the download thread wrote an 8 MB mp4 (the Artemis II
@@ -152,3 +154,23 @@ not. They do not — but reading them pointed at the real problem.
       **Verify:** 31 offline tests (the paging loop, the query-id harvest,
       the token's absence from every ops line, the fallback to the first
       screen); `pytest -m "not live"` green; `ruff check src tests` clean.
+- [x] Task 13: rebuild the release so the shipped app carries the two new
+      changes.
+      **Why:** the first 2.9.0 build finished at 08:06, before the Instagram
+      speedup (11:11) and the Facebook paging (11:11) landed. The EXE the
+      user had on disk did neither.
+      **Done:** `release\build.bat` rebuilt 2.9.0 in place — the portable EXE
+      (17:05) and `release\S-Q-Creator-Studio-Setup-2.9.0.exe` (17:20,
+      331 MB). Inno Setup's compile took 803 s. No version bump: 2.9.0 is
+      still untagged and the CHANGELOG already describes the paging.
+      **Verified in the shipped artifact, not just in the source:**
+      the PYZ archive inside the EXE carries `facebook_client` (the Relay
+      query name and `PagingUnavailable`), `instagram_client` (`_raw_timeline`,
+      `GraphSidecar`) and `engine` (the new Facebook label); the bundled
+      `curl_cffi` answers Facebook's videos tab with HTTP 200 and the page's
+      token; the bundled `instaloader` walks NASA's timeline; the built app
+      starts, stays up, writes its settings and opens its storage, and
+      leaves no browser behind.
+      **Files:** `release/build.bat` (unchanged), `release\portable\`,
+      `release\S-Q-Creator-Studio-Setup-2.9.0.exe` (build output, not
+      tracked).
