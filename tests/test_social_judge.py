@@ -723,3 +723,33 @@ def test_an_answer_without_creators_is_a_failure(monkeypatch):
 
     with pytest.raises(sj.JudgeUnavailable):
         sj.propose_tiktok_creators("#cats", 5)
+
+
+def test_the_groq_fallback_searches_with_the_model_that_can(monkeypatch):
+    """Measured 2026-10-30: gpt-oss-120b's browser search died at Cloudflare
+    (524 after 125 s); gpt-oss-20b answered with real profile URLs in 4 s."""
+
+    def fake_gemini(payload, key, timeout=60.0):
+        raise sj.JudgeUnavailable("Google rate-limited this Gemini key (429)")
+
+    def fake_groq(payload, key, timeout=60.0):
+        assert payload["tools"] == [{"type": "browser_search"}]
+        assert payload["model"] == sj.GROQ_SEARCH_MODEL
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"creators": ["https://www.tiktok.com/@ishowspeed"]}
+                        )
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(sj, "_post_groq", fake_groq)
+    monkeypatch.setattr(sj, "_post_gemini", fake_gemini)
+    monkeypatch.setattr(sj, "groq_key", lambda: "gsk_test")
+    monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
+
+    assert sj.propose_tiktok_creators("#cats", 5) == ["ishowspeed"]

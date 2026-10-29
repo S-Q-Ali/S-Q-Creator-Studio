@@ -40,7 +40,13 @@ from s_q_ali_media_downloader.core import settings_store
 logger = logging.getLogger(__name__)
 
 GROQ_BASE = "https://api.groq.com/openai/v1"
+#: The plain answer asks. gpt-oss-120b is the stronger model and this is the
+#: path where the model's own knowledge is the point.
 DEFAULT_MODEL = "openai/gpt-oss-120b"
+#: The search-grounded ask. Measured 2026-10-30: gpt-oss-120b's browser
+#: search died at Cloudflare (524 after 125 s) on every request, while
+#: gpt-oss-20b answered with real profile URLs in about four seconds.
+GROQ_SEARCH_MODEL = "openai/gpt-oss-20b"
 
 #: Gemini is asked first; Groq is the fallback. The Interactions API is the
 #: documented REST shape for structured output in 2026.
@@ -1047,7 +1053,7 @@ def propose_searched(
     *,
     api_key: str | None = None,
     platforms: tuple[str, ...] = PLATFORMS,
-    model: str = DEFAULT_MODEL,
+    model: str = GROQ_SEARCH_MODEL,
     gemini_model: str = GEMINI_MODEL,
     ops: Ops | None = None,
 ) -> AiAnswer:
@@ -1076,7 +1082,7 @@ def propose_youtube_searched(
     bio: str = "",
     *,
     api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
+    model: str = GROQ_SEARCH_MODEL,
     gemini_model: str = GEMINI_MODEL,
     ops: Ops | None = None,
 ) -> AiAnswer:
@@ -1102,7 +1108,7 @@ def propose_tiktok_creators(
     limit: int = MAX_DISCOVERY_PROPOSALS,
     *,
     api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
+    model: str = GROQ_SEARCH_MODEL,
     gemini_model: str = GEMINI_MODEL,
     ops: Ops | None = None,
 ) -> list[str]:
@@ -1133,7 +1139,7 @@ def _ask_searched(
     platforms: tuple[str, ...],
     *,
     api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
+    model: str = GROQ_SEARCH_MODEL,
     gemini_model: str = GEMINI_MODEL,
     ops: Ops | None = None,
     parse: Callable[[str], dict[str, PlatformAnswer]] | None = None,
