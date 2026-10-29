@@ -156,6 +156,7 @@ def test_add_links_classifies(qapp, isolated_appdata):
 
 def test_add_links_accepts_facebook_and_instagram(qapp, isolated_appdata):
     window = MainWindow()
+    window._start_next_expand = lambda: None  # don't spawn a real network thread
     window.links.setPlainText(
         "https://www.facebook.com/reel/1234567890\n"
         "https://www.instagram.com/reel/Cabc123/\n"
@@ -170,7 +171,9 @@ def test_add_links_accepts_facebook_and_instagram(qapp, isolated_appdata):
     }
     status = window.status_bar.text()
     assert "Added 2 links" in status
-    assert "1 skipped" in status
+    # A page is expanded, not queued as a single download.
+    assert window._expand_queue == ["https://www.facebook.com/MrBeast"]
+    assert "Expanding 1" in status
     window.close()
 
 

@@ -28,6 +28,21 @@ import unicodedata
 import yt_dlp
 from PySide6.QtCore import QThread, Signal
 
+from s_q_ali_media_downloader.core.facebook_client import (
+    FacebookError,
+    list_page_videos,
+)
+from s_q_ali_media_downloader.core.facebook_client import (
+    normalize_page as normalize_facebook_page,
+)
+from s_q_ali_media_downloader.core.instagram_client import (
+    InstagramError,
+    list_profile_media,
+)
+from s_q_ali_media_downloader.core.instagram_client import (
+    normalize_profile as normalize_instagram_profile,
+)
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -260,6 +275,22 @@ def is_instagram_url(url):
     return re.search(r"instagram\.com/(?:p|reel|reels|tv)/[a-z0-9_-]+", low) is not None
 
 
+def is_instagram_profile_url(url):
+    """An Instagram profile — the page whose posts get expanded."""
+    if not (url or "").strip().lower().startswith(("http://", "https://")):
+        return False
+    name, _ = normalize_instagram_profile(url)
+    return name is not None
+
+
+def is_facebook_page_url(url):
+    """A Facebook page — the page whose videos get expanded."""
+    if not (url or "").strip().lower().startswith(("http://", "https://")):
+        return False
+    name, _ = normalize_facebook_page(url)
+    return name is not None
+
+
 def is_youtube_url(url):
     """Check if a URL is a YouTube video URL.
 
@@ -413,7 +444,7 @@ class YouTubeFetchThread(QThread):
     found = Signal(list, str)
     failed = Signal(str)
     note = Signal(str)
-    progress = Signal(int, str)  # (current, total)
+    progress = Signal(int, int)  # (current, total)
 
     def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None, include_shorts=False):
         super().__init__(parent)
@@ -492,6 +523,89 @@ class YouTubeFetchThread(QThread):
             self.failed.emit("No videos found in that playlist or channel.")
             return
         self.found.emit(urls, label)
+
+
+class InstagramFetchThread(QThread):
+    """Expands an Instagram profile into individual post URLs.
+
+    The listing is done by ``instaloader``: yt-dlp's own ``instagram:user``
+    extractor is broken upstream (yt-dlp issue #4394).
+    """
+
+    found = Signal(list, str)
+    failed = Signal(str)
+    note = Signal(str)
+    progress = Signal(int, int)
+
+    def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None):
+        super().__init__(parent)
+        self.url = url
+        self.limit = max(1, min(int(limit), MAX_ACCOUNT_VIDEOS))
+
+    def run(self):
+        username, _ = normalize_instagram_profile(self.url)
+        if not username:
+            self.failed.emit("That doesn't look like an Instagram profile.")
+            return
+        self.note.emit(f"Listing @{username}…")
+        try:
+            listing = list_profile_media(
+                username,
+                self.limit,
+                progress=lambda found: self.progress.emit(found, self.limit),
+            )
+        except InstagramError as exc:
+            self.failed.emit(str(exc))
+            return
+        if not listing:
+            self.failed.emit(f"No video posts found for @{username}.")
+            return
+        logger.info("Fetched %d Instagram URLs for @%s", len(listing), username)
+        label = f"@{username}"
+        if listing.reason:
+            label = f"{label} — {listing.reason}"
+        self.found.emit(list(listing), label)
+
+
+class FacebookFetchThread(QThread):
+    """Expands a Facebook page into individual video URLs.
+
+    Experimental: the page's Videos tab is read in the app's own browser.
+    A visitor without a session sees the first screen only, so this usually
+    returns far fewer videos than the account-limit dropdown allows.
+    """
+
+    found = Signal(list, str)
+    failed = Signal(str)
+    note = Signal(str)
+    progress = Signal(int, int)
+
+    def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None):
+        super().__init__(parent)
+        self.url = url
+        self.limit = max(1, min(int(limit), MAX_ACCOUNT_VIDEOS))
+
+    def run(self):
+        page, _ = normalize_facebook_page(self.url)
+        if not page:
+            self.failed.emit("That doesn't look like a Facebook page.")
+            return
+        caveat = "experimental: Facebook shows a visitor the first screen only"
+        self.note.emit(f"Listing {page}'s videos — {caveat}.")
+        try:
+            urls = list_page_videos(
+                page,
+                self.limit,
+                progress=lambda found: self.progress.emit(found, self.limit),
+            )
+        except FacebookError as exc:
+            self.failed.emit(str(exc))
+            return
+        if not urls:
+            self.failed.emit(f"No videos found on {page}.")
+            return
+        logger.info("Fetched %d Facebook URLs for %s", len(urls), page)
+        self.found.emit(urls, f"{page} — {caveat}")
 
 
 _EMOJI_PATTERN = re.compile(

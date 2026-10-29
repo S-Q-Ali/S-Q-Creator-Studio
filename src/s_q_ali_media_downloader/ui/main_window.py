@@ -50,11 +50,15 @@ from s_q_ali_media_downloader.engine import (
     RETRY_PASSES,
     AccountFetchThread,
     DownloadThread,
+    FacebookFetchThread,
+    InstagramFetchThread,
     YouTubeFetchThread,
     app_storage_dir,
     default_output_dir,
     impersonation_summary,
+    is_facebook_page_url,
     is_facebook_url,
+    is_instagram_profile_url,
     is_instagram_url,
     is_profile_url,
     is_tiktok_url,
@@ -292,7 +296,7 @@ class MainWindow(QMainWindow):
         self.links.setMinimumHeight(120)
         self.links.setPlaceholderText(
             "One TikTok, YouTube, Facebook or Instagram link per line.\n\n"
-            "Playlists, channels and TikTok profiles expand into videos automatically."
+            "Playlists, channels and profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
         self.chk_shorts = QCheckBox("Also fetch Shorts")
@@ -517,7 +521,8 @@ class MainWindow(QMainWindow):
         self.queue_layout.setSpacing(9)
 
         self.empty = QLabel(
-            "Nothing queued yet. Paste TikTok links on the left, or fetch them from an account."
+            "Nothing queued yet. Paste TikTok, YouTube, Facebook or Instagram links "
+            "on the left, or fetch them from an account."
         )
         self.empty.setObjectName("EmptyState")
         self.empty.setAlignment(Qt.AlignCenter)
@@ -813,43 +818,49 @@ class MainWindow(QMainWindow):
             self.fetcher = YouTubeFetchThread(
                 normalized, limit, self, include_shorts=self.chk_shorts.isChecked()
             )
-            self.fetcher.note.connect(self.set_status)
-            self.fetcher.progress.connect(
+            self._start_fetcher(
+                self.fetcher,
+                self.on_urls_found,
                 lambda cur, total: self.set_status(
                     f"Expanding channel: {cur}/{total} videos found…"
-                )
+                ),
             )
-            self.fetcher.found.connect(self.on_youtube_channel_fetched)
-            self.fetcher.failed.connect(self.on_account_failed)
-            self.fetcher.finished.connect(self._sync_buttons)
-            self.fetcher.start()
-            self.btn_fetch.setEnabled(False)
             self.set_status(f"Fetching up to {limit} video URLs from YouTube channel…")
+            return
+        # Instagram profile — expand into its video posts and reels
+        if is_instagram_profile_url(text):
+            self.fetcher = InstagramFetchThread(text, limit, self)
+            self._start_fetcher(self.fetcher, self.on_urls_found, self.on_expand_progress)
+            self.set_status(f"Fetching up to {limit} video URLs from Instagram…")
+            return
+        # Facebook page — expand into its videos. Experimental: Facebook shows
+        # a visitor who is not signed in the first screen only.
+        if is_facebook_page_url(text):
+            self.fetcher = FacebookFetchThread(text, limit, self)
+            self._start_fetcher(self.fetcher, self.on_urls_found, self.on_expand_progress)
+            self.set_status(f"Fetching up to {limit} video URLs from Facebook…")
             return
         # TikTok / other profile-based account
         self.fetcher = AccountFetchThread(text, limit, self.cookies.isChecked(), self)
-        self.fetcher.note.connect(self.set_status)
-        self.fetcher.found.connect(self.on_account_found)
-        self.fetcher.failed.connect(self.on_account_failed)
-        self.fetcher.finished.connect(self._sync_buttons)
-        self.fetcher.start()
-        self.btn_fetch.setEnabled(False)
+        self._start_fetcher(self.fetcher, self.on_account_found)
         self.set_status("Fetching video list…")
 
-    def on_account_found(self, urls, username):
-        existing = self.links.toPlainText().strip()
-        block = "\n".join(urls)
-        self.links.setPlainText(f"{existing}\n{block}" if existing else block)
-        self.tab_links.setChecked(True)
-        self.source_stack.setCurrentIndex(0)
-        n = len(urls)
-        self.set_status(
-            f"Found {n} video{'s' if n != 1 else ''} from @{username}. "
-            "Check the list, then Add to queue."
-        )
+    def _start_fetcher(self, thread, on_found, progress=None):
+        """Connects a fetch thread and starts it."""
+        thread.note.connect(self.set_status)
+        if progress is not None:
+            thread.progress.connect(progress)
+        thread.found.connect(on_found)
+        thread.failed.connect(self.on_account_failed)
+        thread.finished.connect(self._sync_buttons)
+        thread.start()
+        self.btn_fetch.setEnabled(False)
 
-    def on_youtube_channel_fetched(self, urls, label):
-        """Receives individual video URLs from a YouTube channel/playlist fetch and shows them in Paste Links."""
+    def on_account_found(self, urls, username):
+        self.on_urls_found(urls, f"@{username}")
+
+    def on_urls_found(self, urls, label):
+        """Puts the expanded URLs in the links box and names the source."""
         existing = self.links.toPlainText().strip()
         block = "\n".join(urls)
         self.links.setPlainText(f"{existing}\n{block}" if existing else block)
@@ -880,7 +891,11 @@ class MainWindow(QMainWindow):
                 existing.add(url)
                 expand_links.append(url)
                 continue
-            if is_profile_url(url):
+            if (
+                is_profile_url(url)
+                or is_instagram_profile_url(url)
+                or is_facebook_page_url(url)
+            ):
                 if url in existing:
                     duplicates += 1
                     continue
@@ -907,8 +922,8 @@ class MainWindow(QMainWindow):
         parts = [f"Added {added} link{'s' if added != 1 else ''}."]
         if expand_links:
             parts.append(
-                f"Expanding {len(expand_links)} playlist, channel or TikTok "
-                f"profile link{'s' if len(expand_links) != 1 else ''}…"
+                f"Expanding {len(expand_links)} playlist, channel or profile "
+                f"link{'s' if len(expand_links) != 1 else ''}…"
             )
         if duplicates:
             parts.append(f"{duplicates} already queued.")
@@ -939,6 +954,8 @@ class MainWindow(QMainWindow):
         url = self._expand_queue.pop(0)
         self.expander = self._expand_thread_for(url)
         self.expander.note.connect(self.set_status)
+        if hasattr(self.expander, "progress"):
+            self.expander.progress.connect(self.on_expand_progress)
         self.expander.found.connect(self.on_youtube_found)
         self.expander.failed.connect(self.on_youtube_failed)
         self.expander.finished.connect(self._on_expand_finished)
@@ -948,6 +965,10 @@ class MainWindow(QMainWindow):
         limit = MAX_ACCOUNT_VIDEOS
         if is_profile_url(url):
             return AccountFetchThread(url, limit, False, self)
+        if is_instagram_profile_url(url):
+            return InstagramFetchThread(url, limit, self)
+        if is_facebook_page_url(url):
+            return FacebookFetchThread(url, limit, self)
         return YouTubeFetchThread(
             url, limit, self, include_shorts=self.chk_shorts.isChecked()
         )
@@ -968,6 +989,9 @@ class MainWindow(QMainWindow):
 
     def on_youtube_failed(self, message):
         self.set_status(f"Could not expand that link — {message}")
+
+    def on_expand_progress(self, current, total):
+        self.set_status(f"Expanding: {current}/{total} videos found…")
 
     def _on_expand_finished(self):
         self._start_next_expand()
