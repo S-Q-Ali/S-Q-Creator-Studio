@@ -174,9 +174,9 @@ passes.
 graph.
 **Verify:** `git log --oneline -5`.
 
-- [ ] Graph updated
-- [ ] Commits
+- [x] Graph updated
+- [x] Commits
 
 ## Checkpoint: Complete
-- [ ] Offline suite and ruff clean
-- [ ] User asked before the EXE rebuild
+- [x] Offline suite and ruff clean
+- [x] User asked before the EXE rebuild
