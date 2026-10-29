@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1793240618.804457,
-    "seen": 1793241617.1659548,
-    "ast_hash": "efc745b4cc1a26080fce601b51fd7b07",
+    "mtime": 1793252655.4116488,
+    "seen": 1793254340.5000787,
+    "ast_hash": "6681b6817aaeafb39f321b8ec6b5a287",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793238336.7881658,
-    "seen": 1793239604.3330326,
-    "ast_hash": "bb07e39c456f7195ddb5c12956d4a253",
+    "mtime": 1793252657.8907268,
+    "seen": 1793254340.5001023,
+    "ast_hash": "fc48154f445c61ac80148b7027dafa25",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793241217.4947631,
-    "seen": 1793241617.1666882,
-    "ast_hash": "e6ed8d5d8b41f0cefdfce07e9b9a1c23",
+    "mtime": 1793253890.1479006,
+    "seen": 1793254340.5012207,
+    "ast_hash": "821c06fc6d3e48dc29f8e17ff773c63a",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1386,9 +1386,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793241253.0170841,
-    "seen": 1793241617.1667495,
-    "ast_hash": "7ae9519abcd5fa9225a4e1a3cf5a66e0",
+    "mtime": 1793253895.1409311,
+    "seen": 1793254340.5012643,
+    "ast_hash": "3743244b40a028bfa941709a71ecbc55",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -2166,69 +2166,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/facebook_client.py": {
-    "mtime": 1793236043.8583882,
-    "seen": 1793239604.332994,
-    "ast_hash": "e24814a72e2e124b0f85f161eab413c3",
+    "mtime": 1793252472.6978133,
+    "seen": 1793254340.50005,
+    "ast_hash": "109ca4385adb9d6a6dccb9b4ab331579",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/instagram_client.py": {
-    "mtime": 1793240611.5527825,
-    "seen": 1793241617.1659477,
-    "ast_hash": "d6e512e5e1e9e24ce05a7b97d1b958e6",
-    "semantic_hash": ""
-  },
-  "tasks/spike_expand_e2e.py": {
-    "mtime": 1793241204.8832378,
-    "seen": 1793241617.1659737,
-    "ast_hash": "3329f5a8b6d50eecba06eeaaecdf9d87",
-    "semantic_hash": ""
-  },
-  "tasks/spike_facebook_paging.py": {
-    "mtime": 1793234966.9667041,
-    "seen": 1793239604.3330522,
-    "ast_hash": "441df4ce7f1332786f889015f38ad7c2",
-    "semantic_hash": ""
-  },
-  "tasks/spike_facebook_paging2.py": {
-    "mtime": 1793235019.8091822,
-    "seen": 1793239604.3330553,
-    "ast_hash": "11796249b4f5344f1247728c78a6712a",
-    "semantic_hash": ""
-  },
-  "tasks/spike_facebook_paging3.py": {
-    "mtime": 1793235121.9669118,
-    "seen": 1793239604.3330584,
-    "ast_hash": "bf6933bc52ee793ac3837141c99793ac",
-    "semantic_hash": ""
-  },
-  "tasks/spike_facebook_paging4.py": {
-    "mtime": 1793235169.1089067,
-    "seen": 1793239604.333061,
-    "ast_hash": "3b70b216048ff975be62ac8bc2cdd220",
-    "semantic_hash": ""
-  },
-  "tasks/spike_fb_links.py": {
-    "mtime": 1793235906.9284067,
-    "seen": 1793239604.3330636,
-    "ast_hash": "37132d69c4d3a45612d0a63972e5976c",
-    "semantic_hash": ""
-  },
-  "tasks/spike_instagram_pacing.py": {
-    "mtime": 1793235274.33911,
-    "seen": 1793239604.3330667,
-    "ast_hash": "a3956063664497214824a022ed5ca560",
-    "semantic_hash": ""
-  },
-  "tasks/spike_instagram_shapes.py": {
-    "mtime": 1793235598.2926528,
-    "seen": 1793239604.3330698,
-    "ast_hash": "f8b1a333593d5d99fcbab5e31de4dad3",
-    "semantic_hash": ""
-  },
-  "tasks/spike_instagram_timing.py": {
-    "mtime": 1793235446.665277,
-    "seen": 1793239604.3330727,
-    "ast_hash": "09769690babd934290b42a8560642ef2",
+    "mtime": 1793250307.6406448,
+    "seen": 1793254340.5000596,
+    "ast_hash": "2d48b44d7da65af77289126dbc98ffef",
     "semantic_hash": ""
   },
   "tests/test_expand_live.py": {
@@ -2238,21 +2184,21 @@
     "semantic_hash": ""
   },
   "tests/test_expand_threads.py": {
-    "mtime": 1793240633.6630082,
-    "seen": 1793241617.1660306,
-    "ast_hash": "62d014093c642fabb98caaf175b3e7d7",
+    "mtime": 1793252845.4738007,
+    "seen": 1793254340.5001938,
+    "ast_hash": "a539d8c8fa3db5c98a75f3787845c9e7",
     "semantic_hash": ""
   },
   "tests/test_facebook_client.py": {
-    "mtime": 1793235992.1064973,
-    "seen": 1793239604.3331323,
-    "ast_hash": "a7d19b6bac80ee548e5e854aab793005",
+    "mtime": 1793253117.4136395,
+    "seen": 1793254340.500198,
+    "ast_hash": "af54a758ab7fc59ceaf7c6957a373390",
     "semantic_hash": ""
   },
   "tests/test_instagram_client.py": {
-    "mtime": 1793240654.8180797,
-    "seen": 1793241617.1660361,
-    "ast_hash": "8f8d66f47e3bb2687bdd04f0f094c7b1",
+    "mtime": 1793250505.2161484,
+    "seen": 1793254340.500207,
+    "ast_hash": "dfbf719adde64ec685e6d8c6da822b11",
     "semantic_hash": ""
   },
   "tests/test_link_routing.py": {
@@ -2262,9 +2208,9 @@
     "semantic_hash": ""
   },
   "tasks/plan-instagram-facebook-bulk.md": {
-    "mtime": 1793241239.1955836,
-    "seen": 1793241617.1668448,
-    "ast_hash": "1302caa00f307a5b3184975d1657a679",
+    "mtime": 1793253932.077003,
+    "seen": 1793254340.5013402,
+    "ast_hash": "7c508ca7810f675b7c0ed51d08823eff",
     "semantic_hash": ""
   },
   "tasks/spec-instagram-facebook-bulk.md": {
@@ -2274,21 +2220,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-instagram-facebook-bulk.md": {
-    "mtime": 1793243260.3527932,
-    "seen": 1793243299.5878408,
-    "ast_hash": "2a60716c835df77a30b92764200edf45",
-    "semantic_hash": ""
-  },
-  "tasks/spike_ig_download.py": {
-    "mtime": 1793241651.747785,
-    "seen": 1793243299.5872672,
-    "ast_hash": "3b3c499af75adb823e1be4e277d83e07",
-    "semantic_hash": ""
-  },
-  "tasks/spike_instagram_cost.py": {
-    "mtime": 1793240085.9613051,
-    "seen": 1793241617.1659932,
-    "ast_hash": "fa004d0334fb95bcc8118f9f1bd2602c",
+    "mtime": 1793253956.1708407,
+    "seen": 1793254340.501377,
+    "ast_hash": "0016e67b0c72f1cfb358d1de2325446f",
     "semantic_hash": ""
   }
 }

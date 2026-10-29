@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793237282.9532979,
-    "seen": 1793239604.3328934,
-    "ast_hash": "84a91e25ce1d1dbb07fa21a7672504ec",
+    "mtime": 1793241980.4708464,
+    "seen": 1793243299.587156,
+    "ast_hash": "f9a154c95887274a36e5ad6a5c3d7bdc",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1793238197.386887,
-    "seen": 1793239604.3330145,
-    "ast_hash": "37acc5bf82d2da5b3f9c9da8af301aca",
+    "mtime": 1793240618.804457,
+    "seen": 1793241617.1659548,
+    "ast_hash": "efc745b4cc1a26080fce601b51fd7b07",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793238269.4114616,
-    "seen": 1793239604.3339722,
-    "ast_hash": "c7e504afa290cec7f1d40bf370b20ed3",
+    "mtime": 1793241217.4947631,
+    "seen": 1793241617.1666882,
+    "ast_hash": "e6ed8d5d8b41f0cefdfce07e9b9a1c23",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1386,9 +1386,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793238261.4883509,
-    "seen": 1793239604.3340049,
-    "ast_hash": "6a7a339e3fe3835e09b3b8e3c2778c0e",
+    "mtime": 1793241253.0170841,
+    "seen": 1793241617.1667495,
+    "ast_hash": "7ae9519abcd5fa9225a4e1a3cf5a66e0",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -2172,15 +2172,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/instagram_client.py": {
-    "mtime": 1793235734.3051407,
-    "seen": 1793239604.3330007,
-    "ast_hash": "2d20b9d3dbfb3fbcce64c3fe9547307f",
+    "mtime": 1793240611.5527825,
+    "seen": 1793241617.1659477,
+    "ast_hash": "d6e512e5e1e9e24ce05a7b97d1b958e6",
     "semantic_hash": ""
   },
   "tasks/spike_expand_e2e.py": {
-    "mtime": 1793238854.7243261,
-    "seen": 1793239604.3330493,
-    "ast_hash": "c4a8ea801f58f343d98750393ecb2998",
+    "mtime": 1793241204.8832378,
+    "seen": 1793241617.1659737,
+    "ast_hash": "3329f5a8b6d50eecba06eeaaecdf9d87",
     "semantic_hash": ""
   },
   "tasks/spike_facebook_paging.py": {
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "tests/test_expand_threads.py": {
-    "mtime": 1793237434.9852984,
-    "seen": 1793239604.3331296,
-    "ast_hash": "e0d90ae54e764e09067c6a8449df35c5",
+    "mtime": 1793240633.6630082,
+    "seen": 1793241617.1660306,
+    "ast_hash": "62d014093c642fabb98caaf175b3e7d7",
     "semantic_hash": ""
   },
   "tests/test_facebook_client.py": {
@@ -2250,9 +2250,9 @@
     "semantic_hash": ""
   },
   "tests/test_instagram_client.py": {
-    "mtime": 1793235801.9789317,
-    "seen": 1793239604.3331387,
-    "ast_hash": "4342fd14a216a4becd79f545129f3e75",
+    "mtime": 1793240654.8180797,
+    "seen": 1793241617.1660361,
+    "ast_hash": "8f8d66f47e3bb2687bdd04f0f094c7b1",
     "semantic_hash": ""
   },
   "tests/test_link_routing.py": {
@@ -2262,9 +2262,9 @@
     "semantic_hash": ""
   },
   "tasks/plan-instagram-facebook-bulk.md": {
-    "mtime": 1793238751.13563,
-    "seen": 1793239604.3340633,
-    "ast_hash": "f19ffde8a657e4f10c31b6ef85badad8",
+    "mtime": 1793241239.1955836,
+    "seen": 1793241617.1668448,
+    "ast_hash": "1302caa00f307a5b3184975d1657a679",
     "semantic_hash": ""
   },
   "tasks/spec-instagram-facebook-bulk.md": {
@@ -2274,9 +2274,21 @@
     "semantic_hash": ""
   },
   "tasks/todo-instagram-facebook-bulk.md": {
-    "mtime": 1793238778.421256,
-    "seen": 1793239604.334098,
-    "ast_hash": "8d21dd09e56b1bd41a26bcb998fdc818",
+    "mtime": 1793243260.3527932,
+    "seen": 1793243299.5878408,
+    "ast_hash": "2a60716c835df77a30b92764200edf45",
+    "semantic_hash": ""
+  },
+  "tasks/spike_ig_download.py": {
+    "mtime": 1793241651.747785,
+    "seen": 1793243299.5872672,
+    "ast_hash": "3b3c499af75adb823e1be4e277d83e07",
+    "semantic_hash": ""
+  },
+  "tasks/spike_instagram_cost.py": {
+    "mtime": 1793240085.9613051,
+    "seen": 1793241617.1659932,
+    "ast_hash": "fa004d0334fb95bcc8118f9f1bd2602c",
     "semantic_hash": ""
   }
 }
