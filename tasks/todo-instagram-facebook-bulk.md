@@ -91,7 +91,12 @@ Spec: `tasks/spec-instagram-facebook-bulk.md`
 
 ## Checkpoint: Ship
 - [x] `pytest -m "not live"` green and `ruff check src tests` clean.
-- [ ] The EXE smoke test passes with the new dependency bundled.
+- [x] The EXE smoke test passes with the new dependency bundled.
+      **Done:** PyInstaller 6.22.0 built **2.9.0** — the portable EXE and
+      `release\S-Q-Creator-Studio-Setup-2.9.0.exe`. `_internal` carries
+      `instaloader` and `instaloader-4.16.dist-info`, the bundled package
+      imports and lists a live profile, and the built app starts and stays
+      up.
 - [x] Manual run: Instagram profile → queue → a video file on disk.
       **Done:** the expansion listed `nasa`, the queue took the first
       permalink and the download thread wrote an 8 MB mp4 (the Artemis II
