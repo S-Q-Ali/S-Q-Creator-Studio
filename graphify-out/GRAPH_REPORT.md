@@ -1,17 +1,17 @@
 # Graph Report - S Q Ali Media Downloader  (2026-10-29)
 
 ## Corpus Check
-- 303 files · ~453,600 words
+- 303 files · ~453,796 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 61 file(s) not represented in the graph (top: .ttf 54, (none) 2, .xml 1)
 
 ## Summary
-- 5262 nodes · 7992 edges · 352 communities (284 shown, 68 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 932 edges (avg confidence: 0.91)
+- 5262 nodes · 7994 edges · 351 communities (283 shown, 68 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 934 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2e663e00`
+- Built from commit: `a4727d91`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -296,7 +296,7 @@
 - Advanced FastMCP Features
 - Capability Map: Social Discovery (YouTube → Facebook / Instagram / TikTok)
 - Task List: Social Discovery (AI Finder)
-- FacebookError
+- paged_video_ids
 - Spec: `social-judge` — the AI agent proposes and adjudicates
 - Spec: `social-verify` — check a candidate account in a real browser
 - [2.0.0] — 2026-08-06
@@ -342,7 +342,6 @@
 - harden
 - test_a_busy_model_gives_the_next_one_a_turn
 - [2.8.0] — 2026-10-29
-- Listing
 - [2.6.0] — 2026-10-22
 - test_every_candidate_per_platform_is_kept
 - Spec: Groq key test + Social Discovery backend visibility
@@ -382,7 +381,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (352 total, 68 thin omitted)
+## Communities (351 total, 68 thin omitted)
 
 ### Community 0 - "SettingsPage"
 Cohesion: 0.05
@@ -1197,16 +1196,16 @@ Cohesion: 0.29
 Nodes (6): 10 Atomic Commits Created, Documentation Created, Git Commits Summary - All Fixes Applied ✅, Ready to Push, Skills Ready, Status: ✅ ALL FIXED
 
 ### Community 238 - "test_expand_threads.py"
-Cohesion: 0.12
-Nodes (17): PageListing, Phase 1: The clients, _collect(), test_a_facebook_listing_that_stops_short_says_why(), fake_list(), test_a_facebook_page_expands_into_permalinks(), fake_list(), test_a_link_that_is_not_a_facebook_page_fails() (+9 more)
+Cohesion: 0.10
+Nodes (19): PageListing, Listing, _collect(), test_a_facebook_listing_that_stops_short_says_why(), fake_list(), test_a_facebook_page_expands_into_permalinks(), fake_list(), test_a_link_that_is_not_a_facebook_page_fails() (+11 more)
 
 ### Community 239 - "The release"
 Cohesion: 0.29
 Nodes (6): Building it locally, Building it on the server instead, If Inno Setup fails with `EndUpdateResource failed (110)`, If the app is running, The release, What the build produces
 
 ### Community 240 - "facebook_client.py"
-Cohesion: 0.11
-Nodes (12): _ask(), _checksum(), _default_pager(), pager(), FacebookNotFound, FacebookUnavailable, list_page_videos(), _query_id() (+4 more)
+Cohesion: 0.10
+Nodes (15): _ask(), _checksum(), _default_pager(), pager(), FacebookError, FacebookNotFound, FacebookUnavailable, list_page_videos() (+7 more)
 
 ### Community 241 - "Contributor Covenant Code of Conduct"
 Cohesion: 0.25
@@ -1297,8 +1296,8 @@ Cohesion: 0.12
 Nodes (15): Checkpoint: Clients, Checkpoint: Expansion, Checkpoint: Ship, Checkpoint: Spikes, Decisions taken (2026-10-29, user-approved), Implementation Plan: Instagram & Facebook Bulk Expansion, Overview, Phase 0: Spikes (read-only, no product code) (+7 more)
 
 ### Community 265 - "instagram_client.py"
-Cohesion: 0.12
-Nodes (11): _build_loader(), carries_video(), InstagramError, InstagramNotFound, InstagramPrivate, InstagramRateLimited, list_profile_media(), media_permalinks() (+3 more)
+Cohesion: 0.13
+Nodes (10): _build_loader(), carries_video(), InstagramError, InstagramNotFound, InstagramPrivate, InstagramRateLimited, list_profile_media(), media_permalinks() (+2 more)
 
 ### Community 266 - "Task List"
 Cohesion: 0.12
@@ -1376,9 +1375,9 @@ Nodes (7): Capability Map: Social Discovery (YouTube → Facebook / Instagram / 
 Cohesion: 0.22
 Nodes (8): Checkpoint: complete, Task 1: Playwright browser session (the enabler), Task 2: `social-resolve` — the channel record and its own bio links, Task 3: `social-verify` — does the account exist, and is it this creator?, Task 4: `social-judge` — the Groq agent proposes and explains, Task 5: `social-report` — the AI Finder mode, Task 6: Packaging and documentation, Task List: Social Discovery (AI Finder)
 
-### Community 293 - "FacebookError"
-Cohesion: 0.33
-Nodes (4): FacebookError, PagingUnavailable, test_a_facebook_failure_is_one_sentence(), fake_list()
+### Community 293 - "paged_video_ids"
+Cohesion: 0.17
+Nodes (7): _first_cursor(), _http(), paged_video_ids(), PagingUnavailable, _raw_timeline(), Phase 1: The two clients, Phase 5: The GitHub scraper sweep
 
 ### Community 294 - "Spec: `social-judge` — the AI agent proposes and adjudicates"
 Cohesion: 0.25
@@ -1449,8 +1448,8 @@ Cohesion: 0.50
 Nodes (4): Automatic Caching (Recommended), Manual Cache Control, Prompt Caching, Verifying Cache Hits
 
 ### Community 319 - "Tasks: Instagram & Facebook Bulk Expansion"
-Cohesion: 0.12
-Nodes (13): _first_cursor(), _http(), paged_video_ids(), Phase 1: The two clients, Checkpoint: Clients, Checkpoint: Expansion, Checkpoint: Ship, Checkpoint: Spikes (+5 more)
+Cohesion: 0.20
+Nodes (9): Checkpoint: Clients, Checkpoint: Expansion, Checkpoint: Ship, Checkpoint: Spikes, Phase 0: Spikes, Phase 1: The clients, Phase 3: Packaging, Phase 4: Tests and text (+1 more)
 
 ### Community 320 - "pager"
 Cohesion: 0.29
@@ -1499,10 +1498,6 @@ Nodes (5): Authentication and Authorization, DNS Rebinding Protection, Error Han
 ### Community 339 - "[2.8.0] — 2026-10-29"
 Cohesion: 0.50
 Nodes (4): [2.8.0] — 2026-10-29, Added, Changed, Fixed
-
-### Community 340 - "Listing"
-Cohesion: 0.33
-Nodes (3): Listing, test_a_truncated_instagram_listing_says_so(), fake_list()
 
 ### Community 341 - "[2.6.0] — 2026-10-22"
 Cohesion: 0.67
