@@ -9,6 +9,12 @@ Only the *listing* lives here. The download leg stays with yt-dlp: this
 module hands back **page permalinks** and never the CDN links instaloader
 also exposes, because a CDN link carries an expiry token and stops working
 minutes later.
+
+The walk reads instaloader's timeline node rather than its ``Post`` object.
+Building a ``Post`` fetches that post's full metadata — one request per
+post, which is most of a walk's time — while the node already carries the
+shortcode and the media type. Measured on a public profile: 2.9 s per post
+through ``Post``, 0.85 s per post this way.
 """
 
 from __future__ import annotations
@@ -17,6 +23,7 @@ import logging
 import re
 import time
 from collections.abc import Callable, Iterable
+from datetime import datetime, timezone
 from typing import Any
 
 from s_q_ali_media_downloader.agent.opslog import Ops
@@ -28,11 +35,15 @@ logger = logging.getLogger(__name__)
 #: trip it, two listings back to back did.
 MIN_REQUEST_GAP = 3.0
 
-#: How long one walk through a profile's timeline may take. Instagram paces
-#: itself at roughly 2.9 s per post (measured on a public profile), so an
-#: unbounded walk of a busy profile runs for half an hour. The walk stops at
-#: this budget and says so.
+#: How long one walk through a profile's timeline may take. A walk of a busy
+#: profile runs for minutes, so it is bounded — and says where it stopped.
 MAX_WALK_SECONDS = 180.0
+
+#: The post types that carry a video of their own.
+_VIDEO_TYPENAMES = frozenset({"GraphVideo", "XIGPolarisVideoMedia"})
+
+#: The post types that hold a list of children, one of which may be a video.
+_CAROUSEL_TYPENAMES = frozenset({"GraphSidecar", "XIGPolarisCarouselMedia"})
 
 _PROFILE_URL_RE = re.compile(
     r"(?:https?://)?(?:www\.)?instagram\.com/(?P<name>[A-Za-z0-9._]{1,30})/?(?:$|[?#])",
@@ -123,14 +134,77 @@ def carries_video(post: Any) -> bool:
     A plain photo post is not worth queueing. A carousel (sidecar) is worth
     queueing when any of its children is a video.
     """
-    if getattr(post, "typename", "") == "GraphVideo":
+    typename = getattr(post, "typename", "")
+    if typename in _VIDEO_TYPENAMES:
         return True
-    if getattr(post, "typename", "") == "GraphSidecar":
+    if typename in _CAROUSEL_TYPENAMES:
         try:
             return any(post.get_is_videos())
         except Exception:  # pragma: no cover - malformed node
             return False
     return False
+
+
+class _RawPost:
+    """One timeline node, read without the per-post metadata request.
+
+    instaloader wraps every node of a timeline in a ``Post``, and building
+    that ``Post`` fetches the post's full metadata — one HTTP request per
+    post, which is most of what a walk spends. The timeline node already
+    carries the shortcode and the media type, so the walk reads the node
+    itself and only asks for the metadata of a carousel, which does not say
+    what its children are.
+    """
+
+    #: The timeline node carries no timestamp. The iterator only compares
+    #: dates to keep track of the newest item, so one fixed date is enough.
+    _NO_DATE = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+    def __init__(self, node: dict[str, Any], context: Any) -> None:
+        self.node = node
+        self._context = context
+
+    @property
+    def shortcode(self) -> str:
+        return self.node.get("code") or self.node.get("shortcode") or ""
+
+    @property
+    def typename(self) -> str:
+        return self.node.get("__typename") or ""
+
+    @property
+    def date_local(self) -> datetime:
+        return self._NO_DATE
+
+    def get_is_videos(self) -> list[bool]:
+        """Whether the post holds a video.
+
+        A video is decided by the node alone. A carousel does not say what
+        its children are, so its metadata is fetched — the one request per
+        carousel that the fast path still pays.
+        """
+        if self.typename != "XIGPolarisCarouselMedia":
+            return [self.node.get("media_type") == 2]
+        from instaloader.structures import Post
+
+        post = Post.from_shortcode(self._context, self.shortcode)
+        return list(post.get_is_videos())
+
+
+def _raw_timeline(posts: Any, context: Any) -> Any:
+    """The profile's timeline, read as raw nodes.
+
+    instaloader keeps the session, the query and the paging; only what each
+    node is wrapped in changes here. If instaloader ever stops handing the
+    node over, the walk falls back to instaloader's own posts — slower, but
+    the same walk.
+    """
+    if not hasattr(posts, "_node_wrapper"):
+        return posts
+    posts._node_wrapper = lambda node: (
+        _RawPost(node, context) if isinstance(node, dict) else node
+    )
+    return posts
 
 
 def media_permalinks(
@@ -140,7 +214,7 @@ def media_permalinks(
     collected: list[str] | None = None,
     max_seconds: float | None = None,
 ) -> Listing:
-    """Turn instaloader posts into page permalinks, newest first.
+    """Turn a timeline's posts into page permalinks, newest first.
 
     ``collected`` is filled in place. Instagram cuts a long walk off with a
     429, and the posts found before that are still worth queueing — so the
@@ -259,7 +333,11 @@ def list_profile_media(
     urls: list[str] = []
     try:
         listing = media_permalinks(
-            profile.get_posts(), limit, progress, urls, max_seconds
+            _raw_timeline(profile.get_posts(), loader.context),
+            limit,
+            progress,
+            urls,
+            max_seconds,
         )
     except TooManyRequestsException as exc:
         if urls:

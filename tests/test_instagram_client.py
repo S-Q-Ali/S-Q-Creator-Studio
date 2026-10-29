@@ -26,12 +26,47 @@ class FakePost:
         return list(self._media)
 
 
-def _fake_instaloader(monkeypatch, *, posts=(), raises=None, posts_factory=None):
+def video_node(code):
+    """A timeline node of a video post."""
+    return {"__typename": "XIGPolarisVideoMedia", "code": code, "media_type": 2}
+
+
+def photo_node(code):
+    """A timeline node of a photo post."""
+    return {"__typename": "XIGPolarisImageMedia", "code": code, "media_type": 1}
+
+
+def carousel_node(code):
+    """A timeline node of a carousel. Its children are not in the node."""
+    return {"__typename": "XIGPolarisCarouselMedia", "code": code, "media_type": 8}
+
+
+class FakeIterator:
+    """A stand-in for instaloader's node iterator.
+
+    instaloader hands every timeline node to ``_node_wrapper``, and the
+    client swaps that wrapper for its own. This does the same, so the test
+    walks the path the app walks.
+    """
+
+    def __init__(self, nodes):
+        self._nodes = nodes
+        self._node_wrapper = lambda node: node
+
+    def __iter__(self):
+        for node in self._nodes:
+            yield self._node_wrapper(node)
+
+
+def _fake_instaloader(
+    monkeypatch, *, posts=(), raises=None, posts_factory=None, children=None
+):
     """Put a fake instaloader on the path, the way the real one behaves.
 
     ``raises`` names one of the fake exception classes, so the test never
     needs the real package installed. ``posts_factory`` returns the iterator
     the profile hands out, for a walk that fails part-way through.
+    ``children`` says which children of a carousel are videos.
     """
 
     class Profile:
@@ -41,14 +76,28 @@ def _fake_instaloader(monkeypatch, *, posts=(), raises=None, posts_factory=None)
                 raise exceptions.__dict__[raises](raises)
             return types.SimpleNamespace(
                 username=username,
-                get_posts=posts_factory
-                if posts_factory is not None
-                else (lambda: iter(list(posts))),
+                get_posts=(
+                    (lambda: FakeIterator(posts_factory()))
+                    if posts_factory is not None
+                    else (lambda: FakeIterator(posts))
+                ),
             )
-
     class Instaloader:
         def __init__(self, **kwargs):
             self.context = object()
+
+    class Post:
+        """The full metadata of one post, which only a carousel needs."""
+
+        @staticmethod
+        def from_shortcode(context, shortcode):
+            metadata_calls.append(shortcode)
+            videos = list((children or {}).get(shortcode, ()))
+            return types.SimpleNamespace(
+                get_is_videos=lambda: videos,
+            )
+
+    metadata_calls: list[str] = []
 
     exceptions = types.ModuleType("instaloader.exceptions")
     for name in (
@@ -60,14 +109,22 @@ def _fake_instaloader(monkeypatch, *, posts=(), raises=None, posts_factory=None)
     ):
         setattr(exceptions, name, type(name, (Exception,), {}))
 
+    structures = types.ModuleType("instaloader.structures")
+    structures.Post = Post
+
     package = types.ModuleType("instaloader")
     package.Instaloader = Instaloader
     package.Profile = Profile
     package.exceptions = exceptions
+    package.structures = structures
 
     monkeypatch.setitem(sys.modules, "instaloader", package)
     monkeypatch.setitem(sys.modules, "instaloader.exceptions", exceptions)
-    return exceptions
+    monkeypatch.setitem(sys.modules, "instaloader.structures", structures)
+    return types.SimpleNamespace(
+        exceptions=exceptions,
+        metadata_calls=metadata_calls,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -147,6 +204,59 @@ def test_only_video_posts_are_queued():
     ]
 
 
+# --------------------------------------------------------------------------- #
+# The walk reads the timeline node, not a post's full metadata
+# --------------------------------------------------------------------------- #
+def test_a_video_node_is_queued(monkeypatch):
+    _fake_instaloader(monkeypatch, posts=[video_node("AAA")])
+    assert ig.list_profile_media("porsche", 5) == ["https://www.instagram.com/p/AAA/"]
+
+
+def test_a_photo_node_is_not_queued(monkeypatch):
+    _fake_instaloader(monkeypatch, posts=[photo_node("AAA")])
+    assert ig.list_profile_media("porsche", 5) == []
+
+
+def test_a_carousel_node_holding_a_video_is_queued(monkeypatch):
+    _fake_instaloader(
+        monkeypatch,
+        posts=[carousel_node("CCC")],
+        children={"CCC": (False, True)},
+    )
+    assert ig.list_profile_media("porsche", 5) == ["https://www.instagram.com/p/CCC/"]
+
+
+def test_a_carousel_node_of_photos_is_not_queued(monkeypatch):
+    _fake_instaloader(
+        monkeypatch,
+        posts=[carousel_node("CCC")],
+        children={"CCC": (False, False)},
+    )
+    assert ig.list_profile_media("porsche", 5) == []
+
+
+def test_the_walk_does_not_fetch_a_video_posts_metadata(monkeypatch):
+    """A video is decided by the timeline node. Fetching the post's full
+    metadata would cost one request per post, which is what the node
+    avoids."""
+    fake = _fake_instaloader(
+        monkeypatch,
+        posts=[video_node("AAA"), video_node("BBB"), photo_node("CCC")],
+    )
+    ig.list_profile_media("porsche", 5)
+    assert fake.metadata_calls == []
+
+
+def test_only_a_carousel_costs_a_metadata_fetch(monkeypatch):
+    fake = _fake_instaloader(
+        monkeypatch,
+        posts=[video_node("AAA"), carousel_node("CCC")],
+        children={"CCC": (False, True)},
+    )
+    ig.list_profile_media("porsche", 5)
+    assert fake.metadata_calls == ["CCC"]
+
+
 def test_the_limit_is_respected():
     posts = [FakePost(f"P{i}", "GraphVideo") for i in range(50)]
     assert len(ig.media_permalinks(posts, 7)) == 7
@@ -163,12 +273,12 @@ def test_progress_counts_the_videos_found():
 # What the user is told
 # --------------------------------------------------------------------------- #
 def test_a_listing_returns_the_permalinks(monkeypatch):
-    _fake_instaloader(monkeypatch, posts=[FakePost("AAA", "GraphVideo")])
+    _fake_instaloader(monkeypatch, posts=[video_node("AAA")])
     assert ig.list_profile_media("porsche", 5) == ["https://www.instagram.com/p/AAA/"]
 
 
 def test_a_complete_listing_carries_no_reason(monkeypatch):
-    _fake_instaloader(monkeypatch, posts=[FakePost("AAA", "GraphVideo")])
+    _fake_instaloader(monkeypatch, posts=[video_node("AAA")])
     assert ig.list_profile_media("porsche", 5).reason == ""
 
 
@@ -198,8 +308,8 @@ def test_a_rate_limit_halfway_keeps_the_videos_already_found(monkeypatch):
     holder = {}
 
     def posts():
-        yield FakePost("AAA", "GraphVideo")
-        raise holder["exceptions"].TooManyRequestsException("429")
+        yield video_node("AAA")
+        raise holder["exceptions"].exceptions.TooManyRequestsException("429")
 
     holder["exceptions"] = _fake_instaloader(monkeypatch, posts_factory=posts)
 
@@ -208,7 +318,7 @@ def test_a_rate_limit_halfway_keeps_the_videos_already_found(monkeypatch):
 
 def test_the_operation_line_carries_no_credential(monkeypatch):
     lines = []
-    _fake_instaloader(monkeypatch, posts=[FakePost("AAA", "GraphVideo")])
+    _fake_instaloader(monkeypatch, posts=[video_node("AAA")])
     ig.list_profile_media("porsche", 5, ops=ig.Ops(lines.append))
     assert lines
     assert "instagram.list" in lines[0]
@@ -232,9 +342,8 @@ class FakeClock:
 
 
 def test_the_walk_stops_at_its_budget(monkeypatch):
-    """Instagram paces itself at about 2.9 s per post, so an unbounded walk
-    of a busy profile runs for half an hour. The walk has to stop, and say
-    that it stopped."""
+    """A walk of a busy profile runs for minutes, so it has to stop, and
+    say that it stopped."""
     clock = FakeClock()
     monkeypatch.setattr(ig, "time", clock)
     monkeypatch.setattr(ig, "_last_call", 0.0)
@@ -242,7 +351,7 @@ def test_the_walk_stops_at_its_budget(monkeypatch):
     def posts():
         for i in range(50):
             clock.now += 10.0  # ten seconds per post
-            yield FakePost(f"P{i}", "GraphVideo")
+            yield video_node(f"P{i}")
 
     _fake_instaloader(monkeypatch, posts_factory=posts)
 
@@ -253,7 +362,7 @@ def test_the_walk_stops_at_its_budget(monkeypatch):
 
 
 def test_a_budget_that_never_runs_out_keeps_every_video(monkeypatch):
-    _fake_instaloader(monkeypatch, posts=[FakePost("AAA", "GraphVideo")])
+    _fake_instaloader(monkeypatch, posts=[video_node("AAA")])
     listing = ig.list_profile_media("porsche", 5, max_seconds=60.0)
     assert listing == ["https://www.instagram.com/p/AAA/"]
     assert listing.reason == ""
