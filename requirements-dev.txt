@@ -8,7 +8,8 @@ pyinstaller>=6.10
 # PyInstaller pulls setuptools in; 84.1.0 fixes GHSA-xmj3-9gf7-h52w.
 setuptools>=84.1.0
 pip-audit>=2.10.1
-# The Social Discovery feature drives a real browser. The package is small;
-# the browser itself is not needed - channel="msedge" uses the one Windows
-# already has, and the Playwright browser is only the fallback.
-playwright>=1.44
+# The optional AI-agent browser. It is bundled in the portable build so the
+# fallback works out of the box; the app still runs without it.
+# It exact-pins its whole dependency set (including anyio, mcp, pillow and
+# pypdf), so CI audits requirements.txt instead of the full environment.
+browser-use==0.13.14
