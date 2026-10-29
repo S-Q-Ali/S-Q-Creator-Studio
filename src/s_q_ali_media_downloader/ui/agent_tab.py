@@ -37,7 +37,7 @@ from s_q_ali_media_downloader.ui.settings_page import discovery_browser_is_visib
 from s_q_ali_media_downloader.ui.social_discovery_page import SocialDiscoveryPage
 
 MODE_YOUTUBE = "YouTube → Socials (FB/IG/TikTok)"
-MODE_TIKTOK = "TikTok → YouTube (Creators Without YT)"
+MODE_TIKTOK = "TikTok → YouTube / Facebook / Instagram"
 MODE_SOCIAL = "🔎 Social Discovery (URL / @handle / name)"
 
 
@@ -281,7 +281,8 @@ class AgentTabWidget(QWidget):
         lbl_cookies.setProperty("role", "hint")
         self.cookies_edit = QLineEdit()
         self.cookies_edit.setPlaceholderText(
-            "Optional: TikTok blocks #tag search; an AI key (Settings) fills it from the web"
+            "Optional: paste @handles or profile URLs in the search box; "
+            "each creator is checked on YouTube, Instagram and Facebook"
         )
         self.btn_browse_cookies = QPushButton("Browse...")
         self.btn_browse_cookies.clicked.connect(self._browse_cookies)
@@ -429,8 +430,8 @@ class AgentTabWidget(QWidget):
         self.lbl_subs.setVisible(not is_tiktok_mode)
         self.cookies_edit.setVisible(is_tiktok_mode)
         self.btn_browse_cookies.setVisible(is_tiktok_mode)
-        self.btn_copy_fb.setVisible(not is_tiktok_mode)
-        self.btn_copy_ig.setVisible(not is_tiktok_mode)
+        self.btn_copy_fb.setVisible(True)
+        self.btn_copy_ig.setVisible(True)
         self.btn_copy_tiktok.setVisible(True)
         self.btn_send_queue.setText(
             "➔ Send Selected Profiles to Queue"
@@ -452,12 +453,14 @@ class AgentTabWidget(QWidget):
                 "Nickname",
                 "Handle",
                 "Followers",
+                "Facebook",
+                "Instagram",
                 "YouTube Status",
                 "YouTube Channel",
                 "Flag",
                 "Action",
             ]
-            stretch_cols = [1, 4, 5]
+            stretch_cols = [1, 6, 7]
         else:
             headers = [
                 "Select",
@@ -673,7 +676,33 @@ class AgentTabWidget(QWidget):
             # Col 3: Followers
             self.table.setItem(row_idx, 3, QTableWidgetItem(profile.followers_formatted))
 
-            # Col 4: YouTube status badge
+            # Col 4: Facebook page badge
+            fb_item = self._status_item(profile.facebook.status, "Verified Page")
+            fb_url = (
+                profile.facebook.verified_url
+                if profile.facebook.status == SocialStatus.VERIFIED
+                else None
+            )
+            self.table.setItem(
+                row_idx,
+                4,
+                self._as_link_item(fb_item, fb_url, "Click to open the Facebook page"),
+            )
+
+            # Col 5: Instagram profile badge
+            ig_item = self._status_item(profile.instagram.status, "Verified Profile")
+            ig_url = (
+                profile.instagram.verified_url
+                if profile.instagram.status == SocialStatus.VERIFIED
+                else None
+            )
+            self.table.setItem(
+                row_idx,
+                5,
+                self._as_link_item(ig_item, ig_url, "Click to open the Instagram profile"),
+            )
+
+            # Col 6: YouTube status badge
             yt_item = self._status_item(profile.youtube.status, "Has Channel")
             yt_url = (
                 profile.youtube.verified_url
@@ -682,18 +711,18 @@ class AgentTabWidget(QWidget):
             )
             self.table.setItem(
                 row_idx,
-                4,
+                6,
                 self._as_link_item(yt_item, yt_url, "Click to open the YouTube channel"),
             )
 
-            # Col 5: YouTube channel URL (if any)
+            # Col 7: YouTube channel URL (if any)
             yt_link = QTableWidgetItem(profile.youtube.verified_url or "—")
-            self.table.setItem(row_idx, 5, yt_link)
+            self.table.setItem(row_idx, 7, yt_link)
             self._as_link_item(
                 yt_link, profile.youtube.verified_url, "Click to open the YouTube channel"
             )
 
-            # Col 6: Flag
+            # Col 8: Flag
             flag_item = QTableWidgetItem(profile.opportunity_flag)
             if profile.opportunity_flag == "TARGET_NO_YOUTUBE":
                 flag_item.setForeground(QColor(C["failed"]))
@@ -701,12 +730,12 @@ class AgentTabWidget(QWidget):
                 flag_item.setForeground(QColor(C["amber"]))
             else:
                 flag_item.setForeground(QColor(C["done"]))
-            self.table.setItem(row_idx, 6, flag_item)
+            self.table.setItem(row_idx, 8, flag_item)
 
-            # Col 7: Action Button — queue the TikTok profile itself
+            # Col 9: Action Button — queue the TikTok profile itself
             btn_queue = QPushButton("➔ Queue")
             btn_queue.clicked.connect(lambda _, p=profile: self._send_single_profile_to_queue(p))
-            self.table.setCellWidget(row_idx, 7, btn_queue)
+            self.table.setCellWidget(row_idx, 9, btn_queue)
 
     def _send_single_channel_to_queue(self, ch: ChannelMetadata):
         target_url = ch.latest_video_url or ch.youtube_url
@@ -736,7 +765,14 @@ class AgentTabWidget(QWidget):
 
     def _copy_fb_links(self):
         links = []
-        if self.search_result:
+        if isinstance(self.search_result, TikTokSearchResult):
+            for profile in self.search_result.profiles:
+                if (
+                    profile.facebook.status == SocialStatus.VERIFIED
+                    and profile.facebook.verified_url
+                ):
+                    links.append(profile.facebook.verified_url)
+        elif self.search_result:
             for ch in self.search_result.channels:
                 if ch.facebook.status == SocialStatus.VERIFIED and ch.facebook.verified_url:
                     links.append(ch.facebook.verified_url)
@@ -750,7 +786,14 @@ class AgentTabWidget(QWidget):
 
     def _copy_ig_links(self):
         links = []
-        if self.search_result:
+        if isinstance(self.search_result, TikTokSearchResult):
+            for profile in self.search_result.profiles:
+                if (
+                    profile.instagram.status == SocialStatus.VERIFIED
+                    and profile.instagram.verified_url
+                ):
+                    links.append(profile.instagram.verified_url)
+        elif self.search_result:
             for ch in self.search_result.channels:
                 if ch.instagram.status == SocialStatus.VERIFIED and ch.instagram.verified_url:
                     links.append(ch.instagram.verified_url)
@@ -805,6 +848,10 @@ class AgentTabWidget(QWidget):
                 "Handle",
                 "Followers",
                 "TikTok URL",
+                "Facebook Status",
+                "Facebook URL",
+                "Instagram Status",
+                "Instagram URL",
                 "YouTube Status",
                 "YouTube URL",
                 "Flag",
@@ -815,6 +862,10 @@ class AgentTabWidget(QWidget):
                     "Handle": f"@{profile.handle}",
                     "Followers": profile.followers_formatted,
                     "TikTok URL": profile.profile_url,
+                    "Facebook Status": profile.facebook.status.value,
+                    "Facebook URL": profile.facebook.verified_url or "",
+                    "Instagram Status": profile.instagram.status.value,
+                    "Instagram URL": profile.instagram.verified_url or "",
                     "YouTube Status": profile.youtube.status.value,
                     "YouTube URL": profile.youtube.verified_url or "",
                     "Flag": profile.opportunity_flag,

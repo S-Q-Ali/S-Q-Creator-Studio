@@ -54,12 +54,20 @@ def test_populate_table_marks_verified_socials_and_channel_as_links(qapp, isolat
     assert tab.table.item(0, 6).data(tab._URL_ROLE) is None
 
 
-def test_populate_tiktok_table_marks_youtube_channel_and_profile_as_links(qapp, isolated_appdata):
+def test_populate_tiktok_table_marks_every_platform_as_a_link(qapp, isolated_appdata):
     tab = AgentTabWidget()
     profile = TikTokProfileMetadata(
         profile_id="1",
         handle="creator",
         profile_url="https://www.tiktok.com/@creator",
+        facebook=SocialPresence(
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialStatus.VERIFIED,
+            verified_url="https://www.facebook.com/creator",
+        ),
+        instagram=SocialPresence(
+            platform=SocialPlatform.INSTAGRAM, status=SocialStatus.NOT_FOUND
+        ),
         youtube=SocialPresence(
             platform=SocialPlatform.YOUTUBE,
             status=SocialStatus.VERIFIED,
@@ -68,8 +76,68 @@ def test_populate_tiktok_table_marks_youtube_channel_and_profile_as_links(qapp, 
     )
     tab._populate_tiktok_table([profile])
     assert tab.table.item(0, 1).data(tab._URL_ROLE) == profile.profile_url
-    assert tab.table.item(0, 4).data(tab._URL_ROLE) == "https://www.youtube.com/@creator"
-    assert tab.table.item(0, 5).data(tab._URL_ROLE) == "https://www.youtube.com/@creator"
+    assert tab.table.item(0, 4).data(tab._URL_ROLE) == "https://www.facebook.com/creator"
+    assert tab.table.item(0, 5).data(tab._URL_ROLE) is None
+    assert tab.table.item(0, 6).data(tab._URL_ROLE) == "https://www.youtube.com/@creator"
+    assert tab.table.item(0, 7).data(tab._URL_ROLE) == "https://www.youtube.com/@creator"
+
+
+def test_the_tiktok_table_names_facebook_and_instagram(qapp, isolated_appdata):
+    from s_q_ali_media_downloader.ui.agent_tab import MODE_TIKTOK
+
+    tab = AgentTabWidget()
+    tab._setup_table_columns(MODE_TIKTOK)
+
+    headers = [
+        tab.table.horizontalHeaderItem(col).text()
+        for col in range(tab.table.columnCount())
+    ]
+    assert headers == [
+        "Select",
+        "Nickname",
+        "Handle",
+        "Followers",
+        "Facebook",
+        "Instagram",
+        "YouTube Status",
+        "YouTube Channel",
+        "Flag",
+        "Action",
+    ]
+
+
+def test_copy_facebook_and_instagram_links_work_in_the_tiktok_mode(
+    qapp, isolated_appdata, monkeypatch
+):
+    from PySide6.QtWidgets import QApplication
+
+    from s_q_ali_media_downloader.agent.schema import TikTokSearchResult
+
+    tab = AgentTabWidget()
+    profile = TikTokProfileMetadata(
+        profile_id="1",
+        handle="creator",
+        profile_url="https://www.tiktok.com/@creator",
+        facebook=SocialPresence(
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialStatus.VERIFIED,
+            verified_url="https://www.facebook.com/creator",
+        ),
+        instagram=SocialPresence(
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialStatus.VERIFIED,
+            verified_url="https://www.instagram.com/creator/",
+        ),
+    )
+    tab.search_result = TikTokSearchResult(query="x", profiles=[profile])
+
+    tab._copy_fb_links()
+    assert QApplication.clipboard().text() == "https://www.facebook.com/creator"
+    assert "1 Facebook" in tab.lbl_status.text()
+
+    tab._copy_ig_links()
+    assert QApplication.clipboard().text() == "https://www.instagram.com/creator/"
+    assert "1 Instagram" in tab.lbl_status.text()
 
 
 def test_open_cell_url_opens_only_link_cells(qapp, isolated_appdata, monkeypatch):
