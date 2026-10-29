@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from s_q_ali_media_downloader import engine
-from s_q_ali_media_downloader.core.facebook_client import FacebookError
+from s_q_ali_media_downloader.core.facebook_client import FacebookError, PageListing
 from s_q_ali_media_downloader.core.instagram_client import InstagramError, Listing
 from s_q_ali_media_downloader.engine import (
     MAX_ACCOUNT_VIDEOS,
@@ -131,7 +131,7 @@ def test_a_facebook_page_expands_into_permalinks(monkeypatch):
         calls["limit"] = limit
         if progress is not None:
             progress(1)
-        return ["https://www.facebook.com/nasa/videos/123456789"]
+        return PageListing(["https://www.facebook.com/nasa/videos/123456789"])
 
     monkeypatch.setattr(engine, "list_page_videos", fake_list)
 
@@ -144,9 +144,21 @@ def test_a_facebook_page_expands_into_permalinks(monkeypatch):
     assert calls["limit"] == 10
     assert found[0][0] == ["https://www.facebook.com/nasa/videos/123456789"]
     assert found[0][1] == (
-        "nasa — experimental: Facebook shows a visitor the first screen only"
+        "nasa — experimental: Facebook's own list, paged as far as it goes"
     )
     assert progress == [(1, 10)]
+
+
+def test_a_facebook_listing_that_stops_short_says_why(monkeypatch):
+    def fake_list(page, limit, progress=None):
+        return PageListing(["https://www.facebook.com/nasa/videos/123456789"], "first screen only")
+
+    monkeypatch.setattr(engine, "list_page_videos", fake_list)
+
+    found, failed, _ = _collect(FacebookFetchThread("https://www.facebook.com/nasa", 10))
+
+    assert not failed
+    assert found[0][1].endswith("— first screen only")
 
 
 def test_a_facebook_failure_is_one_sentence(monkeypatch):

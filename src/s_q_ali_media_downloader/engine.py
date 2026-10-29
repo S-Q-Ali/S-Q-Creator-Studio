@@ -570,9 +570,9 @@ class InstagramFetchThread(QThread):
 class FacebookFetchThread(QThread):
     """Expands a Facebook page into individual video URLs.
 
-    Experimental: the page's Videos tab is read in the app's own browser.
-    A visitor without a session sees the first screen only, so this usually
-    returns far fewer videos than the account-limit dropdown allows.
+    Experimental: the page's Videos tab is read in the app's own browser,
+    and the page's own query pages the list behind that tab. Both read a
+    page Meta can change at any time.
     """
 
     found = Signal(list, str)
@@ -590,10 +590,10 @@ class FacebookFetchThread(QThread):
         if not page:
             self.failed.emit("That doesn't look like a Facebook page.")
             return
-        caveat = "experimental: Facebook shows a visitor the first screen only"
+        caveat = "experimental: Facebook's own list, paged as far as it goes"
         self.note.emit(f"Listing {page}'s videos — {caveat}.")
         try:
-            urls = list_page_videos(
+            listing = list_page_videos(
                 page,
                 self.limit,
                 progress=lambda found: self.progress.emit(found, self.limit),
@@ -601,11 +601,14 @@ class FacebookFetchThread(QThread):
         except FacebookError as exc:
             self.failed.emit(str(exc))
             return
-        if not urls:
+        if not listing:
             self.failed.emit(f"No videos found on {page}.")
             return
-        logger.info("Fetched %d Facebook URLs for %s", len(urls), page)
-        self.found.emit(urls, f"{page} — {caveat}")
+        logger.info("Fetched %d Facebook URLs for %s", len(listing), page)
+        label = f"{page} — {caveat}"
+        if listing.reason:
+            label = f"{label} — {listing.reason}"
+        self.found.emit(list(listing), label)
 
 
 _EMOJI_PATTERN = re.compile(

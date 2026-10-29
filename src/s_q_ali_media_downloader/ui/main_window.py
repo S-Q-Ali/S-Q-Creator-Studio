@@ -833,8 +833,8 @@ class MainWindow(QMainWindow):
             self._start_fetcher(self.fetcher, self.on_urls_found, self.on_expand_progress)
             self.set_status(f"Fetching up to {limit} video URLs from Instagram…")
             return
-        # Facebook page — expand into its videos. Experimental: Facebook shows
-        # a visitor who is not signed in the first screen only.
+        # Facebook page — expand into its videos. Experimental: the page's own
+        # list, read in the browser and then paged by the page's own query.
         if is_facebook_page_url(text):
             self.fetcher = FacebookFetchThread(text, limit, self)
             self._start_fetcher(self.fetcher, self.on_urls_found, self.on_expand_progress)
