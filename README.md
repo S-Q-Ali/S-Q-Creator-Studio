@@ -42,7 +42,7 @@ Download the latest release and start downloading videos in seconds:
 - **TikTok & YouTube** in one queue — links are detected automatically and run through per-platform download settings. Instagram and Facebook post links are queued too, without the per-platform tuning TikTok gets.
 - **YouTube playlists & channels** expand into individual videos in the background.
 - **Instagram profiles** expand into their video posts and reels. Only public profiles — no sign-in, and no account is ever stored. Instagram slows the walk down on purpose, so a listing stops after three minutes and tells you how far it got.
-- **Facebook pages** expand into their videos — *experimental*: Facebook shows a visitor who is not signed in the first screen only, so this usually returns fewer videos than the limit you picked.
+- **Facebook pages** expand into their videos — *experimental*: the page's Videos tab is read in the app's own browser, and the page's own query pages the rest of the list behind it. Only public pages — no sign-in, and no Facebook session is ever stored.
 - **Queue management** — add, select, remove, retry, empty. Saved between sessions.
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.

@@ -115,6 +115,26 @@ first screen only") instead of quietly returning a short list.
 Facebook further. It is not measured and not needed — the app stores no
 Facebook session.
 
+**Superseded by the GitHub sweep (2026-10-29, Task 10).** The scroll and the
+Comet route were the wrong door. The page's *own* list is a Relay
+persisted query — `PagesCometChannelTabAllVideosCardImplPaginationQuery` — and
+that one answers a visitor with no sign-in at all:
+
+| Probe | Result |
+|---|---|
+| The query, posted anonymously with the page's own token | answers: 9 ids per answer, `page_info.end_cursor` to continue with |
+| `nasa` | **40** ids over 7 answers, then `has_next_page: false` |
+| `natgeo` | **120+** ids over 20 answers, still going |
+| The browser's first screen vs. the query's list | **disjoint** — `nasa`'s 21 and 40 share no id (union 61) |
+| The query's id | read from the page's own JavaScript bundle, because Meta renames it on every deploy |
+| A plain HTTP client | HTTP 400 — the request needs curl_cffi's Chrome impersonation |
+
+So the Facebook leg became **two halves**: the browser renders the first
+screen, the page's own query pages the rest, and the app hands both on.
+No `fb_dtsg`, no cookie file, no sign-in — the only credential is the
+per-load token the page hands every visitor, and it travels in the request
+body, never in a URL or a log line.
+
 ### Task 2 — Instagram pacing
 
 **Measured against the live API.**
@@ -151,7 +171,7 @@ Facebook session.
 | FB page → videos | the app's browser | **works live**, anonymous: 21 ids from `facebook.com/nasa/videos/`; the 3 tested URLs all extract in yt-dlp with titles and durations |
 | FB page via yt-dlp | yt-dlp | unsupported — falls through to the generic extractor |
 | FB page via Graph API | Meta Graph API | works only with an App-Reviewed Page token — rejected |
-| FB paging past the first screen | — | **not solved yet**: six scroll passes stayed at 21 videos |
+| FB paging past the first screen | the page's own Relay query | **works live**: `nasa` 40 ids (7 answers), `natgeo` 120+ (20 answers); the query's ids are disjoint from the browser's first screen |
 
 ## Task List
 
@@ -201,6 +221,13 @@ Facebook session.
       therefore bounded by a **180 s budget** (`MAX_WALK_SECONDS`), the
       listing carries the reason it stopped, and a 429 halfway through keeps
       the videos already found.
+      **Measured again after the build:** 2.90 s was instaloader building a
+      `Post` per node, which fetches that post's full metadata — one request
+      per post. The timeline node already carries the shortcode and the media
+      type, so the walk reads the node and asks for the metadata only of a
+      carousel, which does not describe its children. Same profile, same
+      20-video limit: **164.7 s → 55.1 s (3.0x)**. A 30-video listing went
+      from being cut off by the budget to finishing in 96 s.
       **Files:** `src/s_q_ali_media_downloader/core/instagram_client.py`,
       `tests/test_instagram_client.py`.
       **Depends on:** Task 2.
@@ -216,6 +243,14 @@ Facebook session.
       **Acceptance:** `list_page_videos("nasa", limit=20)` returns
       `https://www.facebook.com/nasa/videos/<id>` URLs; a bogus page returns
       one clear error; the browser never leaks a process on failure.
+      **Extended by Task 10/11:** the client became two legs — the browser's
+      first screen, plus the page's own Relay query for the rest
+      (`paged_video_ids`). The listing returns a `PageListing` (a list plus the
+      reason it stopped short) so the status line can say why a list is short.
+      **Measured live:** `nasa` 21 + 40 = **61** distinct videos, `natgeo`
+      9 + 12 = 21 at a limit of 20, and 60+ when the limit allows it. A
+      Relay-found permalink extracts in yt-dlp (`3319544694917358` — "12M views
+      · 334K reactions").
       **Files:** `src/s_q_ali_media_downloader/core/facebook_client.py`,
       `tests/test_facebook_client.py`.
       **Depends on:** Task 1.
@@ -305,10 +340,11 @@ Facebook session.
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Instagram 429 rate limiting | High — the feature looks broken | bounded requests, a pacing gap, a named error, the serial expansion queue; a listing cut off halfway keeps the videos it already found |
-| An Instagram listing that runs for half an hour | High — the app looks hung | **Measured: 2.90 s per timeline item** (Task 2). The walk is bounded by `MAX_WALK_SECONDS = 180`, it reports progress, and the status line says how far it got |
+| An Instagram listing that runs for half an hour | High — the app looks hung | **Measured: 2.90 s per timeline item** (Task 2), now **0.85 s per item** after the walk stopped fetching every post's metadata. The walk is bounded by `MAX_WALK_SECONDS = 180`, it reports progress, and the status line says how far it got |
 | Instagram query/API changes inside instaloader | Medium | instaloader is maintained and versioned; we depend on it instead of re-implementing it, and a pip upgrade fixes it |
 | Facebook DOM changes | High | the selector lives in one helper; the leg is labelled experimental; failure is loud |
-| Facebook paging beyond the first screen | High | **Measured: anonymous paging does not exist** (Task 1). The leg ships as first-screen-only and says so in the status line. The app stores no Facebook session, so there is no sign-in to page further |
+| Facebook paging beyond the first screen | Low | **Solved by the page's own Relay query** (Task 10/11): it answers an anonymous visitor, and the browser's first screen is kept as well because the two lists are disjoint. The query's id is read from the page's own JavaScript, so a Meta rename costs one regex, not a rewrite. If Facebook refuses to page, the app says the listing stopped at the first screen |
+| A page whose list is paged but whose videos are private | Medium | the Relay answers with the same list the page shows a visitor; anything behind a sign-in never appears, so no credential is needed or stored |
 | New dependency weight (instaloader pulls `requests`) | Medium | `requests==2.33.0` already satisfies instaloader's `>=2.4`; the resolver check is Task 7 |
 | A page URL that turns out to be a single video | Medium | the routing tests in Task 6 pin the difference |
 | Credentials leaking into the log | High | the log rule already exists; the clients produce their own messages, and the CI secret scan still runs |
@@ -323,5 +359,6 @@ Facebook session.
    credential storage anywhere in the app. Private profiles and login-walled
    pages get one clear message instead of a credential prompt.
 
-Still open: nothing. The Facebook paging question is settled — first screen
-only, no sign-in — and both legs are built, tested and packaged.
+Still open: nothing. The Facebook paging question is settled — the page's own
+query pages the list for an anonymous visitor, so the leg is no longer
+first-screen-only — and both legs are built, tested and packaged.

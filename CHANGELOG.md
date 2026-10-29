@@ -17,20 +17,37 @@ All notable changes are documented here. The format follows
 
 - **A Facebook page expands into its videos** — *experimental*. The page's
   Videos tab is read in the app's own browser, the same hardened one Social
-  Discovery uses. Facebook shows a visitor who is not signed in the first
-  screen only (measured: 21 videos for `nasa`, 9 for `natgeo`), and its
-  pagination route answers a blank page to such a visitor, so this usually
-  returns fewer videos than the limit that was picked. The app says so
-  instead of handing back a short list quietly.
+  Discovery uses. The tab itself shows a visitor only its first screen
+  (measured: 21 videos for `nasa`, 9 for `natgeo`), but the page pages the
+  rest of its own list behind that tab, and that query answers a visitor
+  without a sign-in. The app reads both halves: measured 61 videos for `nasa`
+  and 60+ for `natgeo`, against the first screen's 21 and 9. Nothing is
+  stored — no Facebook session, no cookie, no sign-in.
 
-- **An Instagram listing stops where it should.** Instagram paces itself at
-  roughly three seconds per post, so walking a busy profile for the full
-  200-video limit would run for half an hour. The walk now stops after three
-  minutes and says how far it got, so a partial list never reads like a
-  complete one. A listing that Instagram cuts off with a rate limit keeps the
-  videos it already found instead of throwing them away.
+- **An Instagram listing stops where it should.** Instagram paces itself, so
+  walking a busy profile for the full 200-video limit would run for a long
+  time. The walk now stops after three minutes and says how far it got, so a
+  partial list never reads like a complete one. A listing that Instagram cuts
+  off with a rate limit keeps the videos it already found instead of throwing
+  them away.
 
 ### Changed
+
+- **A Facebook page lists its whole video list, not its first screen.** The
+  app now asks the page for the videos behind the tab, the way the page asks
+  for them itself, and hands both halves on. Measured: `nasa` went from 21 to
+  61 videos, `natgeo` from 9 to 60+. The query's id is read from the page's
+  own JavaScript, so a Meta rename does not break it. When Facebook refuses
+  to page, the app says the listing stopped at the first screen rather than
+  handing back a short list quietly.
+
+- **An Instagram profile lists three times faster.** The listing fetched every
+  post's full metadata one post at a time, and that was most of the time a
+  walk spent. It now reads the timeline's own entry for each post, and asks
+  for a post's metadata only when it has to — for a carousel, whose children
+  the timeline does not describe. Measured on the same profile and the same
+  20-video limit: 165 seconds became 55 seconds. A 30-video listing now
+  finishes inside the three-minute budget instead of being cut off by it.
 
 - **Version** bumped to 2.9.0.
 

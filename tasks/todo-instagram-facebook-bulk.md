@@ -47,6 +47,9 @@ Spec: `tasks/spec-instagram-facebook-bulk.md`
       **Verify:** a live script lists a public page; a bogus page gives one
       sentence; no browser process is left behind.
       **Done:** 14 offline tests; verified live — 21 videos from `nasa`.
+      **Extended in Task 12:** the client is now two legs — the browser's
+      first screen and the page's own query for the rest — and returns a
+      `PageListing` (the URLs plus the reason it stopped short).
 
 ## Checkpoint: Clients
 - [x] Both clients work live from a script.
@@ -101,4 +104,51 @@ Spec: `tasks/spec-instagram-facebook-bulk.md`
       **Done:** the expansion listed `nasa`, the queue took the first
       permalink and the download thread wrote an 8 MB mp4 (the Artemis II
       post). The Facebook leg listed 21 videos for `nasa` in the real
-      window, with the first-screen caveat in the status line.
+      window, with the first-screen caveat in the status line — **now 61**,
+      with the caveat replaced by "Facebook's own list, paged as far as it
+      goes" (Task 12).
+
+## Phase 5: The GitHub scraper sweep
+
+The user asked whether the GitHub scrapers solve what the expansion does
+not. They do not — but reading them pointed at the real problem.
+
+- [x] Task 10: survey the GitHub scrapers for Facebook and Instagram.
+      **Done:** `shaikhsajid1111/social-media-profile-scraper` reads a
+      profile's *about* data, not its videos; `lucasgrow/ads-library-scraper`
+      reads Meta **Ad Library** ads, which are ads and not organic page
+      posts; `omkarcloud/facebook-scraper` and the `facebook-scraper` package
+      need a session or the Graph API. None of them lists a page's organic
+      videos for a logged-out visitor.
+      **What the sweep did find:** the shape of the way to do it. The
+      scrapers that work anonymously all end at the same door — Facebook's
+      **Relay** persisted-query route, `POST /api/graphql/` with a `doc_id`
+      read from the page's own JavaScript. Our own spike had only tried the
+      Comet route, which is a different one and is closed to a visitor.
+- [x] Task 11: read the installed instaloader and find where the walk's time
+      went.
+      **Done:** `structures.py` — `Post.from_shortcode` fetches the post's
+      full metadata, one request per post. That was the 2.90 s per timeline
+      item. The timeline node already carries the shortcode and the media
+      type, so the walk now reads the node and asks for the metadata only of
+      a carousel, which does not describe its children.
+      **Measured:** same profile, same 20-video limit — **164.7 s → 55.1 s
+      (3.0x)**. A 30-video listing finishes in 96 s instead of being cut off
+      by the 180 s budget.
+- [x] Task 12: the Facebook leg pages the list behind the first screen.
+      **Done:** `paged_video_ids()` in `core/facebook_client.py` — it reads
+      the page's own token, the page id and the first cursor out of the
+      rendered HTML, finds the query's `doc_id` in the page's own JavaScript
+      bundle, and follows `page_info.end_cursor` until the list ends. The
+      browser's first screen is kept as well: the two lists are disjoint
+      (`nasa`'s 21 and 40 share no id).
+      **Measured live:** `nasa` **61** distinct videos, `natgeo` 60+ at a
+      limit of 60 (13 s), `nasa` 40 through the query alone (10.8 s). A
+      Relay-found permalink extracts in yt-dlp (`3319544694917358` — "12M
+      views · 334K reactions").
+      **No credential:** no `fb_dtsg`, no cookie file, no sign-in. The only
+      token is the per-load one the page hands every visitor, and it travels
+      in the request body — never in a URL, a log line or an error message.
+      **Verify:** 31 offline tests (the paging loop, the query-id harvest,
+      the token's absence from every ops line, the fallback to the first
+      screen); `pytest -m "not live"` green; `ruff check src tests` clean.
