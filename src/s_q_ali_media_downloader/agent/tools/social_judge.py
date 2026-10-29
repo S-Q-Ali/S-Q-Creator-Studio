@@ -47,6 +47,12 @@ DEFAULT_MODEL = "openai/gpt-oss-120b"
 #: search died at Cloudflare (524 after 125 s) on every request, while
 #: gpt-oss-20b answered with real profile URLs in about four seconds.
 GROQ_SEARCH_MODEL = "openai/gpt-oss-20b"
+#: Searching dominates the latency, so the ask is capped: 20b otherwise
+#: spends the free tier's 8 000 tokens/minute on reasoning before it writes
+#: the answer (measured: 75 s and real handles with these values).
+GROQ_SEARCH_MAX_TOKENS = 700
+#: The browser search outlives the plain ask; 75 s was a normal search.
+GROQ_SEARCH_TIMEOUT = 120.0
 
 #: Gemini is asked first; Groq is the fallback. The Interactions API is the
 #: documented REST shape for structured output in 2026.
@@ -1009,6 +1015,8 @@ def _groq_search_payload(prompt: str, model: str) -> dict:
         # The tool is the point of the request: without it the model would
         # answer from what it remembers.
         "tool_choice": "required",
+        "reasoning_effort": "low",
+        "max_tokens": GROQ_SEARCH_MAX_TOKENS,
     }
 
 
@@ -1028,7 +1036,9 @@ def _ask_gemini_search(prompt: str, key: str, model: str) -> tuple[str, list[str
 
 def _ask_groq_search(prompt: str, key: str, model: str) -> tuple[str, list[str]]:
     """One Groq request with browser search. The text, and the pages it read."""
-    answer = _post_groq(_groq_search_payload(prompt, model), key, timeout=90.0)
+    answer = _post_groq(
+        _groq_search_payload(prompt, model), key, timeout=GROQ_SEARCH_TIMEOUT
+    )
     message = (answer.get("choices") or [{}])[0].get("message") or {}
     text = str(message.get("content") or "").strip()
     if not text:

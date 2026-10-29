@@ -753,3 +753,33 @@ def test_the_groq_fallback_searches_with_the_model_that_can(monkeypatch):
     monkeypatch.setattr(sj, "gemini_key", lambda: "gemini_test")
 
     assert sj.propose_tiktok_creators("#cats", 5) == ["ishowspeed"]
+
+
+def test_the_groq_search_is_bounded_and_patient(monkeypatch):
+    """Measured 2026-10-30: a capped, low-reasoning request answered in 75 s
+    with real handles inside the free tier's 8 000 tokens/minute."""
+
+    seen = {}
+
+    def fake_groq(payload, key, timeout=60.0):
+        seen["payload"] = payload
+        seen["timeout"] = timeout
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"creators": ["https://www.tiktok.com/@real"]}
+                        )
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(sj, "_post_groq", fake_groq)
+
+    sj._ask_groq_search("the prompt", "gsk_test", sj.GROQ_SEARCH_MODEL)
+
+    assert seen["payload"]["reasoning_effort"] == "low"
+    assert seen["payload"]["max_tokens"] == sj.GROQ_SEARCH_MAX_TOKENS
+    assert seen["timeout"] == sj.GROQ_SEARCH_TIMEOUT
