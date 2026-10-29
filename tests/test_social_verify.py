@@ -630,3 +630,125 @@ def test_a_tiktok_not_found_message_in_the_body_is_not_found():
     result = sv.verify_page(page, "tiktok", CREATOR)
 
     assert result.verdict is sv.Verdict.NOT_FOUND
+
+
+# --------------------------------------------------------------------------- #
+# The AI browser fallback
+# --------------------------------------------------------------------------- #
+class _Agent:
+    def __init__(self, answer, remaining=3):
+        self.answer = answer
+        self.remaining = remaining
+        self.configured = True
+        self.calls = []
+
+    def __call__(self, url, platform):
+        self.calls.append((url, platform))
+        return self.answer
+
+
+def test_the_agent_confirms_a_page_the_browser_could_not_read():
+    session = _FakeSession({})
+    agent = _Agent(
+        {
+            "exists": "yes",
+            "display_name": "MrBeast",
+            "handle": "mrbeast",
+            "reason": "the profile shows the name and handle",
+        }
+    )
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"instagram": ["https://www.instagram.com/mrbeast/"]},
+        agent_checker=agent,
+    )
+
+    assert len(results) == 1
+    assert results[0].verdict is sv.Verdict.FOUND
+    assert results[0].tier == "likely"
+    assert agent.calls == [("https://www.instagram.com/mrbeast/", "instagram")]
+
+
+def test_the_agent_cannot_erase_a_bio_link():
+    session = _FakeSession({})
+    url = "https://www.instagram.com/mrbeast/"
+    agent = _Agent({"exists": "no", "quote": "Sorry, this page isn't available."})
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"instagram": [url]},
+        bio_urls={url},
+        agent_checker=agent,
+    )
+
+    assert results[0].verdict is sv.Verdict.FOUND
+    assert results[0].evidence == ["bio_link"]
+
+
+def test_the_agent_can_mark_a_guessed_page_not_found():
+    session = _FakeSession({})
+    agent = _Agent({"exists": "no", "quote": "Sorry, this page isn't available."})
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"instagram": ["https://www.instagram.com/mrbeast/"]},
+        agent_checker=agent,
+    )
+
+    # A candidate that does not exist is dropped, exactly as it is when the
+    # rendered page says so.
+    assert results == []
+
+
+def test_the_agent_is_not_called_when_its_budget_is_spent():
+    session = _FakeSession({})
+    agent = _Agent({"exists": "yes", "display_name": "MrBeast"}, remaining=0)
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"instagram": ["https://www.instagram.com/mrbeast/"]},
+        agent_checker=agent,
+    )
+
+    assert results[0].verdict is sv.Verdict.UNKNOWN
+    assert agent.calls == []
+
+
+def test_the_agent_does_not_confirm_a_different_account():
+    session = _FakeSession({})
+    agent = _Agent(
+        {"exists": "yes", "display_name": "Somebody Else", "handle": "somebody"}
+    )
+
+    results = sv.verify_candidates(
+        session,
+        CREATOR,
+        {"instagram": ["https://www.instagram.com/mrbeast/"]},
+        agent_checker=agent,
+    )
+
+    assert results[0].verdict is sv.Verdict.NO_MATCH
+
+
+def test_the_agent_closes_the_deterministic_browser_first():
+    closed = []
+
+    class _Session(_FakeSession):
+        def close(self):
+            closed.append(True)
+
+    agent = _Agent({"exists": "unknown"})
+
+    sv.verify_candidates(
+        _Session({}),
+        CREATOR,
+        {"instagram": ["https://www.instagram.com/mrbeast/"]},
+        agent_checker=agent,
+    )
+
+    assert closed == [True]

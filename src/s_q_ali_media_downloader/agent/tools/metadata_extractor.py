@@ -62,7 +62,10 @@ class MetadataExtractorTool:
                 resp = client.get(about_url)
                 if resp.status_code == 200:
                     html = resp.text
-                    return LinkParserTool.extract_social_links(html)
+                    # The page is not the creator's own words: its video
+                    # titles say "Instagram Pay" and that is a title, not an
+                    # account. Only the links on it count.
+                    return LinkParserTool.extract_social_links(html, creator_text=False)
         except Exception as e:
             logger.warning(f"Failed to scrape channel about page {channel_url}: {e}")
 

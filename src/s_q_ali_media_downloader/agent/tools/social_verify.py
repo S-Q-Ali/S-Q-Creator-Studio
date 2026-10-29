@@ -25,11 +25,14 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from urllib.parse import parse_qs, urlparse
 
+from s_q_ali_media_downloader.agent.opslog import Ops
+from s_q_ali_media_downloader.agent.schema import SocialStatus
 from s_q_ali_media_downloader.agent.tools.browser import Page, PageUnavailable
 
 logger = logging.getLogger(__name__)
@@ -70,6 +73,12 @@ _FB_TITLE_RE = re.compile(r"^(?P<name>.+?)\s*\|\s*Facebook\s*$", re.IGNORECASE)
 _TT_HANDLE_RE = re.compile(
     r"(?P<handle>[A-Za-z0-9_.]{2,30})\s+[\d.,]+\s*Following", re.IGNORECASE
 )
+
+#: The title of a YouTube channel page: "Marques Brownlee - YouTube".
+_YT_TITLE_RE = re.compile(r"^(?P<name>.+?)\s*[-|]\s*YouTube\s*$", re.IGNORECASE)
+
+#: YouTube answers a channel that is not there with a 404 page.
+_YT_404_RE = re.compile(r"^404\b", re.IGNORECASE)
 
 #: The navigation words that sit in front of a profile line.
 _NAV_WORDS = frozenset(
@@ -148,6 +157,31 @@ class Verdict(str, Enum):
     NOT_FOUND = "not_found"
     NO_MATCH = "no_match"
     UNKNOWN = "unknown"
+
+
+class Reconciled(str, Enum):
+    """The status after the two checks have been compared.
+
+    It is deliberately not ``Verdict`` or ``SocialStatus``: the two modes
+    report their results in different words, and this is the word both of
+    them can speak.
+    """
+
+    VERIFIED = "verified"
+    WEAK = "weak"
+    UNCONFIRMED = "unconfirmed"
+    MISSING = "missing"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class Reconciliation:
+    """The final status, and where it came from."""
+
+    status: Reconciled
+    confidence: float = 0.0
+    source: str = "browser"
+    detail: str = ""
 
 
 @dataclass
@@ -278,11 +312,29 @@ def _tiktok_profile(page: Page) -> tuple[bool, str, str, str]:
     return True, "", "", "the page shows nothing about an account"
 
 
+def _youtube_profile(page: Page) -> tuple[bool, str, str, str]:
+    """(exists, display name, handle, detail)"""
+    title = (_meta(page, "ogTitle") or page.title or "").strip()
+    if _YT_404_RE.match(title):
+        return False, "", "", "the page says the channel is not there"
+    match = _YT_TITLE_RE.match(title)
+    name = match.group("name").strip() if match else title
+    handle = _handle_from_url(_meta(page, "ogUrl") or page.url)
+    if name or handle:
+        return True, name, handle, "the page describes the channel"
+    return True, "", "", "the page shows nothing about a channel"
+
+
 _READERS = {
     "instagram": _instagram_profile,
     "facebook": _facebook_profile,
     "tiktok": _tiktok_profile,
+    "youtube": _youtube_profile,
 }
+
+#: A YouTube channel page links to other channels by design, so a link
+#: that does not name the creator is not a conflict there.
+_NO_BACK_LINK = frozenset({"youtube"})
 
 
 def read_profile(page: Page, platform: str) -> tuple[bool, str, str, str]:
@@ -434,7 +486,14 @@ def confidence_tier(evidence: list[str]) -> str:
     return "unclear"
 
 
-def match_evidence(profile_name: str, profile_handle: str, page: Page, creator: CreatorRef) -> list[str]:
+def match_evidence(
+    profile_name: str,
+    profile_handle: str,
+    page: Page,
+    creator: CreatorRef,
+    *,
+    follow_links: bool = True,
+) -> list[str]:
     """Why we believe the account is this creator's."""
     evidence: list[str] = []
     name = _name_evidence(profile_name, creator.title)
@@ -446,7 +505,8 @@ def match_evidence(profile_name: str, profile_handle: str, page: Page, creator: 
         evidence.append("handle_match")
     saw_match = False
     saw_conflict = False
-    for link in page.links or []:
+    links = (page.links or []) if follow_links else []
+    for link in links:
         is_youtube, matches = _link_matches_creator(link, channel_id, handle)
         if not is_youtube:
             continue
@@ -490,7 +550,9 @@ def verify_page(page: Page, platform: str, creator: CreatorRef) -> CheckResult:
             detail=detail,
         )
 
-    evidence = match_evidence(name, handle, page, creator)
+    evidence = match_evidence(
+        name, handle, page, creator, follow_links=platform not in _NO_BACK_LINK
+    )
     positives = positive_evidence(evidence)
 
     if not name and not handle:
@@ -548,15 +610,34 @@ def verify_page(page: Page, platform: str, creator: CreatorRef) -> CheckResult:
     )
 
 
-def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> CheckResult:
+def verify_candidate(
+    session,
+    url: str,
+    platform: str,
+    creator: CreatorRef,
+    *,
+    ops: Ops | None = None,
+) -> CheckResult:
     """Open one account and decide what it is.
 
     A profile that renders late is read once more before it is called
     unknown — TikTok paints its profile in after the first paint.
     """
+    if ops is not None:
+        ops.start("browser.open", "browser", url, detail=platform)
+    started = time.monotonic()
     try:
         page = session.open(url)
     except PageUnavailable as exc:
+        if ops is not None:
+            ops.fail(
+                "browser.open",
+                "browser",
+                url,
+                str(exc),
+                detail=platform,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
         return CheckResult(
             platform=platform,
             verdict=Verdict.UNKNOWN,
@@ -570,6 +651,15 @@ def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> C
         try:
             page = session.open(url, wait_ms=5000)
         except PageUnavailable as exc:
+            if ops is not None:
+                ops.fail(
+                    "browser.open",
+                    "browser",
+                    url,
+                    str(exc),
+                    detail=platform,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
             return CheckResult(
                 platform=platform,
                 verdict=Verdict.UNKNOWN,
@@ -577,7 +667,222 @@ def verify_candidate(session, url: str, platform: str, creator: CreatorRef) -> C
                 detail=f"the page could not be read: {exc}",
             )
         result = verify_page(page, platform, creator)
+    if ops is not None:
+        ops.ok(
+            "browser.open",
+            "browser",
+            url,
+            detail=f"{platform} {result.verdict.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
     return result
+
+
+def _agent_field(answer, name: str, default=""):
+    """Read one field from an agent answer (object or dict)."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _agent_result(
+    answer,
+    url: str,
+    platform: str,
+    creator: CreatorRef,
+    is_bio: bool,
+) -> CheckResult | None:
+    """Turn the agent's page facts into a verdict, using the same rules.
+
+    The agent may say a page is missing, or give a name and handle it read
+    from the page. It does not get to decide ownership: the name and handle
+    go through ``match_evidence`` exactly as a rendered page would.
+    """
+    exists = str(_agent_field(answer, "exists", "unknown")).lower()
+    name = str(_agent_field(answer, "display_name", "") or "")
+    handle = str(_agent_field(answer, "handle", "") or "").lstrip("@")
+    quote = str(_agent_field(answer, "quote", "") or "")
+    reason = str(_agent_field(answer, "reason", "") or "")
+
+    if exists == "no":
+        if is_bio:
+            # A bio link is never erased by a failed read.
+            return None
+        return CheckResult(
+            platform=platform,
+            verdict=Verdict.NOT_FOUND,
+            url=url,
+            detail=f"the AI browser read: {quote or reason or 'the page says it is missing'}",
+        )
+    if exists != "yes" or not (name or handle):
+        return None
+
+    evidence = match_evidence(name, handle, Page(url=url), creator)
+    positives = positive_evidence(evidence)
+    if len(positives) >= 2:
+        return CheckResult(
+            platform=platform,
+            verdict=Verdict.FOUND,
+            url=url,
+            display_name=name,
+            handle=handle,
+            evidence=evidence,
+            detail=reason or "the AI browser read the profile",
+            tier=confidence_tier(evidence),
+        )
+    if positives:
+        return CheckResult(
+            platform=platform,
+            verdict=Verdict.NO_MATCH,
+            url=url,
+            display_name=name,
+            handle=handle,
+            evidence=evidence,
+            detail="only one signal ties the account to the creator; two are needed",
+        )
+    return CheckResult(
+        platform=platform,
+        verdict=Verdict.NO_MATCH,
+        url=url,
+        display_name=name,
+        handle=handle,
+        evidence=evidence,
+        detail=f"the account is '{name or handle}', not '{creator.title or creator.handle}'",
+    )
+
+
+#: What the AI may say about a platform.
+AI_YES = "yes"
+AI_NO = "no"
+AI_UNKNOWN = "unknown"
+
+_AI_VERDICTS = frozenset({AI_YES, AI_NO, AI_UNKNOWN})
+
+#: How each mode reports a reconciled status.
+RECONCILED_TO_SOCIAL_STATUS = {
+    Reconciled.VERIFIED: SocialStatus.VERIFIED,
+    Reconciled.WEAK: SocialStatus.UNVERIFIED_HANDLE,
+    Reconciled.UNCONFIRMED: SocialStatus.UNVERIFIED_HANDLE,
+    Reconciled.MISSING: SocialStatus.NOT_FOUND,
+    Reconciled.UNKNOWN: SocialStatus.INCONCLUSIVE,
+}
+
+RECONCILED_TO_VERDICT = {
+    Reconciled.VERIFIED: Verdict.FOUND,
+    Reconciled.WEAK: Verdict.NO_MATCH,
+    Reconciled.UNCONFIRMED: Verdict.UNKNOWN,
+    Reconciled.MISSING: Verdict.NOT_FOUND,
+    Reconciled.UNKNOWN: Verdict.UNKNOWN,
+}
+
+#: How a browser status reads in the reconciliation's own words.
+STATUS_TO_VERDICT = {
+    SocialStatus.VERIFIED: Verdict.FOUND,
+    SocialStatus.UNVERIFIED_HANDLE: Verdict.NO_MATCH,
+    SocialStatus.NOT_FOUND: Verdict.NOT_FOUND,
+    SocialStatus.INCONCLUSIVE: Verdict.UNKNOWN,
+}
+
+
+def reconcile(
+    ai_exists: str = AI_UNKNOWN,
+    ai_url: str = "",
+    browser: CheckResult | None = None,
+    *,
+    is_bio_link: bool = False,
+) -> Reconciliation:
+    """The final status, from the AI's answer and the browser's verdict.
+
+    The browser is the judge: it opened the page and read what the account
+    says about itself. The AI is a witness: it read the web. A page that
+    matched the creator beats anything the model said; a model that only
+    proposes a URL is a lead, never a finding.
+
+    | AI says | Browser says | Status | Source |
+    |---|---|---|---|
+    | yes | found | verified 0.95 | both |
+    | yes | no match | weak 0.55 | browser |
+    | yes | unknown | unconfirmed 0.60 | model |
+    | yes | not found | unconfirmed 0.60 | model |
+    | no | found | verified 0.95 | browser |
+    | no | no match | weak 0.55 | browser |
+    | no | not found | missing 0.0 | both |
+    | no | unknown | unknown 0.0 | browser |
+    | unknown | found | verified 0.95 | browser |
+    | unknown | no match | weak 0.55 | browser |
+    | unknown | not found | missing 0.0 | browser |
+    | unknown | unknown | unknown 0.0 | browser |
+
+    ``browser`` is None when no page was opened at all — the browser never
+    ran, or it could not start. The AI's word alone never proves that an
+    account is missing: only a page that says so does.
+    """
+    ai = (ai_exists or AI_UNKNOWN).strip().lower()
+    if ai not in _AI_VERDICTS:
+        ai = AI_UNKNOWN
+    verdict = browser.verdict if browser is not None else Verdict.UNKNOWN
+    bio = " (the creator's own bio links it)" if is_bio_link else ""
+
+    if verdict is Verdict.FOUND:
+        source = "both" if ai == AI_YES else "browser"
+        detail = (
+            "the AI and the browser agree the account is the creator's"
+            if source == "both"
+            else "the browser read the account and it matches the creator"
+        )
+        return Reconciliation(Reconciled.VERIFIED, 0.95, source, detail + bio)
+
+    if verdict is Verdict.NO_MATCH:
+        return Reconciliation(
+            Reconciled.WEAK,
+            0.55,
+            "browser",
+            "the page exists but does not match the creator" + bio,
+        )
+
+    if verdict is Verdict.NOT_FOUND:
+        if ai == AI_NO:
+            return Reconciliation(
+                Reconciled.MISSING,
+                0.0,
+                "both",
+                "neither the AI nor the browser found the account",
+            )
+        if ai == AI_YES:
+            return Reconciliation(
+                Reconciled.UNCONFIRMED,
+                0.60,
+                "model",
+                f"the AI proposes {ai_url or 'an account'}; the page did not confirm it",
+            )
+        return Reconciliation(
+            Reconciled.MISSING,
+            0.0,
+            "browser",
+            "the browser says the account is not there" + bio,
+        )
+
+    # The browser could not read the page.
+    if ai == AI_YES:
+        return Reconciliation(
+            Reconciled.UNCONFIRMED,
+            0.60,
+            "model",
+            f"the AI proposes {ai_url or 'an account'}; the page could not be read",
+        )
+    if ai == AI_NO and browser is None:
+        return Reconciliation(
+            Reconciled.UNKNOWN,
+            0.0,
+            "model",
+            "the AI found no account, but no page was opened to confirm it",
+        )
+    return Reconciliation(
+        Reconciled.UNKNOWN,
+        0.0,
+        "browser",
+        "the page could not be read" + bio,
+    )
 
 
 def verify_candidates(
@@ -587,6 +892,8 @@ def verify_candidates(
     bio_urls: set[str] | frozenset[str] = frozenset(),
     *,
     on_check: Callable[[], None] | None = None,
+    agent_checker: Callable[[str, str], object] | None = None,
+    ops: Ops | None = None,
 ) -> list[CheckResult]:
     """Check every candidate and keep the ones worth showing.
 
@@ -606,8 +913,51 @@ def verify_candidates(
         for url in urls:
             if on_check is not None:
                 on_check()
-            result = verify_candidate(session, url, platform, creator)
+            result = verify_candidate(session, url, platform, creator, ops=ops)
             is_bio = url in bio_urls
+            if (
+                result.verdict is Verdict.UNKNOWN
+                and agent_checker is not None
+                and getattr(agent_checker, "remaining", 1) > 0
+                and getattr(agent_checker, "configured", True)
+            ):
+                # The deterministic browser and browser-use cannot hold the
+                # same profile at once. Closing it here lets the next
+                # candidate restart it, and lets the agent launch.
+                closer = getattr(session, "close", None)
+                if closer is not None:
+                    try:
+                        closer()
+                    except Exception as exc:
+                        logger.debug("closing the browser before the agent failed: %s", exc)
+                if ops is not None:
+                    ops.start("ai.browser.open", "ai-browser", url, detail=platform)
+                started = time.monotonic()
+                try:
+                    answer = agent_checker(url, platform)
+                except Exception as exc:
+                    logger.warning("AI browser check failed for %s: %s", url, exc)
+                    if ops is not None:
+                        ops.fail(
+                            "ai.browser.open",
+                            "ai-browser",
+                            url,
+                            str(exc),
+                            detail=platform,
+                            duration_ms=int((time.monotonic() - started) * 1000),
+                        )
+                else:
+                    replacement = _agent_result(answer, url, platform, creator, is_bio)
+                    if replacement is not None:
+                        result = replacement
+                    if ops is not None:
+                        ops.ok(
+                            "ai.browser.open",
+                            "ai-browser",
+                            url,
+                            detail=f"{platform} {result.verdict.value}",
+                            duration_ms=int((time.monotonic() - started) * 1000),
+                        )
             result.source = "bio" if is_bio else "model"
             if is_bio:
                 if result.verdict is Verdict.UNKNOWN:

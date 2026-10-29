@@ -6,23 +6,64 @@ Precision rules:
   as a missing profile).
 - A candidate URL that came from the creator's own bio is never downgraded to
   NOT_FOUND by a failed probe — at worst it becomes UNVERIFIED_HANDLE.
+- A rendered page is judged against the creator, whoever read it: the browser or
+  the AI agent. A bio link needs the page to match it before the account counts
+  as verified, and a page that names somebody else never does.
 """
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 
+from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.schema import (
     SocialPlatform,
     SocialPresence,
     SocialStatus,
 )
-from s_q_ali_media_downloader.agent.tools.social_verify import read_profile
+from s_q_ali_media_downloader.agent.tools.browser import Page
+from s_q_ali_media_downloader.agent.tools.social_verify import (
+    CheckResult,
+    CreatorRef,
+    Verdict,
+    match_evidence,
+    positive_evidence,
+    read_profile,
+    verify_page,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _answer_field(answer, name: str, default=""):
+    """Read one field from an agent answer (object or dict)."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _identity_status(
+    evidence: list[str], is_bio_link: bool
+) -> tuple[SocialStatus, float]:
+    """The status the page's own words earn.
+
+    The same rule the social discovery path uses: a creator-declared link
+    is one signal, and the page has to add another before the account can
+    be called verified. A link the model guessed is never verified — the
+    app only claims that an account exists there.
+    """
+    positives = positive_evidence(evidence)
+    if not is_bio_link:
+        return SocialStatus.UNVERIFIED_HANDLE, 0.60
+    conflict = "name_conflict" in evidence or "conflicting_back_link" in evidence
+    if positives and not conflict:
+        return SocialStatus.VERIFIED, 0.95
+    return SocialStatus.UNVERIFIED_HANDLE, 0.55
+
 
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -90,17 +131,21 @@ class SocialVerifierTool:
         delay_between_requests: float = 2.0,
         timeout: float = 10.0,
         rendered_checker: Callable[[str], object] | None = None,
+        agent_checker: Callable[[str, str], object] | None = None,
         log_callback: Callable[[str], None] | None = None,
+        ops: Ops | None = None,
     ):
         self.delay = delay_between_requests
         self.timeout = timeout
         self.rendered_checker = rendered_checker
+        self.agent_checker = agent_checker
         self.log_callback = log_callback
+        self.ops = ops if ops is not None else Ops(log_callback)
         # A browser session is not thread-safe. One worker means the three
         # platform fallbacks can be gathered without racing each other.
         self._browser_executor = (
             ThreadPoolExecutor(max_workers=1, thread_name_prefix="social-render")
-            if rendered_checker is not None
+            if rendered_checker is not None or agent_checker is not None
             else None
         )
         self._request_count = 0
@@ -126,13 +171,20 @@ class SocialVerifierTool:
                 closer = getattr(self.rendered_checker, "close", None)
                 if closer is not None:
                     executor.submit(closer).result(timeout=15)
+            if self.agent_checker is not None:
+                closer = getattr(self.agent_checker, "close", None)
+                if closer is not None:
+                    executor.submit(closer).result(timeout=15)
         except Exception as exc:
-            logger.debug("closing the rendered-page browser failed: %s", exc)
+            logger.debug("closing the discovery browser failed: %s", exc)
         finally:
             executor.shutdown(wait=False)
 
     async def _rendered_fallback(
-        self, presence: SocialPresence, platform: str
+        self,
+        presence: SocialPresence,
+        platform: str,
+        creator: CreatorRef | None = None,
     ) -> SocialPresence:
         """Try a rendered page when the HTTP probe could not decide."""
         if (
@@ -148,11 +200,23 @@ class SocialVerifierTool:
             return presence
 
         loop = asyncio.get_running_loop()
+        self.ops.start(
+            "browser.open", "browser", presence.verified_url, detail=f"{platform}"
+        )
+        started = time.monotonic()
         try:
             page = await loop.run_in_executor(
                 self._browser_executor, self.rendered_checker, presence.verified_url
             )
         except Exception as exc:
+            self.ops.fail(
+                "browser.open",
+                "browser",
+                presence.verified_url,
+                str(exc),
+                detail=f"{platform}",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
             self._log(
                 f"Rendered {platform} check failed for {presence.verified_url}: {exc}"
             )
@@ -168,16 +232,190 @@ class SocialVerifierTool:
                 presence.status = SocialStatus.NOT_FOUND
                 presence.confidence_score = 0.0
         elif name or "follower count" in detail:
-            presence.status = (
-                SocialStatus.VERIFIED if is_bio_link else SocialStatus.UNVERIFIED_HANDLE
+            presence.status, presence.confidence_score = self._judged(
+                presence, name, handle, creator, page
             )
-            presence.confidence_score = 0.95 if is_bio_link else 0.60
             presence.handle = handle or presence.handle
+        self.ops.ok(
+            "browser.open",
+            "browser",
+            presence.verified_url,
+            detail=f"{platform} {presence.status.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
         self._log(
             f"Rendered {platform} check for {presence.verified_url}: "
             f"{presence.status.value} ({detail})"
         )
         return presence
+
+    def _judged(
+        self,
+        presence: SocialPresence,
+        name: str,
+        handle: str,
+        creator: CreatorRef | None,
+        page: Page | None = None,
+    ) -> tuple[SocialStatus, float]:
+        """The status the account earns from the creator's point of view.
+
+        Without the creator's name there is nothing to judge against, so
+        the account is only reported as existing.
+        """
+        is_bio_link = presence.source == "bio_link"
+        if creator is None or not name:
+            if is_bio_link:
+                return SocialStatus.VERIFIED, 0.95
+            return SocialStatus.UNVERIFIED_HANDLE, 0.60
+        evidence = match_evidence(
+            name, handle, page or Page(url=presence.verified_url or ""), creator
+        )
+        status, score = _identity_status(evidence, is_bio_link)
+        self._log(
+            f"  {presence.platform.value} identity evidence: "
+            f"{', '.join(evidence) or 'none'}"
+        )
+        return status, score
+
+    async def _agent_fallback(
+        self,
+        presence: SocialPresence,
+        platform: str,
+        creator: CreatorRef | None = None,
+    ) -> SocialPresence:
+        """Ask the AI browser when the rendered page still could not decide."""
+        if (
+            self.agent_checker is None
+            or self._browser_executor is None
+            or not presence.verified_url
+        ):
+            return presence
+        if presence.status not in (
+            SocialStatus.INCONCLUSIVE,
+            SocialStatus.UNVERIFIED_HANDLE,
+        ):
+            return presence
+        if getattr(self.agent_checker, "remaining", 1) <= 0:
+            return presence
+        if getattr(self.agent_checker, "configured", True) is False:
+            return presence
+
+        loop = asyncio.get_running_loop()
+        self.ops.start(
+            "ai.browser.open", "ai-browser", presence.verified_url, detail=platform
+        )
+        started = time.monotonic()
+
+        def run():
+            # browser-use and Playwright cannot share the profile at the same
+            # time; closing the deterministic browser lets the agent launch.
+            if self.rendered_checker is not None:
+                closer = getattr(self.rendered_checker, "close", None)
+                if closer is not None:
+                    closer()
+            return self.agent_checker(presence.verified_url, platform)
+
+        try:
+            answer = await loop.run_in_executor(self._browser_executor, run)
+        except Exception as exc:
+            self.ops.fail(
+                "ai.browser.open",
+                "ai-browser",
+                presence.verified_url,
+                str(exc),
+                detail=platform,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            self._log(
+                f"AI browser {platform} check failed for {presence.verified_url}: {exc}"
+            )
+            return presence
+
+        exists = str(_answer_field(answer, "exists", "unknown")).lower()
+        name = str(_answer_field(answer, "display_name", "") or "")
+        handle = str(_answer_field(answer, "handle", "") or "")
+        followers = str(_answer_field(answer, "followers", "") or "")
+        quote = str(_answer_field(answer, "quote", "") or "")
+        reason = str(_answer_field(answer, "reason", "") or "")
+        is_bio_link = presence.source == "bio_link"
+
+        if exists == "no":
+            if is_bio_link:
+                presence.status = SocialStatus.UNVERIFIED_HANDLE
+                presence.confidence_score = 0.55
+            else:
+                presence.status = SocialStatus.NOT_FOUND
+                presence.confidence_score = 0.0
+        elif exists == "yes" and (name or handle or followers):
+            # The agent reads the page; it does not decide who owns it.
+            # The name and handle go through the same evidence rule a
+            # rendered page would.
+            presence.status, presence.confidence_score = self._judged(
+                presence, name, handle, creator
+            )
+            presence.handle = handle or presence.handle
+        else:
+            return presence
+
+        self.ops.ok(
+            "ai.browser.open",
+            "ai-browser",
+            presence.verified_url,
+            detail=f"{platform} {presence.status.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+        self._log(
+            f"AI browser {platform} check for {presence.verified_url}: "
+            f"{presence.status.value} ({reason or quote or 'read by the agent'})"
+        )
+        return presence
+
+    def verify_url(self, url: str, platform: str, creator: CreatorRef) -> CheckResult:
+        """Open one URL in the browser and say what the page says about it.
+
+        This is the browser leg of the second check: the web proposes a
+        URL, and the browser decides whether the account behind it is the
+        creator's. The same evidence rules as a rendered candidate apply,
+        so a page that names somebody else is never this creator's
+        account.
+        """
+        if self.rendered_checker is None or self._browser_executor is None:
+            return CheckResult(
+                platform=platform,
+                verdict=Verdict.UNKNOWN,
+                url=url,
+                detail="no browser is available",
+            )
+        self.ops.start("browser.open", "browser", url, detail=platform)
+        started = time.monotonic()
+        try:
+            page = self._browser_executor.submit(
+                self.rendered_checker, url
+            ).result(timeout=90)
+        except Exception as exc:
+            self.ops.fail(
+                "browser.open",
+                "browser",
+                url,
+                str(exc),
+                detail=platform,
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            return CheckResult(
+                platform=platform,
+                verdict=Verdict.UNKNOWN,
+                url=url,
+                detail=f"the page could not be read: {exc}",
+            )
+        result = verify_page(page, platform, creator)
+        self.ops.ok(
+            "browser.open",
+            "browser",
+            url,
+            detail=f"{platform} {result.verdict.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+        return result
 
     def _enforce_rate_limit(self) -> None:
         """Enforce rate limiting with exponential backoff on 429 errors.
@@ -185,8 +423,6 @@ class SocialVerifierTool:
         Resets the counter every 10 requests to prevent accumulating delays
         after many requests.
         """
-        import time
-
         # Check Retry-After header first
         if self._retry_after_header > 0:
             time.sleep(self._retry_after_header)
@@ -237,13 +473,18 @@ class SocialVerifierTool:
         return SocialStatus.VERIFIED
 
     async def verify_facebook_presence(
-        self, candidate_url: str | None, channel_handle: str | None = None
+        self,
+        candidate_url: str | None,
+        channel_handle: str | None = None,
+        source: str | None = None,
     ) -> SocialPresence:
         """Verifies if a Facebook page exists."""
         presence = SocialPresence(platform=SocialPlatform.FACEBOOK)
 
         target_url = candidate_url
-        source = "bio_link" if candidate_url else "handle_guess"
+        # A URL the creator put in their own bio is worth more than one the
+        # model guessed, so the caller says which it is.
+        source = source or ("bio_link" if candidate_url else "handle_guess")
 
         if not target_url and channel_handle:
             clean_handle = channel_handle.lstrip("@")
@@ -257,6 +498,8 @@ class SocialVerifierTool:
         presence.source = source
         is_bio_link = source == "bio_link"
 
+        self.ops.start("http.probe", "http", target_url, detail="facebook")
+        started = time.monotonic()
         try:
             # Enforce rate limiting before making the request
             self._enforce_rate_limit()
@@ -305,16 +548,26 @@ class SocialVerifierTool:
             logger.warning(f"FB probe failed for {target_url}: {e}")
             self._failure_status(presence, is_bio_link)
 
+        self.ops.ok(
+            "http.probe",
+            "http",
+            target_url,
+            detail=f"facebook {presence.status.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
         return presence
 
     async def verify_instagram_presence(
-        self, candidate_url: str | None, channel_handle: str | None = None
+        self,
+        candidate_url: str | None,
+        channel_handle: str | None = None,
+        source: str | None = None,
     ) -> SocialPresence:
         """Verifies if an Instagram profile exists."""
         presence = SocialPresence(platform=SocialPlatform.INSTAGRAM)
 
         target_url = candidate_url
-        source = "bio_link" if candidate_url else "handle_guess"
+        source = source or ("bio_link" if candidate_url else "handle_guess")
 
         if not target_url and channel_handle:
             clean_handle = channel_handle.lstrip("@")
@@ -328,6 +581,8 @@ class SocialVerifierTool:
         presence.source = source
         is_bio_link = source == "bio_link"
 
+        self.ops.start("http.probe", "http", target_url, detail="instagram")
+        started = time.monotonic()
         try:
             # Enforce rate limiting before making the request
             self._enforce_rate_limit()
@@ -370,16 +625,26 @@ class SocialVerifierTool:
             logger.warning(f"IG probe failed for {target_url}: {e}")
             self._failure_status(presence, is_bio_link)
 
+        self.ops.ok(
+            "http.probe",
+            "http",
+            target_url,
+            detail=f"instagram {presence.status.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
         return presence
 
     async def verify_tiktok_presence(
-        self, candidate_url: str | None, channel_handle: str | None = None
+        self,
+        candidate_url: str | None,
+        channel_handle: str | None = None,
+        source: str | None = None,
     ) -> SocialPresence:
         """Verifies if a TikTok profile exists."""
         presence = SocialPresence(platform=SocialPlatform.TIKTOK)
 
         target_url = candidate_url
-        source = "bio_link" if candidate_url else "handle_guess"
+        source = source or ("bio_link" if candidate_url else "handle_guess")
 
         if not target_url and channel_handle:
             clean_handle = channel_handle.lstrip("@")
@@ -393,6 +658,8 @@ class SocialVerifierTool:
         presence.source = source
         is_bio_link = source == "bio_link"
 
+        self.ops.start("http.probe", "http", target_url, detail="tiktok")
+        started = time.monotonic()
         try:
             # Enforce rate limiting before making the request
             self._enforce_rate_limit()
@@ -434,6 +701,13 @@ class SocialVerifierTool:
             logger.warning(f"TikTok probe failed for {target_url}: {e}")
             self._failure_status(presence, is_bio_link)
 
+        self.ops.ok(
+            "http.probe",
+            "http",
+            target_url,
+            detail=f"tiktok {presence.status.value}",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
         return presence
 
     async def verify_channel_socials(
@@ -442,15 +716,33 @@ class SocialVerifierTool:
         candidate_ig: str | None,
         candidate_tiktok: str | None = None,
         channel_handle: str | None = None,
+        candidate_sources: dict[str, str] | None = None,
+        creator: CreatorRef | None = None,
     ) -> tuple[SocialPresence, SocialPresence, SocialPresence]:
-        """Probes Facebook, Instagram, and TikTok in parallel."""
-        fb_task = self.verify_facebook_presence(candidate_fb, channel_handle)
-        ig_task = self.verify_instagram_presence(candidate_ig, channel_handle)
-        tiktok_task = self.verify_tiktok_presence(candidate_tiktok, channel_handle)
+        """Probes Facebook, Instagram, and TikTok in parallel.
+
+        ``creator`` says who the accounts should belong to, so a page that
+        names somebody else is not read as this creator's account.
+        """
+        sources = candidate_sources or {}
+        fb_task = self.verify_facebook_presence(
+            candidate_fb, channel_handle, sources.get("facebook")
+        )
+        ig_task = self.verify_instagram_presence(
+            candidate_ig, channel_handle, sources.get("instagram")
+        )
+        tiktok_task = self.verify_tiktok_presence(
+            candidate_tiktok, channel_handle, sources.get("tiktok")
+        )
 
         fb_res, ig_res, tiktok_res = await asyncio.gather(fb_task, ig_task, tiktok_task)
-        if self.rendered_checker is not None:
-            fb_res = await self._rendered_fallback(fb_res, "facebook")
-            ig_res = await self._rendered_fallback(ig_res, "instagram")
-            tiktok_res = await self._rendered_fallback(tiktok_res, "tiktok")
+        # Read every page first, then let the agent handle what is left: the
+        # agent closes the deterministic browser, so mixing the two per
+        # platform would restart it three times.
+        fb_res = await self._rendered_fallback(fb_res, "facebook", creator)
+        ig_res = await self._rendered_fallback(ig_res, "instagram", creator)
+        tiktok_res = await self._rendered_fallback(tiktok_res, "tiktok", creator)
+        fb_res = await self._agent_fallback(fb_res, "facebook", creator)
+        ig_res = await self._agent_fallback(ig_res, "instagram", creator)
+        tiktok_res = await self._agent_fallback(tiktok_res, "tiktok", creator)
         return fb_res, ig_res, tiktok_res

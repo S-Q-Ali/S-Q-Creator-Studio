@@ -92,3 +92,54 @@ def test_extract_tiktok_text_handle():
 def test_tiktok_handle_extraction_strips_at():
     handle = LinkParserTool.extract_handle_from_url("https://www.tiktok.com/@creator_x/")
     assert handle == "creator_x"
+
+
+# ---------------------------------------------------------------------------
+# A page is not the creator's own words
+# ---------------------------------------------------------------------------
+
+
+def test_a_video_title_is_not_an_account():
+    """A channel's video title says "Instagram Pay their Creators?". That
+    is a title, not an Instagram account."""
+    page = '"title":{"content":"When Will Instagram Pay their Creators?"}'
+
+    _fb, ig, _tk = LinkParserTool.extract_social_links(page, creator_text=False)
+
+    assert ig is None
+
+
+def test_a_video_title_is_not_an_account_in_the_creator_text_either():
+    page = '"title":{"content":"When Will Instagram Pay their Creators?"}'
+
+    _fb, ig, _tk = LinkParserTool.extract_social_links(page)
+
+    assert ig is None
+
+
+def test_a_real_link_on_a_page_is_still_found():
+    """Only the free text is the page's; a link is a link."""
+    page = (
+        '"title":{"content":"When Will Instagram Pay their Creators?"} '
+        '"url":{"simpleText":"https://www.instagram.com/mkbhd/"}'
+    )
+
+    _fb, ig, _tk = LinkParserTool.extract_social_links(page, creator_text=False)
+
+    assert ig == "https://www.instagram.com/mkbhd/"
+
+
+def test_a_tiktok_video_title_is_not_an_account():
+    page = '"title":{"content":"TikTok Pay your creators in 2026"}'
+
+    _fb, _ig, tk = LinkParserTool.extract_social_links(page, creator_text=False)
+
+    assert tk is None
+
+
+def test_the_creators_own_words_still_name_the_handle():
+    text = "Follow me on IG: @speed_edits_official for daily shorts!"
+
+    _fb, ig, _tk = LinkParserTool.extract_social_links(text)
+
+    assert ig == "https://www.instagram.com/speed_edits_official/"

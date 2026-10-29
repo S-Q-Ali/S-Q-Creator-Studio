@@ -11,10 +11,14 @@ Determines whether a TikTok creator already has a YouTube channel:
 
 import logging
 import re
+import time
+from collections.abc import Callable
 from difflib import SequenceMatcher
+from typing import ClassVar
 
 import httpx
 
+from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.schema import (
     SocialPlatform,
     SocialPresence,
@@ -51,15 +55,49 @@ def name_similarity(a: str, b: str) -> float:
     return ratio
 
 
+def page_name(html: str) -> str:
+    """The channel's display name, as the page shows it."""
+    match = re.search(
+        r'<meta[^>]+property="og:title"[^>]+content="([^"]*)"',
+        html,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).split(" - YouTube")[0].strip()
+    return ""
+
+
 class YouTubeExistenceTool:
     """Checks whether TikTok profiles already run a YouTube channel."""
 
-    def __init__(self, api_key: str | None = None, timeout: float = 8.0):
+    HEADERS: ClassVar[dict[str, str]] = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+    }
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        timeout: float = 8.0,
+        ops: Ops | None = None,
+    ):
         self.search_tool = YouTubeSearchTool(api_key=api_key)
         self.timeout = timeout
+        self.ops = ops if ops is not None else Ops()
 
-    def check_youtube_presence(self, profile) -> SocialPresence:
-        """Synchronous presence check for one TikTok profile."""
+    def check_youtube_presence(
+        self, profile, suggested_handle: Callable[[], str | None] | None = None
+    ) -> SocialPresence:
+        """Synchronous presence check for one TikTok profile.
+
+        ``suggested_handle`` is a callable so the AI is only asked when the
+        bio has not already answered the question.
+        """
         presence = SocialPresence(platform=SocialPlatform.YOUTUBE)
 
         # ---- 1. Bio link scan (strongest signal) ----
@@ -72,19 +110,68 @@ class YouTubeExistenceTool:
             presence.source = "bio_link"
             presence.status = SocialStatus.VERIFIED
             presence.confidence_score = 0.95
+            self.ops.ok(
+                "bio.link",
+                "http",
+                presence.verified_url,
+                detail="youtube channel linked in the TikTok bio",
+            )
             return presence
 
-        # ---- 2. YouTube search for the handle / nickname ----
+        # ---- 2. The handle the AI proposed ----
+        if suggested_handle is not None:
+            handle = (suggested_handle() or "").lstrip("@").strip()
+            if handle:
+                url = f"https://www.youtube.com/@{handle}"
+                self.ops.start("http.probe", "http", url, detail="youtube (AI handle)")
+                started = time.monotonic()
+                exists, name = self._channel_page(url)
+                self.ops.ok(
+                    "http.probe",
+                    "http",
+                    url,
+                    detail=f"youtube {'found' if exists else 'no channel'}",
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                )
+                if exists and self._belongs_to(profile, name):
+                    presence.verified_url = url
+                    presence.handle = handle
+                    presence.source = "model"
+                    if self._channel_links_to_tiktok(url, profile.handle):
+                        presence.status = SocialStatus.VERIFIED
+                        presence.confidence_score = 0.90
+                    else:
+                        presence.status = SocialStatus.UNVERIFIED_HANDLE
+                        presence.confidence_score = 0.60
+                    return presence
+                # The model's handle names somebody else's channel. The
+                # search below gets its turn.
+
+        # ---- 3. YouTube search for the handle / nickname ----
+        query = profile.handle.replace("_", " ") or profile.nickname
+        self.ops.start("youtube.search", "youtube", query, detail="channel search")
+        started = time.monotonic()
         try:
             candidates = self.search_tool.search_channels(
-                query=profile.handle.replace("_", " ") or profile.nickname,
+                query=query,
                 max_results=10,
             )
         except Exception as e:
             logger.warning(f"YouTube existence search failed for @{profile.handle}: {e}")
+            self.ops.fail(
+                "youtube.search", "youtube", query, str(e),
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
             presence.status = SocialStatus.INCONCLUSIVE
             presence.confidence_score = 0.5
             return presence
+        self.ops.ok(
+            "youtube.search",
+            "youtube",
+            query,
+            detail=f"{len(candidates)} candidate(s)",
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
 
         if not candidates:
             presence.status = SocialStatus.NOT_FOUND
@@ -124,17 +211,40 @@ class YouTubeExistenceTool:
 
         return presence
 
+    def _channel_page(self, channel_url: str) -> tuple[bool, str]:
+        """(YouTube serves a channel page, the name that page shows)."""
+        try:
+            with httpx.Client(
+                timeout=self.timeout, follow_redirects=True, headers=self.HEADERS
+            ) as client:
+                resp = client.get(channel_url)
+            if resp.status_code != 200:
+                return False, ""
+            return True, page_name(resp.text)
+        except Exception as e:
+            logger.debug(f"Channel probe failed for {channel_url}: {e}")
+            return False, ""
+
+    @staticmethod
+    def _belongs_to(profile, channel_name: str) -> bool:
+        """True when the channel's own name looks like this creator's.
+
+        A handle that exists is not enough: the model can name a channel
+        that belongs to somebody else, and that would hide a creator who
+        really has no channel.
+        """
+        if not channel_name:
+            return False
+        return (
+            name_similarity(profile.handle, channel_name) >= 0.6
+            or name_similarity(profile.nickname, channel_name) >= 0.6
+        )
+
     def _channel_links_to_tiktok(self, channel_url: str, tiktok_handle: str) -> bool:
         """True if the YouTube channel page references the TikTok profile."""
         try:
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-                )
-            }
             with httpx.Client(
-                timeout=self.timeout, follow_redirects=True, headers=headers
+                timeout=self.timeout, follow_redirects=True, headers=self.HEADERS
             ) as client:
                 resp = client.get(channel_url.rstrip("/") + "/about")
                 if resp.status_code != 200:

@@ -106,6 +106,20 @@ def _isolated_settings(qapp):
     os.environ["SQ_SETTINGS_FILE"] = os.path.join(folder, "settings.ini")
 
 
+@pytest.fixture(scope="function", autouse=True)
+def _isolated_secret_store(tmp_path):
+    """Keep the tests out of the user's own secret store.
+
+    The API keys live in a SQLite file under LOCALAPPDATA. A test that read
+    the user's real Gemini key would spend their quota and a test that
+    wrote one would overwrite it, so every test gets its own empty store.
+    """
+    from s_q_ali_media_downloader.core import settings_store
+
+    settings_store.configure(str(tmp_path / "niche_research.db"))
+    yield
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _real_fonts(qapp):
     """Give the offscreen platform a font database.

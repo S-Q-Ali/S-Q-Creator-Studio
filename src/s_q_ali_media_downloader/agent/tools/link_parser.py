@@ -23,10 +23,11 @@ class LinkParserTool:
         re.IGNORECASE,
     )
     # Word-boundary anchored so "config: myname" / "navigation:" cannot match,
-    # and requiring a real separator (colon/space/@) so URL text like
-    # "instagram.com/explore/" is never parsed as a handle fallback.
+    # and needing an explicit marker (@ or :) so a plain word after the name is
+    # not read as a handle: "When Will Instagram Pay their Creators?" is a
+    # video title, not an account.
     IG_TEXT_HANDLE_PATTERN = re.compile(
-        r"\b(?:ig|instagram|insta)\b(?:[:\s]+@?|@)([A-Za-z0-9][A-Za-z0-9\._]{2,29})",
+        r"\b(?:ig|instagram|insta)\b\s*[:@]\s*@?([A-Za-z0-9][A-Za-z0-9\._]{2,29})",
         re.IGNORECASE,
     )
 
@@ -35,8 +36,9 @@ class LinkParserTool:
         r"https?://(?:www\.|m\.)?tiktok\.com/@([A-Za-z0-9\._]{2,30})/?",
         re.IGNORECASE,
     )
+    # Same marker rule as Instagram: "TikTok Pay" is not a handle.
     TIKTOK_TEXT_HANDLE_PATTERN = re.compile(
-        r"\btiktok\b[:\s]*@?([A-Za-z0-9\._]{2,30})",
+        r"\btiktok\b\s*[:@]\s*@?([A-Za-z0-9\._]{2,30})",
         re.IGNORECASE,
     )
 
@@ -77,12 +79,21 @@ class LinkParserTool:
 
     @classmethod
     def extract_social_links(
-        r, text: str, links: list[str] | None = None
+        r,
+        text: str,
+        links: list[str] | None = None,
+        *,
+        creator_text: bool = True,
     ) -> tuple[str | None, str | None, str | None]:
         """Extracts primary (facebook_url, instagram_url, tiktok_url) from raw text and links.
 
         Facebook matches are priority-ranked: vanity page > profile.php > people/ >
         pages/ > groups/, so a group link never shadows the creator's actual page.
+
+        ``creator_text`` says whether ``text`` is the creator's own words. A
+        channel page is not: its video titles say "Instagram Pay", and that is
+        a title, not an account. A URL is a URL wherever it is found, so the
+        URL patterns always run.
         """
         fb_url = None
         ig_url = None
@@ -96,11 +107,15 @@ class LinkParserTool:
             if handle.lower() not in r.EXCLUDED_SEGMENTS and len(handle) >= 2:
                 tiktok_url = f"https://www.tiktok.com/@{handle}/"
                 break
-        if not tiktok_url:
+        if not tiktok_url and creator_text:
             tiktok_text_match = r.TIKTOK_TEXT_HANDLE_PATTERN.search(text)
             if tiktok_text_match:
                 handle = tiktok_text_match.group(1).strip().strip(".")
-                if handle.lower() not in r.EXCLUDED_SEGMENTS and len(handle) >= 2:
+                if (
+                    handle.lower() not in r.EXCLUDED_SEGMENTS
+                    and not handle.lower().startswith("http")
+                    and len(handle) >= 2
+                ):
                     tiktok_url = f"https://www.tiktok.com/@{handle}/"
 
         # ---- Facebook (ranked) ----
@@ -121,11 +136,15 @@ class LinkParserTool:
                 break
 
         # 2. Text handle fallback for IG (e.g. "Follow on IG: @myhandle")
-        if not ig_url:
+        if not ig_url and creator_text:
             ig_text_match = r.IG_TEXT_HANDLE_PATTERN.search(text)
             if ig_text_match:
                 handle = ig_text_match.group(1).strip().strip(".")
-                if handle.lower() not in r.EXCLUDED_SEGMENTS and len(handle) >= 3:
+                if (
+                    handle.lower() not in r.EXCLUDED_SEGMENTS
+                    and not handle.lower().startswith("http")
+                    and len(handle) >= 3
+                ):
                     ig_url = f"https://www.instagram.com/{handle}/"
 
         return fb_url, ig_url, tiktok_url
