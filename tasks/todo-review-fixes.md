@@ -96,6 +96,6 @@ Plan: `tasks/plan-review-fixes.md`
 
 - [x] The whole offline suite passes and ruff is clean.
 - [x] `graphify update .` has run and the graph is committed.
-- [ ] The 2.9.0 EXE is rebuilt and the artifact is verified with
+- [x] The 2.9.0 EXE is rebuilt and the artifact is verified with
       `tasks/spike_verify_bundle.py` and `tasks/spike_smoke_bundle.py`.
 - [x] `CHANGELOG.md` carries the user-visible part under 2.9.0 / Fixed.
