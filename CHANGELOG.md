@@ -3,6 +3,44 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.9.0] — 2026-10-29
+
+### Added
+
+- **An Instagram profile expands into its videos.** Paste a profile link the
+  way a YouTube channel works, and the app lists the profile's video posts and
+  reels and drops them into the queue for review. Only public profiles are
+  read: there is no sign-in, and no Instagram account is ever stored.
+  yt-dlp cannot do this — its own Instagram profile extractor is broken
+  upstream — so the listing is done with instaloader, and the app keeps the
+  pause between two listings that keeps Instagram from answering 429.
+
+- **A Facebook page expands into its videos** — *experimental*. The page's
+  Videos tab is read in the app's own browser, the same hardened one Social
+  Discovery uses. Facebook shows a visitor who is not signed in the first
+  screen only (measured: 21 videos for `nasa`, 9 for `natgeo`), and its
+  pagination route answers a blank page to such a visitor, so this usually
+  returns fewer videos than the limit that was picked. The app says so
+  instead of handing back a short list quietly.
+
+- **An Instagram listing stops where it should.** Instagram paces itself at
+  roughly three seconds per post, so walking a busy profile for the full
+  200-video limit would run for half an hour. The walk now stops after three
+  minutes and says how far it got, so a partial list never reads like a
+  complete one. A listing that Instagram cuts off with a rate limit keeps the
+  videos it already found instead of throwing them away.
+
+### Changed
+
+- **Version** bumped to 2.9.0.
+
+### Fixed
+
+- **The YouTube channel progress never showed a total.** The signal was
+  declared as a text field and fed a number, so the count read
+  "Expanding channel: 120/ videos found" — the total was silently empty.
+
+
 ## [2.8.0] — 2026-10-29
 
 ### Added

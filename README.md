@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio)
 
-Bulk-download **TikTok** and **YouTube** videos and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
+Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
 
 **[Quick Start](#quick-start)** | **[Features](#features)** | **[Install](#install)** | **[Build from Source](#build-from-source)** | **[FAQ](#faq)** | **[Roadmap](#roadmap)**
 
@@ -41,11 +41,13 @@ Download the latest release and start downloading videos in seconds:
 
 - **TikTok & YouTube** in one queue — links are detected automatically and run through per-platform download settings. Instagram and Facebook post links are queued too, without the per-platform tuning TikTok gets.
 - **YouTube playlists & channels** expand into individual videos in the background.
+- **Instagram profiles** expand into their video posts and reels. Only public profiles — no sign-in, and no account is ever stored. Instagram slows the walk down on purpose, so a listing stops after three minutes and tells you how far it got.
+- **Facebook pages** expand into their videos — *experimental*: Facebook shows a visitor who is not signed in the first screen only, so this usually returns fewer videos than the limit you picked.
 - **Queue management** — add, select, remove, retry, empty. Saved between sessions.
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.
 - **Quality presets** — Best available → 2160p/1440p/1080p/720p/480p, plus **Audio only** (MP3 via bundled ffmpeg).
-- **Account based** — paste a public TikTok profile and pull its newest video URLs for review.
+- **Account based** — paste a public TikTok profile and pull its newest video URLs for review. The same button takes an Instagram profile or a Facebook page.
 - **Browser impersonation** — TikTok requests are signed with a real Chrome identity so rate-limit failures are far less likely.
 - **AI Channel Finder & Social Inspector** — one tab with three modes: **YouTube → Socials**, **TikTok → YouTube**, and **Social Discovery**, which takes a channel URL, a handle or a name and finds the creator's other accounts. Uses a keyless yt-dlp search by default; an optional YouTube Data API key lifts quota walls.
 - **Every account is checked twice** — the AI proposes a link and a real browser opens it, then the two answers are reconciled. Neither one is trusted on its own; found, not found and unknown are told apart.
@@ -135,7 +137,8 @@ The API keys are sealed at rest with Windows DPAPI — on Windows they are store
 
 - **PySide6** — Qt 6 desktop UI
 - **yt-dlp** — extraction and download engine
-- **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.18`)
+- **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.16`)
+- **instaloader** — lists an Instagram profile's posts (yt-dlp's own Instagram extractor is broken upstream)
 - **httpx / pydantic / beautifulsoup4** — discovery HTTP, typed schemas, bio scraping
 - **Playwright** — the real browser that confirms every account
 - **browser-use** *(optional)* — the AI-agent browser, attached over CDP to the session the app already hardened
@@ -182,7 +185,7 @@ A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio 
 
 ### Q4 2026
 - [ ] Twitch video downloader
-- [ ] Instagram & Facebook bulk downloading — expand a profile into its posts, and tune the requests the way TikTok's are
+- [x] Instagram & Facebook bulk downloading — expand a profile into its posts, and tune the requests the way TikTok's are
 - [ ] Mobile companion app (Android)
 
 ### Q1 2027
@@ -208,6 +211,7 @@ This project wouldn't be possible without these amazing libraries and tools:
 - **[Pydantic](https://docs.pydantic.dev/)** - Data validation and settings management
 - **[BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/)** - HTML/XML parsing
 - **[Playwright](https://playwright.dev/python/)** - The real browser that confirms every account
+- **[instaloader](https://instaloader.github.io/)** - Lists an Instagram profile's public posts
 - **[Gemini](https://ai.google.dev/)** - Google Search grounding for the first opinion
 - **[Groq LLM](https://groq.com/)** - The second opinion, and the model that browses the web
 - **[Inno Setup](https://jrsoftware.org/isinfo.php)** - Windows installer creation
