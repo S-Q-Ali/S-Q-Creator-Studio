@@ -88,6 +88,32 @@ def test_a_channel_with_a_bio_link_is_checked(monkeypatch):
     assert outcome.tier == "confirmed"
 
 
+def test_the_ai_browser_is_used_when_the_page_cannot_be_read(monkeypatch):
+    monkeypatch.setattr(
+        sd,
+        "resolve_channel",
+        lambda text, session=None: _record(["https://www.facebook.com/MrBeast/"]),
+    )
+
+    class Agent:
+        remaining = 3
+        configured = True
+
+        def __call__(self, url, platform):
+            return {
+                "exists": "yes",
+                "display_name": "MrBeast",
+                "handle": "MrBeast",
+                "reason": "the page shows the account",
+            }
+
+    result = sd.discover(_FakeSession({}), "@MrBeast", agent_checker=Agent())
+
+    outcome = result.outcome("facebook")
+    assert outcome.is_found
+    assert outcome.source == sd.SOURCE_BIO
+
+
 def test_a_channel_id_back_link_is_used_for_a_handle_input(monkeypatch):
     """The input is @MrBeast, but the social page links to /channel/UC123."""
     monkeypatch.setattr(
@@ -204,7 +230,7 @@ def test_the_progress_lines_name_the_ai_hand_off_and_the_verdict(monkeypatch):
     sd.discover(session, "@MrBeast", progress=lines.append)
 
     text = "\n".join(lines)
-    assert "Groq first, Gemini fallback" in text
+    assert "Gemini first, Groq fallback" in text
     assert "Gemini agent (gemini-3.8-flash)" in text
     assert "facebook: found" in text
 

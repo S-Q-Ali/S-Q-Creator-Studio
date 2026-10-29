@@ -294,17 +294,18 @@ class SettingsPage(QWidget):
                 "Groq API key",
                 groq_row,
                 (
-                    "Tried first by Social Discovery: the agent proposes the accounts, "
-                    "a real browser confirms them. Leave both AI keys empty to search "
-                    "by bio links only."
+                    "Used when Gemini has no key or fails: the agent proposes the "
+                    "accounts, a real browser confirms them. Leave both AI keys "
+                    "empty to search by bio links only."
                 ),
             ),
             (
                 "Gemini API key",
                 gemini_row,
                 (
-                    "Used automatically when Groq has no key or fails. The same "
-                    "proposal prompt and JSON schema are sent to Gemini."
+                    "Tried first by Social Discovery. The same proposal prompt and "
+                    "JSON schema are sent to Gemini, and Groq answers when Gemini "
+                    "has no key or fails."
                 ),
             ),
             (

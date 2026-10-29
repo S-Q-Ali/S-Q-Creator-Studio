@@ -14,14 +14,27 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.tools import social_judge as judge
+from s_q_ali_media_downloader.agent.tools.dual_check import (
+    SearchBudget,
+    ask_the_web,
+    needs_the_second_check,
+)
 from s_q_ali_media_downloader.agent.tools.social_resolve import (
     ChannelUnresolved,
+    ResolvedChannel,
     resolve_channel,
 )
 from s_q_ali_media_downloader.agent.tools.social_verify import (
+    AI_UNKNOWN,
+    AI_YES,
+    RECONCILED_TO_VERDICT,
+    CheckResult,
     CreatorRef,
     Verdict,
+    reconcile,
+    verify_candidate,
     verify_candidates,
 )
 
@@ -87,7 +100,10 @@ def discover(
     text: str,
     *,
     api_key: str | None = None,
+    agent_checker=None,
     progress=None,
+    ops: Ops | None = None,
+    budget: SearchBudget | None = None,
 ) -> DiscoveryResult:
     """Find one creator's Facebook, Instagram and TikTok accounts.
 
@@ -130,9 +146,9 @@ def discover(
     # model can propose the rest; a missing key only matters when it is the
     # only source of candidates.
     if api_key or judge.any_key() or not candidates:
-        say("Asking the AI agent (Groq first, Gemini fallback) ...")
+        say("Asking the AI agent (Gemini first, Groq fallback) ...")
         logger.info(
-            "AI hand-off for %s: Groq first, Gemini fallback",
+            "AI hand-off for %s: Gemini first, Groq fallback",
             record.handle or record.title,
         )
         try:
@@ -142,6 +158,7 @@ def discover(
                 record.subscribers,
                 record.description,
                 api_key=api_key,
+                ops=ops,
             )
         except judge.JudgeUnavailable as exc:
             logger.warning("AI step unavailable for %s: %s", record.handle or record.title, exc)
@@ -177,6 +194,11 @@ def discover(
                         existing.append(url)
 
     result.browser_checks = 0
+    if agent_checker is not None and getattr(agent_checker, "configured", False):
+        say(
+            "AI browser ready for pages the rendered check cannot read "
+            f"({getattr(agent_checker, 'remaining', 0)} check(s) available)."
+        )
     creator = CreatorRef(
         title=record.title,
         handle=record.handle,
@@ -187,28 +209,175 @@ def discover(
     def count_check() -> None:
         result.browser_checks += 1
 
+    checks: dict[str, list[CheckResult]] = {}
     for platform in PLATFORMS:
         urls = candidates.get(platform) or []
         if not urls:
             continue
         say(f"Checking {platform} ...")
-        for check in verify_candidates(
-            session, creator, {platform: urls}, bio_urls, on_check=count_check
-        ):
+        checks[platform] = verify_candidates(
+            session,
+            creator,
+            {platform: urls},
+            bio_urls,
+            on_check=count_check,
+            agent_checker=agent_checker,
+            ops=ops,
+        )
+        for check in checks[platform]:
             say(
                 f"{platform}: {check.verdict.value} — "
                 f"{check.url or check.detail or 'no URL'}"
             )
-            result.platforms.append(
-                PlatformOutcome(
-                    platform=platform,
-                    verdict=check.verdict.value,
-                    url=check.url,
-                    display_name=check.display_name,
-                    evidence=list(check.evidence),
-                    detail=check.detail,
-                    source=check.source,
-                    tier=check.tier,
-                )
-            )
+
+    # The second check: the web is asked about the platforms the browser
+    # could not confirm.
+    reconciled = _second_check(
+        session,
+        creator,
+        record,
+        checks,
+        candidates=candidates,
+        bio_urls=bio_urls,
+        budget=budget if budget is not None else SearchBudget(),
+        ops=ops,
+        say=say,
+    )
+
+    for platform in PLATFORMS:
+        if platform in reconciled:
+            result.platforms.append(reconciled[platform])
+            continue
+        for check in checks.get(platform, []):
+            result.platforms.append(_outcome(platform, check))
     return result
+
+
+def _outcome(platform: str, check: CheckResult) -> PlatformOutcome:
+    """What we found for one platform."""
+    return PlatformOutcome(
+        platform=platform,
+        verdict=check.verdict.value,
+        url=check.url,
+        display_name=check.display_name,
+        evidence=list(check.evidence),
+        detail=check.detail,
+        source=check.source,
+        tier=check.tier,
+    )
+
+
+def _second_check(
+    session,
+    creator: CreatorRef,
+    record: ResolvedChannel,
+    checks: dict[str, list[CheckResult]],
+    *,
+    candidates: dict[str, list[str]],
+    bio_urls: set[str],
+    budget: SearchBudget,
+    ops: Ops | None,
+    say,
+) -> dict[str, PlatformOutcome]:
+    """Ask the web about the platforms the browser could not confirm.
+
+    The browser read the pages the bio — or the plain AI — named. Where it
+    could not confirm the account, the web is asked as well: Gemini
+    grounds its answer with Google Search, Groq with its browser search.
+    The URL the web names is opened in the browser too, and the two
+    answers are reconciled into one verdict.
+    """
+    wanted = []
+    for platform in PLATFORMS:
+        results = checks.get(platform) or []
+        if needs_the_second_check(
+            confirmed=any(r.verdict is Verdict.FOUND for r in results),
+            from_bio=bool(results) and all(r.source == SOURCE_BIO for r in results),
+            unreadable=any(r.verdict is Verdict.UNKNOWN for r in results),
+        ):
+            wanted.append(platform)
+    if not wanted or not judge.any_key():
+        return {}
+
+    answer = ask_the_web(
+        lambda: judge.propose_searched(
+            record.title,
+            record.handle,
+            record.subscribers,
+            record.description,
+            platforms=tuple(wanted),
+            ops=ops,
+        ),
+        budget=budget,
+        platforms=wanted,
+        ops=ops,
+    )
+    if answer is None:
+        return {}
+
+    out: dict[str, PlatformOutcome] = {}
+    for platform in wanted:
+        item = answer.get(platform)
+        ai_exists = item.exists if item is not None else AI_UNKNOWN
+        ai_url = item.url if item is not None else ""
+        results = checks.get(platform) or []
+        if ai_exists == AI_YES and ai_url:
+            browser = verify_candidate(session, ai_url, platform, creator, ops=ops)
+            if browser is not None:
+                browser.source = SOURCE_MODEL
+        else:
+            browser = results[0] if results else _dropped_verdict(
+                platform, candidates, bio_urls
+            )
+        result = reconcile(ai_exists, ai_url, browser)
+        verdict = RECONCILED_TO_VERDICT[result.status]
+        say(f"{platform}: {verdict.value} — {result.detail}")
+        if ops is not None:
+            ops.ok(
+                "reconcile",
+                "both",
+                platform,
+                detail=(
+                    f"ai {ai_exists} + browser "
+                    f"{browser.verdict.value if browser else 'no page'} -> "
+                    f"{verdict.value}"
+                ),
+            )
+        out[platform] = PlatformOutcome(
+            platform=platform,
+            verdict=verdict.value,
+            url=(browser.url if browser and browser.url else ai_url),
+            display_name=browser.display_name if browser else "",
+            evidence=list(browser.evidence) if browser else [],
+            detail=result.detail,
+            source=(
+                "both"
+                if result.source == "both"
+                else (browser.source if browser and browser.source else SOURCE_MODEL)
+            ),
+            tier=browser.tier if browser else "",
+        )
+    return out
+
+
+def _dropped_verdict(
+    platform: str,
+    candidates: dict[str, list[str]],
+    bio_urls: set[str],
+) -> CheckResult | None:
+    """The browser's verdict for a platform whose candidates were all dropped.
+
+    ``verify_candidates`` drops a candidate whose page says the account is
+    not there, so the reading is not lost — it is kept here.
+    """
+    urls = candidates.get(platform) or []
+    if not urls:
+        return None
+    url = urls[0]
+    return CheckResult(
+        platform=platform,
+        verdict=Verdict.NOT_FOUND,
+        url=url,
+        detail="the page says the account is not there",
+        source=SOURCE_BIO if url in bio_urls else SOURCE_MODEL,
+    )

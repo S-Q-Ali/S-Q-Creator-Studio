@@ -171,6 +171,126 @@ def test_bidirectional_backlink_confirms_verified(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# YouTubeExistenceTool — the handle the AI proposed
+# ---------------------------------------------------------------------------
+
+
+def test_the_ai_handle_is_used_when_the_channel_belongs_to_the_creator(monkeypatch):
+    tool = YouTubeExistenceTool()
+    monkeypatch.setattr(
+        YouTubeExistenceTool, "_channel_page", lambda self, url: (True, "Tester Clips")
+    )
+    monkeypatch.setattr(
+        YouTubeExistenceTool, "_channel_links_to_tiktok", lambda self, url, handle: True
+    )
+    monkeypatch.setattr(
+        tool.search_tool,
+        "search_channels",
+        lambda query, max_results=10, min_subscribers=0: [],
+    )
+
+    presence = tool.check_youtube_presence(
+        _profile("no links in bio"), suggested_handle=lambda: "testerclips"
+    )
+
+    assert presence.status == SocialStatus.VERIFIED
+    assert presence.confidence_score == 0.90
+    assert presence.source == "model"
+    assert presence.verified_url == "https://www.youtube.com/@testerclips"
+    assert presence.handle == "testerclips"
+
+
+def test_the_ai_handle_of_somebody_else_is_not_the_creators_channel(monkeypatch):
+    """The model can name a channel that belongs to someone else. That must
+    not pass for this creator's channel."""
+    tool = YouTubeExistenceTool()
+    searched = []
+
+    def _search(query, max_results=10, min_subscribers=0):
+        searched.append(query)
+        return []
+
+    monkeypatch.setattr(
+        YouTubeExistenceTool,
+        "_channel_page",
+        lambda self, url: (True, "Completely Different Channel"),
+    )
+    monkeypatch.setattr(
+        tool.search_tool, "search_channels", _search
+    )
+
+    presence = tool.check_youtube_presence(
+        _profile("no links in bio"), suggested_handle=lambda: "somebodyelse"
+    )
+
+    assert presence.status == SocialStatus.NOT_FOUND
+    assert presence.verified_url is None
+    assert searched == ["tester"]
+
+
+def test_an_ai_handle_that_does_not_exist_falls_through_to_the_search(monkeypatch):
+    tool = YouTubeExistenceTool()
+    searched = []
+
+    def _search(query, max_results=10, min_subscribers=0):
+        searched.append(query)
+        return []
+
+    monkeypatch.setattr(
+        YouTubeExistenceTool, "_channel_page", lambda self, url: (False, "")
+    )
+    monkeypatch.setattr(
+        tool.search_tool, "search_channels", _search
+    )
+
+    presence = tool.check_youtube_presence(
+        _profile("no links in bio"), suggested_handle=lambda: "nobody"
+    )
+
+    assert presence.status == SocialStatus.NOT_FOUND
+    assert searched == ["tester"]
+
+
+def test_the_ai_is_not_asked_when_the_bio_already_has_a_link(monkeypatch):
+    tool = YouTubeExistenceTool()
+    asked = []
+
+    def _suggest():
+        asked.append(True)
+        return "testerclips"
+
+    presence = tool.check_youtube_presence(
+        _profile("youtube.com/@testerclips is my channel"), suggested_handle=_suggest
+    )
+
+    assert presence.status == SocialStatus.VERIFIED
+    assert presence.source == "bio_link"
+    assert asked == []
+
+
+def test_the_ai_is_asked_once_and_only_when_the_bio_is_silent(monkeypatch):
+    tool = YouTubeExistenceTool()
+    asked = []
+
+    def _suggest():
+        asked.append(True)
+        return "nobody"
+
+    monkeypatch.setattr(
+        YouTubeExistenceTool, "_channel_page", lambda self, url: (False, "")
+    )
+    monkeypatch.setattr(
+        tool.search_tool,
+        "search_channels",
+        lambda query, max_results=10, min_subscribers=0: [],
+    )
+
+    tool.check_youtube_presence(_profile("no links in bio"), suggested_handle=_suggest)
+
+    assert asked == [True]
+
+
+# ---------------------------------------------------------------------------
 # Seed profiles (@handles / profile URLs typed directly)
 # ---------------------------------------------------------------------------
 

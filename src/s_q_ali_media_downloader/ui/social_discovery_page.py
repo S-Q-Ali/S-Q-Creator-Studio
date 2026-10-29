@@ -25,15 +25,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from s_q_ali_media_downloader.agent.opslog import Ops
 from s_q_ali_media_downloader.agent.social_discovery import (
     PLATFORMS,
     DiscoveryResult,
     discover,
 )
+from s_q_ali_media_downloader.agent.tools.agent_browser import AgentBrowserChecker
 from s_q_ali_media_downloader.agent.tools.browser import (
     BrowserSession,
+    browser_executable,
     default_profile_dir,
 )
+from s_q_ali_media_downloader.agent.tools.dual_check import SearchBudget
 from s_q_ali_media_downloader.core import exporter
 from s_q_ali_media_downloader.ui.settings_page import discovery_browser_is_visible
 
@@ -86,9 +90,21 @@ class SocialDiscoveryWorker(QThread):
     def run(self) -> None:  # pragma: no cover - exercised through the page
         try:
             self._say(f"Opening the browser for {len(self.queries)} channel(s) ...")
+            profile_dir = default_profile_dir()
+            ops = Ops(self._say)
+            # One budget for the whole run: the search-grounded calls are
+            # capped for the batch, not for each channel.
+            budget = SearchBudget()
+            agent_checker = AgentBrowserChecker(
+                headless=not self.show_browser,
+                profile_dir=profile_dir,
+                executable_path=browser_executable(),
+                log_callback=self._say,
+                ops=ops,
+            )
             with BrowserSession(
                 headless=not self.show_browser,
-                profile_dir=default_profile_dir(),
+                profile_dir=profile_dir,
             ) as session:
                 for index, query in enumerate(self.queries, start=1):
                     if self._cancelled:
@@ -99,9 +115,12 @@ class SocialDiscoveryWorker(QThread):
                     result = discover(
                         session,
                         query,
+                        agent_checker=agent_checker,
                         progress=lambda message, q=query, i=index, n=total: self._say(
                             f"[{i}/{n}] {q}: {message}"
                         ),
+                        ops=ops,
+                        budget=budget,
                     )
                     if self._cancelled:
                         return
@@ -139,8 +158,8 @@ class SocialDiscoveryPage(QWidget):
         hint = QLabel(
             "Paste a YouTube channel URL, an @handle, or a channel name — one per line "
             "for a batch. The YouTube channel is resolved first with yt-dlp (or the "
-            "YouTube API key if set), its bio links are checked, Groq proposes extra "
-            "handles (Gemini runs if Groq has no key or fails), and only a real "
+            "YouTube API key if set), its bio links are checked, the AI (Gemini "
+            "first, Groq as fallback) proposes extra handles, and only a real "
             "browser confirms an account."
         )
         hint.setWordWrap(True)
