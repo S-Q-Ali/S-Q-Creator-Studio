@@ -80,9 +80,11 @@ ANSWER_LAST = _answer(["111222333"], "CURSOR2", False)
 class FakeHttp:
     """A stand-in for the HTTP session the paging leg talks through."""
 
-    def __init__(self, html="", answers=()):
+    def __init__(self, html="", answers=(), post_error=None, fail_after=None):
         self.html = html
         self.answers = list(answers)
+        self.post_error = post_error
+        self.fail_after = fail_after
         self.posts = []
 
     def get(self, url, timeout=None):
@@ -92,8 +94,21 @@ class FakeHttp:
 
     def post(self, url, data=None, headers=None, timeout=None):
         self.posts.append((url, dict(data or {}), dict(headers or {})))
+        if self.post_error is not None and (
+            self.fail_after is None or len(self.posts) > self.fail_after
+        ):
+            raise self.post_error
         body = self.answers.pop(0) if self.answers else {}
         return types.SimpleNamespace(text=json.dumps(body))
+
+
+#: A page that names a bundle per script tag.
+BUNDLES_HTML = (
+    '"lsd","value":"TOKENVALUE"'
+    '"pageID":"123456789"'
+    '"all_videos":{"edges":[],"page_info":{"end_cursor":"CURSOR1","has_next_page":true}}'
+    + "".join(f'<script src="/rsrc.php/v{index}.js"></script>' for index in range(5))
+)
 
 
 NASA_LINKS = [
@@ -280,7 +295,8 @@ def test_the_progress_counts_the_whole_list():
 # The paging query itself
 # --------------------------------------------------------------------------- #
 def test_the_checksum_is_facebooks_own():
-    assert fb._checksum("abc") == "2" + str(2 + sum(ord(char) for char in "abc"))
+    # "2" followed by the sum of the character codes: 97 + 98 + 99 = 294.
+    assert fb._checksum("abc") == "2294"
 
 
 def test_the_query_id_is_read_from_the_pages_own_javascript():
@@ -360,3 +376,166 @@ def test_a_page_without_a_paging_query_is_reported_as_unavailable(monkeypatch):
     monkeypatch.setattr(fb, "_http", lambda: http)
     with pytest.raises(fb.PagingUnavailable):
         fb.paged_video_ids("nasa", 10)
+
+
+# --------------------------------------------------------------------------- #
+# A failure of the paging leg has to be visible
+# --------------------------------------------------------------------------- #
+def test_a_refused_paging_query_is_reported_as_unavailable(monkeypatch):
+    """A transport error is Facebook refusing, not a crash. It has to arrive
+    as a refusal, because an arbitrary exception escapes the thread that
+    asked for it and the user sees nothing."""
+    http = FakeHttp(html=PAGE_HTML, answers=[], post_error=RuntimeError("reset"))
+    monkeypatch.setattr(fb, "_http", lambda: http)
+    with pytest.raises(fb.PagingUnavailable):
+        fb.paged_video_ids("nasa", 10)
+
+
+def test_a_paging_query_that_stops_halfway_keeps_what_it_found(monkeypatch):
+    """The videos found before Facebook stopped answering are real, so they
+    are kept and the listing says why it stopped."""
+    http = FakeHttp(
+        html=PAGE_HTML,
+        answers=[ANSWER_ONE],
+        post_error=RuntimeError("reset"),
+        fail_after=1,
+    )
+    monkeypatch.setattr(fb, "_http", lambda: http)
+    ids, reason = fb.paged_video_ids("nasa", 10)
+    assert ids == ["111222333"]
+    assert reason == "Facebook stopped answering"
+
+
+def test_a_listing_keeps_the_first_screen_when_the_paging_is_refused(monkeypatch):
+    def fake_paged(
+        page, limit, *, ops=None, progress=None, max_seconds=None, known=()
+    ):
+        raise fb.PagingUnavailable("Facebook would not answer the paging query.")
+
+    monkeypatch.setattr(fb, "paged_video_ids", fake_paged)
+
+    listing = fb.list_page_videos("nasa", 20, session=FakeSession(NASA_LINKS))
+
+    assert len(listing) == 2
+    assert listing.reason == "first screen only"
+
+
+# --------------------------------------------------------------------------- #
+# The paging has to end
+# --------------------------------------------------------------------------- #
+class FakeClock:
+    """A clock the test moves by hand."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def test_the_bundle_harvest_stops_at_the_budget(monkeypatch):
+    """A page names two dozen of its JavaScript bundles and each one is a
+    request, so the harvest cannot outlive the paging budget."""
+    clock = FakeClock()
+    monkeypatch.setattr(fb, "time", clock)
+
+    class SlowHttp:
+        def __init__(self):
+            self.bundles = 0
+
+        def get(self, url, timeout=None):
+            if ".js" in url:
+                self.bundles += 1
+                clock.now += 100.0
+                return types.SimpleNamespace(text="no query here")
+            return types.SimpleNamespace(text=BUNDLES_HTML)
+
+    http = SlowHttp()
+    monkeypatch.setattr(fb, "_http", lambda: http)
+
+    with pytest.raises(fb.PagingUnavailable):
+        fb.paged_video_ids("nasa", 10, max_seconds=120)
+
+    assert http.bundles == 2
+
+
+# --------------------------------------------------------------------------- #
+# What the user sees
+# --------------------------------------------------------------------------- #
+def test_the_progress_never_counts_backwards(monkeypatch):
+    """The browser's first screen and the page's own query can name the same
+    video, so the count the user sees must not go down."""
+
+    def fake_paged(
+        page, limit, *, ops=None, progress=None, max_seconds=None, known=()
+    ):
+        # The query names a video the browser already found. The real pager
+        # leaves such a video out of its count.
+        fresh = [
+            video_id
+            for video_id in ("1803909017420449", "999000111222333")
+            if video_id not in known
+        ]
+        if progress is not None:
+            progress(len(fresh))
+        return (fresh, "")
+
+    monkeypatch.setattr(fb, "paged_video_ids", fake_paged)
+
+    seen = []
+    listing = fb.list_page_videos(
+        "nasa", 20, progress=seen.append, session=FakeSession(NASA_LINKS)
+    )
+
+    assert seen == sorted(seen)
+    assert seen[-1] == 3
+    assert len(listing) == 3
+
+
+def test_the_default_pager_asks_the_page_for_the_rest(monkeypatch):
+    """With no pager of its own, the listing asks the page's own query for
+    the videos behind its first screen."""
+    asked = {}
+
+    def fake_paged(page, limit, *, ops=None, progress=None, max_seconds=None, known=()):
+        asked["page"] = page
+        asked["limit"] = limit
+        asked["known"] = list(known)
+        if progress is not None:
+            progress(1)
+        return (["999000111222333"], "")
+
+    monkeypatch.setattr(fb, "paged_video_ids", fake_paged)
+
+    seen = []
+    listing = fb.list_page_videos(
+        "nasa", 20, progress=seen.append, session=FakeSession(NASA_LINKS)
+    )
+
+    assert asked["page"] == "nasa"
+    assert asked["limit"] == 18
+    # The pager is told what the browser found, so a video both engines
+    # name is counted once.
+    assert asked["known"] == ["1803909017420449", "1863947697952668"]
+    assert len(listing) == 3
+    # The count is the whole list, not this leg's share of it.
+    assert seen == [2, 3]
+
+
+def test_the_operation_line_names_both_engines():
+    """The videos come from two engines, so the line says which did what."""
+    lines = []
+    fb.list_page_videos(
+        "nasa",
+        20,
+        ops=fb.Ops(lines.append),
+        session=FakeSession(NASA_LINKS),
+        pager=no_pager(["999000111222333"]),
+    )
+    summary = [line for line in lines if line.startswith("+ facebook.list")]
+    assert summary
+    assert "2 from the browser" in summary[0]
+    assert "1 from the page's own list" in summary[0]

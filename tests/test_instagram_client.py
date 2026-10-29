@@ -41,6 +41,11 @@ def carousel_node(code):
     return {"__typename": "XIGPolarisCarouselMedia", "code": code, "media_type": 8}
 
 
+def sidecar_node(code):
+    """A timeline node of a carousel under Instagram's older name."""
+    return {"__typename": "GraphSidecar", "code": code, "media_type": 8}
+
+
 class FakeIterator:
     """A stand-in for instaloader's node iterator.
 
@@ -233,6 +238,17 @@ def test_a_carousel_node_of_photos_is_not_queued(monkeypatch):
         children={"CCC": (False, False)},
     )
     assert ig.list_profile_media("porsche", 5) == []
+
+
+def test_a_sidecar_node_holding_a_video_is_queued(monkeypatch):
+    """Instagram names a carousel two ways. The fast path has to know both,
+    or a sidecar is dropped for holding a video."""
+    _fake_instaloader(
+        monkeypatch,
+        posts=[sidecar_node("CCC")],
+        children={"CCC": (False, True)},
+    )
+    assert ig.list_profile_media("porsche", 5) == ["https://www.instagram.com/p/CCC/"]
 
 
 def test_the_walk_does_not_fetch_a_video_posts_metadata(monkeypatch):

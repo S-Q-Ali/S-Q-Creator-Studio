@@ -8,8 +8,9 @@ from __future__ import annotations
 import pytest
 
 from s_q_ali_media_downloader import engine
-from s_q_ali_media_downloader.core.facebook_client import FacebookError, PageListing
-from s_q_ali_media_downloader.core.instagram_client import InstagramError, Listing
+from s_q_ali_media_downloader.core.facebook_client import FacebookError
+from s_q_ali_media_downloader.core.instagram_client import InstagramError
+from s_q_ali_media_downloader.core.listing import Listing
 from s_q_ali_media_downloader.engine import (
     MAX_ACCOUNT_VIDEOS,
     FacebookFetchThread,
@@ -131,7 +132,7 @@ def test_a_facebook_page_expands_into_permalinks(monkeypatch):
         calls["limit"] = limit
         if progress is not None:
             progress(1)
-        return PageListing(["https://www.facebook.com/nasa/videos/123456789"])
+        return Listing(["https://www.facebook.com/nasa/videos/123456789"])
 
     monkeypatch.setattr(engine, "list_page_videos", fake_list)
 
@@ -151,7 +152,7 @@ def test_a_facebook_page_expands_into_permalinks(monkeypatch):
 
 def test_a_facebook_listing_that_stops_short_says_why(monkeypatch):
     def fake_list(page, limit, progress=None):
-        return PageListing(["https://www.facebook.com/nasa/videos/123456789"], "first screen only")
+        return Listing(["https://www.facebook.com/nasa/videos/123456789"], "first screen only")
 
     monkeypatch.setattr(engine, "list_page_videos", fake_list)
 
@@ -186,6 +187,41 @@ def test_a_link_that_is_not_a_facebook_page_fails(monkeypatch):
     assert not found
     assert len(failed) == 1
     assert "page" in failed[0].lower()
+
+
+def test_a_facebook_failure_that_is_not_a_facebook_error_still_says_something(
+    monkeypatch,
+):
+    """An exception inside a QThread ends the thread and prints to a stderr
+    that a windowed build never shows. The user has to hear about it."""
+
+    def fake_list(page, limit, progress=None):
+        raise RuntimeError("something broke")
+
+    monkeypatch.setattr(engine, "list_page_videos", fake_list)
+
+    found, failed, _ = _collect(FacebookFetchThread("https://www.facebook.com/nasa", 10))
+
+    assert not found
+    assert len(failed) == 1
+    assert "could not be listed" in failed[0]
+
+
+def test_an_instagram_failure_that_is_not_an_instagram_error_still_says_something(
+    monkeypatch,
+):
+    def fake_list(username, limit, progress=None):
+        raise RuntimeError("something broke")
+
+    monkeypatch.setattr(engine, "list_profile_media", fake_list)
+
+    found, failed, _ = _collect(
+        InstagramFetchThread("https://www.instagram.com/nasa/", 10)
+    )
+
+    assert not found
+    assert len(failed) == 1
+    assert "could not be listed" in failed[0]
 
 
 @pytest.mark.parametrize(

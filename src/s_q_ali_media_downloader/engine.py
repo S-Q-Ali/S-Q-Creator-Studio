@@ -557,6 +557,13 @@ class InstagramFetchThread(QThread):
         except InstagramError as exc:
             self.failed.emit(str(exc))
             return
+        except Exception:
+            # An exception in a QThread ends the thread and prints to a
+            # stderr that a windowed build never shows. The user would see
+            # nothing at all, so the run says what happened.
+            logger.exception("Listing @%s failed unexpectedly", username)
+            self.failed.emit("Instagram could not be listed. See the log for the reason.")
+            return
         if not listing:
             self.failed.emit(f"No video posts found for @{username}.")
             return
@@ -600,6 +607,13 @@ class FacebookFetchThread(QThread):
             )
         except FacebookError as exc:
             self.failed.emit(str(exc))
+            return
+        except Exception:
+            # An exception in a QThread ends the thread and prints to a
+            # stderr that a windowed build never shows. The user would see
+            # nothing at all, so the run says what happened.
+            logger.exception("Listing %s failed unexpectedly", page)
+            self.failed.emit("Facebook could not be listed. See the log for the reason.")
             return
         if not listing:
             self.failed.emit(f"No videos found on {page}.")

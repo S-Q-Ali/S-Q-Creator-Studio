@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from s_q_ali_media_downloader.agent.opslog import Ops
+from s_q_ali_media_downloader.core.listing import Listing
 
 logger = logging.getLogger(__name__)
 
@@ -86,19 +87,6 @@ class InstagramNotFound(InstagramError):
 
 class InstagramPrivate(InstagramError):
     """The account is private; Instagram needs a signed-in session for it."""
-
-
-class Listing(list):
-    """The permalinks one listing found, and why the walk stopped early.
-
-    It is a plain list of URLs, so a caller that only wants the URLs ignores
-    ``reason``. The reason is the honest part: Instagram cuts a long walk
-    short, and a list that silently stops halfway reads like a complete one.
-    """
-
-    def __init__(self, urls: Iterable[str] = (), reason: str = "") -> None:
-        super().__init__(urls)
-        self.reason = reason
 
 
 def normalize_profile(text: str) -> tuple[str | None, str | None]:
@@ -183,7 +171,7 @@ class _RawPost:
         its children are, so its metadata is fetched — the one request per
         carousel that the fast path still pays.
         """
-        if self.typename != "XIGPolarisCarouselMedia":
+        if self.typename not in _CAROUSEL_TYPENAMES:
             return [self.node.get("media_type") == 2]
         from instaloader.structures import Post
 

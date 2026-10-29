@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from s_q_ali_media_downloader.agent.opslog import Ops
+from s_q_ali_media_downloader.core.listing import Listing
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,12 @@ _PAGE_SIZE = 9
 
 #: How many of the page's JavaScript bundles to read before giving up.
 _MAX_BUNDLES = 25
+
+#: How long one bundle may take to load.
+_BUNDLE_TIMEOUT = 30
+
+#: How many answers of the query one listing may ask for.
+_MAX_REQUESTS = 1000
 
 #: Pause between two paged answers.
 _PAGE_GAP = 0.4
@@ -102,20 +109,6 @@ class FacebookUnavailable(FacebookError):
 
 class PagingUnavailable(Exception):
     """Facebook would not page past the first screen."""
-
-
-class PageListing(list):
-    """The permalinks one listing found, and why it stopped short.
-
-    It is a plain list of URLs, so a caller that only wants the URLs ignores
-    ``reason``. The reason is the honest part: Facebook shows a visitor the
-    first screen of the list, and a list that silently stops there reads
-    like a complete one.
-    """
-
-    def __init__(self, urls: Iterable[str] = (), reason: str = "") -> None:
-        super().__init__(urls)
-        self.reason = reason
 
 
 def normalize_page(text: str) -> tuple[str | None, str | None]:
@@ -166,11 +159,12 @@ def video_ids_from_links(links: Iterable[str]) -> list[str]:
 # The page's own paging
 # --------------------------------------------------------------------------- #
 def _checksum(token: str) -> str:
-    """Facebook's own checksum of the token it hands to a visitor."""
-    total = 2
-    for char in token:
-        total += ord(char)
-    return f"2{total}"
+    """Facebook's own checksum of the token it hands to a visitor.
+
+    The formula is the one Facebook's own clients use: a ``2`` followed by
+    the sum of the token's character codes.
+    """
+    return "2" + str(sum(ord(char) for char in token))
 
 
 def _http():
@@ -184,17 +178,27 @@ def _http():
     return requests.Session(impersonate="chrome")
 
 
-def _query_id(html: str, session: Any) -> str | None:
+def _query_id(html: str, session: Any, deadline: float | None = None) -> str | None:
     """The id of the paging query, read from the page's own JavaScript.
 
     Facebook renames the query with every deploy, so writing the id down
     would break this leg within days.
+
+    ``deadline`` bounds the harvest. Every bundle is a request, and a page
+    that names two dozen of them can take longer than the whole paging
+    budget.
     """
     for url in [u.replace("\\/", "/") for u in _SCRIPT_RE.findall(html)][:_MAX_BUNDLES]:
+        if deadline is not None and time.monotonic() > deadline:
+            logger.info("the paging query id was not found before the budget ran out")
+            return None
         if not url.startswith("http"):
             url = "https://www.facebook.com" + url
+        timeout = float(_BUNDLE_TIMEOUT)
+        if deadline is not None:
+            timeout = max(1.0, min(timeout, deadline - time.monotonic()))
         try:
-            body = session.get(url, timeout=30).text
+            body = session.get(url, timeout=timeout).text
         except Exception as exc:  # pragma: no cover - a bundle that will not load
             logger.debug("a page bundle did not load: %s", exc)
             continue
@@ -243,33 +247,39 @@ def _ask(
         "useDefaultActor": False,
         "id": page_id,
     }
-    answer = session.post(
-        "https://www.facebook.com/api/graphql/",
-        data={
-            "av": "0",
-            "__user": "0",
-            "__a": "1",
-            "__req": str(request_number),
-            "__hs": "1920.1080",
-            "dpr": "1",
-            "__ccg": "GOOD",
-            "__comet_req": "0",
-            "lsd": token,
-            "jazoest": _checksum(token),
-            "fb_api_caller_class": "RelayModern",
-            "fb_api_req_friendly_name": _QUERY_NAME,
-            "server_timestamps": "true",
-            "doc_id": query_id,
-            "variables": json.dumps(variables),
-        },
-        headers={
-            "x-fb-lsd": token,
-            "content-type": "application/x-www-form-urlencoded",
-            "referer": f"https://www.facebook.com/{page}/videos/",
-            "origin": "https://www.facebook.com",
-        },
-        timeout=45,
-    ).text
+    try:
+        answer = session.post(
+            "https://www.facebook.com/api/graphql/",
+            data={
+                "av": "0",
+                "__user": "0",
+                "__a": "1",
+                "__req": str(request_number),
+                "__hs": "1920.1080",
+                "dpr": "1",
+                "__ccg": "GOOD",
+                "__comet_req": "0",
+                "lsd": token,
+                "jazoest": _checksum(token),
+                "fb_api_caller_class": "RelayModern",
+                "fb_api_req_friendly_name": _QUERY_NAME,
+                "server_timestamps": "true",
+                "doc_id": query_id,
+                "variables": json.dumps(variables),
+            },
+            headers={
+                "x-fb-lsd": token,
+                "content-type": "application/x-www-form-urlencoded",
+                "referer": f"https://www.facebook.com/{page}/videos/",
+                "origin": "https://www.facebook.com",
+            },
+            timeout=45,
+        ).text
+    except Exception as exc:
+        # A transport error here is not a bug in the app, it is Facebook
+        # refusing to answer. It has to arrive as a refusal, because an
+        # arbitrary exception would escape the thread that asked for it.
+        raise PagingUnavailable("Facebook would not answer the paging query.") from exc
     try:
         parsed = json.loads(answer)
     except json.JSONDecodeError:
@@ -293,15 +303,21 @@ def paged_video_ids(
     ops: Ops | None = None,
     progress: Callable[[int], None] | None = None,
     max_seconds: float = MAX_PAGING_SECONDS,
+    known: Iterable[str] = (),
 ) -> tuple[list[str], str]:
     """The video ids the page's list holds behind its first screen.
 
     Returns the ids and the reason the walk stopped, if it stopped early.
     Raises :class:`PagingUnavailable` when Facebook will not answer.
+
+    ``known`` is the videos the caller already has. They are not returned
+    and not counted, so the caller's count is the whole list and not this
+    leg's share of it.
     """
     ops = ops if ops is not None else Ops(None)
     target = f"facebook.com/{page}"
     started = time.monotonic()
+    deadline = started + max_seconds
     ops.start("facebook.page", "relay", target)
 
     try:
@@ -316,29 +332,41 @@ def paged_video_ids(
     token = _TOKEN_RE.search(html) or _TOKEN_SHORT_RE.search(html)
     page_id = _PAGE_ID_RE.search(html)
     cursor = _first_cursor(html)
-    query_id = _query_id(html, session)
+    query_id = _query_id(html, session, deadline)
     if not (token and page_id and cursor and query_id):
         ops.fail("facebook.page", "relay", target, "the page carried no paging query")
         raise PagingUnavailable("Facebook's page carried no paging query.")
 
+    token_value = token.group(1)
+    page_id_value = page_id.group(1)
     found: list[str] = []
-    seen: set[str] = set()
+    seen: set[str] = set(known)
     reason = ""
-    for request_number in range(1, 1000):
+    for request_number in range(1, _MAX_REQUESTS):
         if len(found) >= limit:
             break
-        if time.monotonic() - started > max_seconds:
+        if time.monotonic() > deadline:
             reason = "stopped early"
             break
-        ids, next_cursor, has_next = _ask(
-            session,
-            page,
-            token.group(1),
-            page_id.group(1),
-            query_id,
-            cursor,
-            request_number,
-        )
+        try:
+            ids, next_cursor, has_next = _ask(
+                session,
+                page,
+                token_value,
+                page_id_value,
+                query_id,
+                cursor,
+                request_number,
+            )
+        except PagingUnavailable:
+            if not found:
+                ops.fail("facebook.page", "relay", target, "the paging query was refused")
+                raise
+            # The videos already found are real, so they are kept and the
+            # reason goes to the log.
+            logger.info("Facebook stopped answering the paging of %s", page)
+            reason = "Facebook stopped answering"
+            break
         for video_id in ids:
             if video_id not in seen:
                 seen.add(video_id)
@@ -359,19 +387,47 @@ def paged_video_ids(
 
 
 def _default_pager(
-    ops: Ops, progress: Callable[[int], None] | None, offset: int
+    ops: Ops, progress: Callable[[int], None] | None, known: list[str]
 ) -> Callable[[str, int], tuple[list[str], str]]:
     """The pager used when the caller names none.
 
-    ``offset`` is what the browser leg already found, so the count the
-    caller sees is the whole list and not this leg's share of it.
+    ``known`` is what the browser leg already found. The count the caller
+    sees is the whole list and not this leg's share of it, and a video both
+    engines name is counted once.
     """
 
     def pager(name: str, remaining: int) -> tuple[list[str], str]:
-        report = None if progress is None else (lambda found: progress(offset + found))
-        return paged_video_ids(name, remaining, ops=ops, progress=report)
+        report = (
+            None if progress is None else (lambda found: progress(len(known) + found))
+        )
+        return paged_video_ids(
+            name, remaining, ops=ops, progress=report, known=known
+        )
 
     return pager
+
+
+class _Progress:
+    """The count the user sees, so it never goes backwards.
+
+    The listing counts two engines' work — the browser's first screen and
+    the page's own query — and the two can name the same video. A counter
+    that reported the larger number and then the smaller one would read as
+    a list that shrank.
+    """
+
+    def __init__(self, report: Callable[[int], None] | None, limit: int) -> None:
+        self._report = report
+        self._limit = limit
+        self._count = 0
+
+    def __call__(self, found: int) -> None:
+        count = max(self._count, min(found, self._limit))
+        if count == self._count:
+            return
+        self._count = count
+        if self._report is not None:
+            self._report(count)
 
 
 def list_page_videos(
@@ -382,7 +438,7 @@ def list_page_videos(
     progress: Callable[[int], None] | None = None,
     session: Any | None = None,
     pager: Callable[[str, int], tuple[list[str], str]] | None = None,
-) -> PageListing:
+) -> Listing:
     """List a public page's videos as page permalinks.
 
     ``session`` is a :class:`BrowserSession`; the caller may pass one to
@@ -398,6 +454,7 @@ def list_page_videos(
     target = f"facebook.com/{page}"
     ops.start("facebook.list", "browser", target)
     started = time.monotonic()
+    counter = _Progress(progress, limit)
 
     name, videos_url = normalize_page(page)
     if not name:
@@ -428,13 +485,16 @@ def list_page_videos(
                 logger.debug("closing the browser failed: %s", exc)
 
     video_ids = video_ids_from_links(links)[:limit]
+    browser_count = len(video_ids)
+    counter(browser_count)
 
     # The tab stops at its first screen. The page's own query pages the list
     # behind it, and that one answers a visitor without a sign-in.
     reason = ""
+    paged_count = 0
     if len(video_ids) < limit:
         if pager is None:
-            pager = _default_pager(ops, progress, len(video_ids))
+            pager = _default_pager(ops, counter, video_ids)
         try:
             paged, reason = pager(name, limit - len(video_ids))
         except PagingUnavailable as exc:
@@ -444,16 +504,26 @@ def list_page_videos(
             for video_id in paged:
                 if video_id not in video_ids:
                     video_ids.append(video_id)
+            paged_count = len(video_ids) - browser_count
 
     urls = [video_permalink(name, video_id) for video_id in video_ids]
 
     duration_ms = int((time.monotonic() - started) * 1000)
     if urls:
+        if paged_count:
+            engine = "browser+relay"
+            detail = (
+                f"{len(urls)} videos "
+                f"({browser_count} from the browser, {paged_count} from the page's own list)"
+            )
+        else:
+            engine = "browser"
+            detail = f"{len(urls)} videos"
         ops.ok(
             "facebook.list",
-            "browser",
+            engine,
             target,
-            detail=f"{len(urls)} videos",
+            detail=detail,
             duration_ms=duration_ms,
         )
     else:
@@ -464,6 +534,5 @@ def list_page_videos(
             detail="no videos on the page",
             duration_ms=duration_ms,
         )
-    if progress is not None:
-        progress(len(urls))
-    return PageListing(urls, reason)
+    counter(len(urls))
+    return Listing(urls, reason)
