@@ -36,6 +36,9 @@ SESSION_NOTES.md
 new-session---*.json
 opencode.json
 
+# Spike scratch scripts — measurements, not product code
+tasks/spike_*.py
+
 # Local secrets — never commit an API key
 .env
 .env.*
