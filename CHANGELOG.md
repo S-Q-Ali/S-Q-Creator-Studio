@@ -3,6 +3,46 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.8.0] — 2026-10-29
+
+### Added
+
+- **A second opinion from the web.** Where a bio says nothing about the
+  creator's social accounts, Gemini is now asked with Google Search turned on,
+  so the answer comes from a real search result instead of the model's memory.
+  If Gemini cannot answer, Groq is asked with a model that can browse the web
+  itself. The ask only happens when it is needed, and a per-run budget of five
+  searches keeps it from running away.
+
+- **A browser that does not look like a bot.** The pages the app opens now hide
+  the two tells a platform can read without guessing: `navigator.webdriver` and
+  a one-language `navigator.languages`. Chrome starts with the automation flag
+  off, so a first run does not open a welcome tab over the page. Playwright
+  itself does not leak the debugger, so no patched browser is needed.
+
+- **A log of every operation.** Each step writes one line: the stage, the
+  engine that did it (AI or browser), the target it touched, the detail and
+  how long it took. The search budget is in there too, so a run that stopped
+  asking is visible.
+
+### Changed
+
+- **The AI proposes, the browser confirms.** In all three discovery modes the
+  two answers are now reconciled: a URL the web names is opened in the browser
+  and the readings are compared. Where one of them cannot answer, the other's
+  reading stands — with the reason in the log.
+
+- **Version** bumped to 2.8.0.
+
+### Fixed
+
+- **A TikTok profile could be read as somebody else's.** The page's footer
+  ("© 2026 TikTok") sits above the profile line and was read as part of the
+  display name, so "MrBeast" became "2026 MrBeast" and the account was
+  reported as not matching. The name is now taken from the line above the
+  handle only.
+
+
 ## [2.7.0] — 2026-10-26
 
 ### Added
