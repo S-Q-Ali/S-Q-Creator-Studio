@@ -53,6 +53,12 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- **A Facebook listing that fails says so.** A paging step Facebook refused
+  mid-way could end the listing without a word: the error escaped the
+  background thread, and a windowed build has no console to print it to. The
+  videos already found are now kept, the listing says where it stopped, and
+  anything else that goes wrong is reported instead of swallowed.
+
 - **The YouTube channel progress never showed a total.** The signal was
   declared as a text field and fed a number, so the count read
   "Expanding channel: 120/ videos found" — the total was silently empty.
