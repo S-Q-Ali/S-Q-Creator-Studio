@@ -68,6 +68,7 @@ echo.
     --collect-all yt_dlp ^
     --collect-all curl_cffi ^
     --collect-all playwright ^
+    --collect-all instaloader ^
     --collect-all browser_use ^
     --collect-all browser_harness ^
     --collect-all cdp_use ^

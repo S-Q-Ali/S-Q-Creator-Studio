@@ -11,3 +11,7 @@ certifi>=2026.10.19
 # Chrome or Edge is used when the machine has one, and the Playwright
 # Chromium is only the fallback.
 playwright>=1.44
+# Instagram profile expansion. yt-dlp's own instagram:user extractor is
+# broken upstream (yt-dlp issue #4394), so instaloader lists the profile.
+# It only reads public profiles and needs no sign-in.
+instaloader>=4.16

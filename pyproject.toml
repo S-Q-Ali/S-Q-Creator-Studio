@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "s-q-ali-media-downloader"
-version = "2.7.0"
-description = "AI-powered bulk video downloader for TikTok & YouTube with neon theme and cross-platform social discovery."
+version = "2.9.0"
+description = "AI-powered bulk video downloader for TikTok, YouTube, Instagram & Facebook with neon theme and cross-platform social discovery."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -25,6 +25,9 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     # PYSEC-2026-4320: the emSign ECC root was revoked (compromised keys).
     "certifi>=2026.10.19",
+    # Instagram profile expansion. yt-dlp's own instagram:user extractor is
+    # broken upstream (yt-dlp issue #4394), so instaloader lists the profile.
+    "instaloader>=4.16",
 ]
 
 [project.optional-dependencies]
