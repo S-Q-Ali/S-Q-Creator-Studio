@@ -133,6 +133,10 @@ class _FakeContext:
     def __init__(self):
         self.closed = False
         self.browser = None
+        self.init_scripts = []
+
+    def add_init_script(self, script):
+        self.init_scripts.append(script)
 
     def close(self):
         self.closed = True
@@ -142,10 +146,12 @@ class _FakeBrowser:
     def __init__(self):
         self.closed = False
         self.context_kwargs = None
+        self.context = None
 
     def new_context(self, **kwargs):
         self.context_kwargs = kwargs
-        return _FakeContext()
+        self.context = _FakeContext()
+        return self.context
 
     def close(self):
         self.closed = True
@@ -157,6 +163,7 @@ class _FakeChromium:
         self.launch_calls = []
         self.persistent_calls = []
         self.browser = _FakeBrowser()
+        self.context = None
 
     def launch(self, **kwargs):
         self.launch_calls.append(kwargs)
@@ -166,7 +173,8 @@ class _FakeChromium:
         self.persistent_calls.append((user_data_dir, kwargs))
         if kwargs.get("channel") in self.fail_channels:
             raise RuntimeError("this channel is not installed")
-        return _FakeContext()
+        self.context = _FakeContext()
+        return self.context
 
 
 class _FakePlaywright:
@@ -196,22 +204,26 @@ def test_the_persistent_profile_is_used_and_chrome_is_tried_first(tmp_path, monk
     session.start()
 
     assert profile.is_dir()
-    assert chromium.persistent_calls == [
-        (str(profile), {"channel": "chrome", "headless": False, "locale": "en-US", "viewport": {"width": 1280, "height": 900}})
-    ]
+    assert len(chromium.persistent_calls) == 1
+    used_dir, kwargs = chromium.persistent_calls[0]
+    assert used_dir == str(profile)
+    assert kwargs["channel"] == "chrome"
+    assert kwargs["headless"] is False
+    assert "--disable-blink-features=AutomationControlled" in kwargs["args"]
+    assert chromium.context.init_scripts
     assert chromium.launch_calls == []
     session.close()
 
 
-def test_edge_and_the_shipped_chromium_are_the_fallbacks(tmp_path, monkeypatch):
-    chromium = _FakeChromium(fail_channels={"chrome", "msedge"})
+def test_edge_the_full_chromium_and_the_shell_are_the_fallbacks(tmp_path, monkeypatch):
+    chromium = _FakeChromium(fail_channels={"chrome", "msedge", "chromium"})
     _install_fake_playwright(monkeypatch, chromium)
     session = br.BrowserSession(profile_dir=tmp_path / "profile")
 
     session.start()
 
     channels = [call[1]["channel"] for call in chromium.persistent_calls]
-    assert channels == ["chrome", "msedge", None]
+    assert channels == ["chrome", "msedge", "chromium", None]
     session.close()
 
 
@@ -222,7 +234,10 @@ def test_without_a_profile_a_fresh_context_is_used(monkeypatch):
 
     session.start()
 
-    assert chromium.launch_calls == [{"channel": "chrome", "headless": True}]
+    assert len(chromium.launch_calls) == 1
+    assert chromium.launch_calls[0]["channel"] == "chrome"
+    assert chromium.launch_calls[0]["headless"] is True
+    assert "--disable-blink-features=AutomationControlled" in chromium.launch_calls[0]["args"]
     assert chromium.browser.context_kwargs["locale"] == "en-US"
     assert chromium.persistent_calls == []
     session.close()
@@ -236,6 +251,46 @@ def test_the_default_profile_lives_under_app_storage(tmp_path, monkeypatch):
     assert br.default_profile_dir() == (
         tmp_path / "S-Q-Ali Media Downloader" / "storage" / "browser-profile"
     )
+
+
+def test_the_agent_browser_prefers_the_same_browser_as_the_session(tmp_path, monkeypatch):
+    """The agent should read the page in the browser the user signed in to."""
+    monkeypatch.setattr(br.sys, "platform", "win32")
+    monkeypatch.setenv("PROGRAMFILES", str(tmp_path / "pf"))
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path / "pf86"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    chrome = tmp_path / "pf" / "Google/Chrome/Application/chrome.exe"
+    chrome.parent.mkdir(parents=True)
+    chrome.write_text("", encoding="utf-8")
+
+    assert br.browser_executable() == chrome
+
+
+def test_the_agent_browser_falls_back_to_the_shipped_chromium(tmp_path, monkeypatch):
+    monkeypatch.setattr(br.sys, "platform", "win32")
+    monkeypatch.setenv("PROGRAMFILES", str(tmp_path / "empty"))
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path / "empty"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    browsers = tmp_path / "browsers"
+    chromium = browsers / "chromium-1248" / "chrome-win64" / "chrome.exe"
+    chromium.parent.mkdir(parents=True)
+    chromium.write_text("", encoding="utf-8")
+    (browsers / "chromium_headless_shell-1248").mkdir()
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: browsers)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+
+    assert br.browser_executable() == chromium
+
+
+def test_no_browser_for_the_agent_is_not_an_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(br.sys, "platform", "win32")
+    monkeypatch.setenv("PROGRAMFILES", str(tmp_path / "empty"))
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path / "empty"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: None)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+
+    assert br.browser_executable() is None
 
 
 def test_the_rendered_checker_reuses_one_session(tmp_path, monkeypatch):

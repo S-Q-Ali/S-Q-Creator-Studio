@@ -25,17 +25,20 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
+from s_q_ali_media_downloader.agent.tools.stealth import STEALTH_ARGS, harden
+
 logger = logging.getLogger(__name__)
 
 #: The browsers to try, in order. Real Chrome and Edge keep the sign-in the
-#: user already has; ``None`` means the Playwright-managed Chromium, which has
-#: to be shipped with the app.
-BROWSER_CHANNELS: tuple[str | None, ...] = ("chrome", "msedge", None)
+#: user already has; ``"chromium"`` is the full Playwright Chromium (it runs
+#: both headless and windowed), and ``None`` is its headless shell.
+BROWSER_CHANNELS: tuple[str | None, ...] = ("chrome", "msedge", "chromium", None)
 
 #: Where the shipped browser lives, relative to the app.
 BROWSER_DIR_NAME = "browsers"
@@ -111,10 +114,11 @@ class Page:
 def bundled_browsers_dir() -> Path | None:
     """The browser folder that ships with the app, if it is there.
 
-    The installer carries Chromium (the headless shell), so the feature
-    works on a machine that has no Edge and no Chrome. Playwright looks
-    for browsers in its own cache, so the environment variable has to
-    point at the shipped copy before Playwright starts.
+    The installer carries the full Chromium, so the feature works on a
+    machine that has no Edge and no Chrome, in both headless and windowed
+    mode. Playwright looks for browsers in its own cache, so the
+    environment variable has to point at the shipped copy before Playwright
+    starts.
     """
     candidates: list[Path] = []
     if getattr(sys, "frozen", False):
@@ -143,6 +147,80 @@ def default_profile_dir() -> Path:
     from s_q_ali_media_downloader.engine import app_storage_dir
 
     return Path(app_storage_dir()) / PROFILE_DIR_NAME
+
+
+def _playwright_browser_roots() -> list[Path]:
+    roots: list[Path] = []
+    configured = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if configured:
+        roots.append(Path(configured))
+    bundled = bundled_browsers_dir()
+    if bundled is not None:
+        roots.append(bundled)
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        roots.append(Path(local) / "ms-playwright")
+    return roots
+
+
+def _chromium_executable(root: Path) -> Path | None:
+    """The full Chromium in a Playwright cache, not the headless shell."""
+    for folder in sorted(root.glob("chromium-*")):
+        if not folder.is_dir() or "headless_shell" in folder.name:
+            continue
+        for relative in (
+            "chrome-win64/chrome.exe",
+            "chrome-win/chrome.exe",
+            "chrome-linux/chrome",
+            "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+        ):
+            exe = folder / relative
+            if exe.is_file():
+                return exe
+    return None
+
+
+def browser_executable() -> Path | None:
+    """The browser the AI agent should launch.
+
+    The same order as ``BROWSER_CHANNELS``: real Chrome, then Edge, then the
+    full Playwright Chromium the app ships. ``None`` lets browser-use find
+    its own browser.
+    """
+    if sys.platform == "win32":
+        roots = (
+            os.environ.get("PROGRAMFILES"),
+            os.environ.get("PROGRAMFILES(X86)"),
+            os.environ.get("LOCALAPPDATA"),
+        )
+        for name in (
+            "Google/Chrome/Application/chrome.exe",
+            "Microsoft/Edge/Application/msedge.exe",
+        ):
+            for root in roots:
+                if not root:
+                    continue
+                exe = Path(root) / name
+                if exe.is_file():
+                    return exe
+    elif sys.platform == "darwin":
+        for name in (
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        ):
+            exe = Path(name)
+            if exe.is_file():
+                return exe
+    else:
+        for name in ("google-chrome", "microsoft-edge", "chromium", "chromium-browser"):
+            found = shutil.which(name)
+            if found:
+                return Path(found)
+    for root in _playwright_browser_roots():
+        exe = _chromium_executable(root)
+        if exe is not None:
+            return exe
+    return None
 
 
 class BrowserSession:
@@ -211,14 +289,18 @@ class BrowserSession:
                         str(profile),
                         channel=channel,
                         headless=self.headless,
+                        args=list(STEALTH_ARGS),
                         **context_args,
                     )
                     self._browser = getattr(self._context, "browser", None)
                 else:
                     self._browser = self._playwright.chromium.launch(
-                        channel=channel, headless=self.headless
+                        channel=channel,
+                        headless=self.headless,
+                        args=list(STEALTH_ARGS),
                     )
                     self._context = self._browser.new_context(**context_args)
+                harden(self._context)
                 logger.info(
                     "browser started (channel=%r, profile=%s, headless=%s)",
                     channel,
