@@ -329,12 +329,6 @@
     "ast_hash": "5d118cd2f8af4a5d053b1d2e67406ab2",
     "semantic_hash": ""
   },
-  ".github/ISSUE_TEMPLATE.md": {
-    "mtime": 1786065614.686623,
-    "seen": 1788984488.2850294,
-    "ast_hash": "72a0623646967d2ff8d9ad2c9610524b",
-    "semantic_hash": ""
-  },
   ".github/PULL_REQUEST_TEMPLATE.md": {
     "mtime": 1792953626.8313904,
     "seen": 1792962038.9109912,
@@ -1751,12 +1745,6 @@
     "ast_hash": "058dc5a6c37b07bb58814c9d67817c5e",
     "semantic_hash": ""
   },
-  "run_comprehensive_tests.py": {
-    "mtime": 1792935405.4081414,
-    "seen": 1792962038.9105937,
-    "ast_hash": "807ed82b49359ee594b7331e36c6cf32",
-    "semantic_hash": ""
-  },
   "src/s_q_ali_media_downloader/core/theme_neon.py": {
     "mtime": 1792959974.6063137,
     "seen": 1792962038.9107044,
@@ -1805,18 +1793,6 @@
     "ast_hash": "65550e8d5d41212945962d05c070307b",
     "semantic_hash": ""
   },
-  "validate_fixes.py": {
-    "mtime": 1792933247.1317904,
-    "seen": 1792962038.9109666,
-    "ast_hash": "f48d4eff8a07cea57b8ba79a3294a53b",
-    "semantic_hash": ""
-  },
-  "validate_tests.py": {
-    "mtime": 1792935735.5695398,
-    "seen": 1792962038.910971,
-    "ast_hash": "76ff1b44e423d3448a941492c34456cd",
-    "semantic_hash": ""
-  },
   ".github/ISSUE_TEMPLATE/bug_report.md": {
     "mtime": 1792953612.0074432,
     "seen": 1792962038.910979,
@@ -1847,82 +1823,10 @@
     "ast_hash": "8abf99b2b97784c87b7d22cd8387409c",
     "semantic_hash": ""
   },
-  "ALL_FIXED_PUSHED.md": {
-    "mtime": 1792936510.6930318,
-    "seen": 1792962038.9118872,
-    "ast_hash": "c1189533307e3cd35ee1dda609605644",
-    "semantic_hash": ""
-  },
-  "CI_FIX_FINAL.md": {
-    "mtime": 1792941279.4707026,
-    "seen": 1792962038.9118948,
-    "ast_hash": "3ee2b1a91bdfbfb0657d7bb91a72cb0a",
-    "semantic_hash": ""
-  },
-  "CI_FIX_SUMMARY.md": {
-    "mtime": 1792936977.8065958,
-    "seen": 1792962038.911899,
-    "ast_hash": "6ebb9fa0564ca2fa0ebecc66c970fe41",
-    "semantic_hash": ""
-  },
   "CODE_OF_CONDUCT.md": {
     "mtime": 1792953597.2459102,
     "seen": 1792962038.911903,
     "ast_hash": "eccb786ef3d2dbc91fdb5b4237884805",
-    "semantic_hash": ""
-  },
-  "COMMIT_SUMMARY.md": {
-    "mtime": 1792936439.7929,
-    "seen": 1792962038.911907,
-    "ast_hash": "79fb63a181059d85e9193b067c6dfc72",
-    "semantic_hash": ""
-  },
-  "FINAL_SUMMARY.md": {
-    "mtime": 1792935459.4126272,
-    "seen": 1792962038.9119155,
-    "ast_hash": "0b59ba6206cbaa73bfeb42d2e886cfcd",
-    "semantic_hash": ""
-  },
-  "FIXES_SUMMARY.md": {
-    "mtime": 1792933268.150394,
-    "seen": 1792962038.9119198,
-    "ast_hash": "4b67957dbab1d6d72dd4e9ae105d3e5b",
-    "semantic_hash": ""
-  },
-  "PRODUCTION_READY_PLAN.md": {
-    "mtime": 1792953452.4456494,
-    "seen": 1792962038.911924,
-    "ast_hash": "87371fe5830fea8dc964363d415fc5b2",
-    "semantic_hash": ""
-  },
-  "RATE_LIMITING_FIX.md": {
-    "mtime": 1792935861.6742578,
-    "seen": 1792962038.9119275,
-    "ast_hash": "0ab0ae91d577ffe74d061776b5d94efb",
-    "semantic_hash": ""
-  },
-  "SKILLS_READY.md": {
-    "mtime": 1792936123.1011188,
-    "seen": 1792962038.9119425,
-    "ast_hash": "9259fb10826b7316bf52fed084d6aea0",
-    "semantic_hash": ""
-  },
-  "SOCIAL_DISCOVERY_FIXES.md": {
-    "mtime": 1792935421.721124,
-    "seen": 1792962038.9119613,
-    "ast_hash": "baacff3dc3caaa0a3231eec6cb1093bf",
-    "semantic_hash": ""
-  },
-  "TEST_RESULTS.md": {
-    "mtime": 1792935752.538241,
-    "seen": 1792962038.9119935,
-    "ast_hash": "8f915c8448e9b4382c4a543f76a88c1f",
-    "semantic_hash": ""
-  },
-  "TEST_SUMMARY_HI.md": {
-    "mtime": 1792935763.0925808,
-    "seen": 1792962038.9119978,
-    "ast_hash": "d3b067c95a61a0b31d73e0031f0e370d",
     "semantic_hash": ""
   },
   "themes/design-concepts.html": {
@@ -1935,72 +1839,6 @@
     "mtime": 1792954597.8512244,
     "seen": 1792962038.912033,
     "ast_hash": "0e033822dc767c658096998db7290a69",
-    "semantic_hash": ""
-  },
-  "screenshots/main_window.png": {
-    "mtime": 1792955479.88804,
-    "seen": 1792962038.9120417,
-    "ast_hash": "8fa8b00a306ef0b7335acd8609d160b4",
-    "semantic_hash": ""
-  },
-  "screenshots/portable_v270_queue.png": {
-    "mtime": 1792961172.4266167,
-    "seen": 1792962038.9120526,
-    "ast_hash": "404b0974a0e636e39edabea8f1a8f1a0",
-    "semantic_hash": ""
-  },
-  "screenshots/portable_v270_queue_card.png": {
-    "mtime": 1792961158.1709986,
-    "seen": 1792962038.9120567,
-    "ast_hash": "59b0c03c3d3febeb04ecd00df6371433",
-    "semantic_hash": ""
-  },
-  "screenshots/queue_tab.png": {
-    "mtime": 1792955333.3421197,
-    "seen": 1792962038.9120646,
-    "ast_hash": "da080b6d2de0749097394e79e2b95fa6",
-    "semantic_hash": ""
-  },
-  "screenshots/real_glow_add_zoom.png": {
-    "mtime": 1792961172.4702115,
-    "seen": 1792962038.9120684,
-    "ast_hash": "cce97bc354e6a53dfa872668f7ddd7c7",
-    "semantic_hash": ""
-  },
-  "screenshots/real_glow_start_zoom.png": {
-    "mtime": 1792961172.4661746,
-    "seen": 1792962038.9120722,
-    "ast_hash": "76d9abfe2615b3b2bc3987f6a15004be",
-    "semantic_hash": ""
-  },
-  "screenshots/real_nav_agent_zoom.png": {
-    "mtime": 1792961167.8618164,
-    "seen": 1792962038.9120758,
-    "ast_hash": "e75bae8a7c84094fe6eace4ce9e2615d",
-    "semantic_hash": ""
-  },
-  "screenshots/real_nav_zoom.png": {
-    "mtime": 1792961148.9113882,
-    "seen": 1792962038.9120796,
-    "ast_hash": "335aa7be7888428df5a6872942003e8e",
-    "semantic_hash": ""
-  },
-  "screenshots/real_queue_card_crop.png": {
-    "mtime": 1792961172.4742222,
-    "seen": 1792962038.9120836,
-    "ast_hash": "d8ede7f0dbaee08193e52ea4e1620717",
-    "semantic_hash": ""
-  },
-  "screenshots/real_source_tabs_zoom.png": {
-    "mtime": 1792959943.4974718,
-    "seen": 1792962038.9120874,
-    "ast_hash": "4a2de009509a1adad9ed883534d084eb",
-    "semantic_hash": ""
-  },
-  "screenshots/settings_tab.png": {
-    "mtime": 1792955332.8678036,
-    "seen": 1792962038.9120908,
-    "ast_hash": "da080b6d2de0749097394e79e2b95fa6",
     "semantic_hash": ""
   },
   "tests/test_settings_page.py": {
@@ -2277,12 +2115,6 @@
     "mtime": 1793311005.021763,
     "seen": 1793369714.111605,
     "ast_hash": "52e0647e23a1e36e9807ae6ee4b9e175",
-    "semantic_hash": ""
-  },
-  "tasks/spike_tiktok_search.png": {
-    "mtime": 1793307961.5124664,
-    "seen": 1793309600.7449622,
-    "ast_hash": "4307d04749e4d7aa5db7d839bce7733d",
     "semantic_hash": ""
   },
   "tasks/plan-repo-cleanup.md": {
