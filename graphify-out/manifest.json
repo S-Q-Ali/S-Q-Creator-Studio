@@ -2274,15 +2274,39 @@
     "semantic_hash": ""
   },
   "tasks/todo-tiktok-seed-socials.md": {
-    "mtime": 1793309557.8419468,
-    "seen": 1793309600.7449062,
-    "ast_hash": "70e04b0b2d18dbc27870d42cb3478f11",
+    "mtime": 1793311005.021763,
+    "seen": 1793369714.111605,
+    "ast_hash": "52e0647e23a1e36e9807ae6ee4b9e175",
     "semantic_hash": ""
   },
   "tasks/spike_tiktok_search.png": {
     "mtime": 1793307961.5124664,
     "seen": 1793309600.7449622,
     "ast_hash": "4307d04749e4d7aa5db7d839bce7733d",
+    "semantic_hash": ""
+  },
+  "tasks/plan-repo-cleanup.md": {
+    "mtime": 1793369247.5956945,
+    "seen": 1793369714.1115632,
+    "ast_hash": "b5780f36a0e50f6acdd0c6110e6bf932",
+    "semantic_hash": ""
+  },
+  "tasks/plan-tiktok-session-search.md": {
+    "mtime": 1793358814.5973878,
+    "seen": 1793369714.1115773,
+    "ast_hash": "4790c9fdb6fdb3b291b6060718b3514b",
+    "semantic_hash": ""
+  },
+  "tasks/spec-tiktok-session-search.md": {
+    "mtime": 1793358801.112557,
+    "seen": 1793369714.1115913,
+    "ast_hash": "8a596c5bcd34c1ddc1fcd1b516729d1d",
+    "semantic_hash": ""
+  },
+  "tasks/todo-tiktok-session-search.md": {
+    "mtime": 1793358820.775821,
+    "seen": 1793369714.1116066,
+    "ast_hash": "92feeabc599a52dd3037e53b757bd487",
     "semantic_hash": ""
   }
 }

@@ -6,15 +6,15 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793299619.8537605,
-    "seen": 1793307088.4846475,
-    "ast_hash": "8d2c3b914f057fd2b3d829721d57fc15",
+    "mtime": 1793309534.5198426,
+    "seen": 1793309600.7442236,
+    "ast_hash": "2fa9dc19976025e3a1f9d45d8edf57a8",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
-    "mtime": 1793299618.9876766,
-    "seen": 1793307088.4846547,
-    "ast_hash": "726da2548ccc57a4bc5b6aa0196dce1c",
+    "mtime": 1793309534.2984428,
+    "seen": 1793309600.7442288,
+    "ast_hash": "d33ae5bf018958774a6af32c5b8046c3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__main__.py": {
@@ -30,16 +30,16 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/orchestrator.py": {
-    "mtime": 1793295957.4308007,
-    "seen": 1793296435.4868822,
-    "ast_hash": "8c9e4d860b2d14e81600c28d429d1d7f",
+    "mtime": 1793308917.1370018,
+    "seen": 1793309600.7442384,
+    "ast_hash": "92caf12e437e728a0510e25ff2a75854",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/schema.py": {
-    "mtime": 1787928274.020371,
-    "seen": 1788977537.5740588,
-    "ast_hash": "fa74385b144d0fbe438f98a456fb4bf1",
-    "semantic_hash": "fa74385b144d0fbe438f98a456fb4bf1"
+    "mtime": 1793308709.8412328,
+    "seen": 1793309600.7442403,
+    "ast_hash": "0aca53c61ffc4e118d5d9f6c0c9fc175",
+    "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/__init__.py": {
     "mtime": 1788984279.2928767,
@@ -60,21 +60,21 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_verifier.py": {
-    "mtime": 1793227826.5598588,
-    "seen": 1793228824.3432474,
-    "ast_hash": "58cb5ecd78151b0499e3bb5ce9efccd1",
+    "mtime": 1793308728.3489494,
+    "seen": 1793309600.7442596,
+    "ast_hash": "2e2b5ab569abc74bd261888c1cfb27aa",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_api.py": {
-    "mtime": 1788984305.4993205,
-    "seen": 1788984488.2850294,
-    "ast_hash": "763193fc7b7ab47b1101b729ad68d35b",
+    "mtime": 1793308922.203324,
+    "seen": 1793309600.7442646,
+    "ast_hash": "09790a17ea6a23e397f45c15d2e7295d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_search.py": {
-    "mtime": 1793295630.7224603,
-    "seen": 1793296435.486912,
-    "ast_hash": "d85a49f5b5459e7b07e8e10edea03a33",
+    "mtime": 1793309222.5495477,
+    "seen": 1793309600.7442667,
+    "ast_hash": "d71cd83a52781e25fbffae4f2eb874fb",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/youtube_existence.py": {
@@ -114,9 +114,9 @@
     "semantic_hash": "9850f9228ddf4cdecb3d68c5fdf8256e"
   },
   "src/s_q_ali_media_downloader/ui/agent_tab.py": {
-    "mtime": 1793295783.2089787,
-    "seen": 1793296435.486946,
-    "ast_hash": "11327587053708e1fc9be4bdde8d5de8",
+    "mtime": 1793308845.1058576,
+    "seen": 1793309600.744299,
+    "ast_hash": "1d77a0de28cb642ea3b3e378707ef852",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
@@ -138,10 +138,10 @@
     "semantic_hash": ""
   },
   "tests/test_agent_schema.py": {
-    "mtime": 1786934918.751299,
-    "seen": 1788977537.5740588,
-    "ast_hash": "745de3475f969cc0d1cb6ac31bb776cb",
-    "semantic_hash": "745de3475f969cc0d1cb6ac31bb776cb"
+    "mtime": 1793308653.5971384,
+    "seen": 1793309600.7443213,
+    "ast_hash": "80349c689af47cdee6391ad39740d402",
+    "semantic_hash": ""
   },
   "tests/test_engine.py": {
     "mtime": 1793150998.9039383,
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "tests/test_social_verifier.py": {
-    "mtime": 1793221705.1096342,
-    "seen": 1793221945.972793,
-    "ast_hash": "de0556d314b9d7c5beffa92c485ba400",
+    "mtime": 1793308668.885259,
+    "seen": 1793309600.7443821,
+    "ast_hash": "dea68335b9ec5bedb84af9b38b4701ff",
     "semantic_hash": ""
   },
   "tests/test_theme.py": {
@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   "tests/test_tiktok_pipeline.py": {
-    "mtime": 1793295609.3060536,
-    "seen": 1793296435.4870393,
-    "ast_hash": "1fffd80a88466b8e146000ca8eaa4af2",
+    "mtime": 1793308464.2243693,
+    "seen": 1793309600.744389,
+    "ast_hash": "b8da66e7500099955324c2510b696d16",
     "semantic_hash": ""
   },
   "tests/test_urls.py": {
@@ -318,9 +318,9 @@
     "semantic_hash": ""
   },
   "tests/test_orchestrator.py": {
-    "mtime": 1793295969.2608976,
-    "seen": 1793296435.4870055,
-    "ast_hash": "478869c28a2b1f45779b61e2004af0cc",
+    "mtime": 1793309268.4530916,
+    "seen": 1793309600.7443578,
+    "ast_hash": "62e3413fb351647791e7d7db8575719b",
     "semantic_hash": ""
   },
   "tests/test_qss_parses.py": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793299809.0971308,
-    "seen": 1793307088.4852264,
-    "ast_hash": "41e044d32db3c5353ba7639b60addbda",
+    "mtime": 1793309554.7776687,
+    "seen": 1793309600.7447813,
+    "ast_hash": "747d15cf7c0f0c8671066adf77afa29e",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1386,9 +1386,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793304186.7691746,
-    "seen": 1793307088.4852433,
-    "ast_hash": "682ddd409c317170562e9d88bbf8245e",
+    "mtime": 1793308893.6153286,
+    "seen": 1793309600.744798,
+    "ast_hash": "370e79852aa1e94e11ad8fdb727fc81b",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1416,9 +1416,9 @@
     "semantic_hash": ""
   },
   "tests/test_agent_tab.py": {
-    "mtime": 1793151543.8357992,
-    "seen": 1793152404.9173636,
-    "ast_hash": "dcafa1ad601ed87813e761fdee913844",
+    "mtime": 1793308860.3766963,
+    "seen": 1793309600.744323,
+    "ast_hash": "33d1d2422edbd62ba149b6a32b3e71be",
     "semantic_hash": ""
   },
   "tests/test_app_logging.py": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_judge.py": {
-    "mtime": 1793304879.3479989,
-    "seen": 1793307088.4846966,
-    "ast_hash": "3892a94131f943d1505e4467ad672709",
+    "mtime": 1793308725.0699973,
+    "seen": 1793309600.744256,
+    "ast_hash": "e73b497ad35c03960e9cb1d6f87f62a3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_resolve.py": {
@@ -1488,9 +1488,9 @@
     "semantic_hash": ""
   },
   "tests/test_social_judge.py": {
-    "mtime": 1793304857.2535355,
-    "seen": 1793307088.4848528,
-    "ast_hash": "f423df72c6a8aeee871930d7a21b96a2",
+    "mtime": 1793308659.0183856,
+    "seen": 1793309600.7443783,
+    "ast_hash": "56505a113fb01f2faf2f4daf5b68b9a6",
     "semantic_hash": ""
   },
   "tests/test_social_resolve.py": {
@@ -2259,6 +2259,30 @@
     "mtime": 1793307048.6894007,
     "seen": 1793307088.485335,
     "ast_hash": "6b3806e486cf58d87d9ecca2a646a44e",
+    "semantic_hash": ""
+  },
+  "tasks/plan-tiktok-seed-socials.md": {
+    "mtime": 1793308263.709752,
+    "seen": 1793309600.7448587,
+    "ast_hash": "786cd0871363a43bb4a7a7f3cdc934ac",
+    "semantic_hash": ""
+  },
+  "tasks/spec-tiktok-seed-socials.md": {
+    "mtime": 1793308254.5492086,
+    "seen": 1793309600.744881,
+    "ast_hash": "00e4dca509d78c0b5b1e78e2d169a369",
+    "semantic_hash": ""
+  },
+  "tasks/todo-tiktok-seed-socials.md": {
+    "mtime": 1793309557.8419468,
+    "seen": 1793309600.7449062,
+    "ast_hash": "70e04b0b2d18dbc27870d42cb3478f11",
+    "semantic_hash": ""
+  },
+  "tasks/spike_tiktok_search.png": {
+    "mtime": 1793307961.5124664,
+    "seen": 1793309600.7449622,
+    "ast_hash": "4307d04749e4d7aa5db7d839bce7733d",
     "semantic_hash": ""
   }
 }
