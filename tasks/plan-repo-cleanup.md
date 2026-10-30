@@ -37,9 +37,9 @@ Task 4).
 **Verify:** `git grep -lE "ALL_FIXED_PUSHED|CI_FIX_FINAL|CI_FIX_SUMMARY|COMMIT_SUMMARY|FINAL_SUMMARY|FIXES_SUMMARY|PRODUCTION_READY_PLAN|RATE_LIMITING_FIX|SKILLS_READY|SOCIAL_DISCOVERY_FIXES|TEST_RESULTS|TEST_SUMMARY_HI|validate_fixes|validate_tests|run_comprehensive_tests"`.
 **Files:** the 15 root files.
 
-- [ ] 12 summaries deleted
-- [ ] 3 scripts deleted
-- [ ] No reference left
+- [x] 12 summaries deleted
+- [x] 3 scripts deleted
+- [x] No reference left
 
 ### Task 2: templates and screenshots
 **Acceptance:** `.github/ISSUE_TEMPLATE.md` gone; the 11 unused screenshots
@@ -48,9 +48,9 @@ gone; the 4 README images and all three issue templates remain.
 the template folder is untouched.
 **Files:** `.github/ISSUE_TEMPLATE.md`, `screenshots/`.
 
-- [ ] Legacy template deleted
-- [ ] 11 screenshots deleted
-- [ ] 4 README screenshots still present
+- [x] Legacy template deleted
+- [x] 11 screenshots deleted
+- [x] 4 README screenshots still present
 
 ### Task 3: graph history and ignore rules
 **Acceptance:** `graphify-out/2026-*` removed from the tree and ignored;
@@ -61,9 +61,9 @@ still tracked; `.gitignore` covers `tasks/spike_*` (all extensions) and
 writes locally without dirtying the tree.
 **Files:** `graphify-out/`, `.gitignore`.
 
-- [ ] Dated backups removed
-- [ ] Live graph still tracked
-- [ ] Ignore rules updated
+- [x] Dated backups removed
+- [x] Live graph still tracked
+- [x] Ignore rules updated
 
 ### Task 4: verify and commit
 **Acceptance:** ruff clean; offline suite green; README renders its four
@@ -72,10 +72,21 @@ images; graph refreshed; one atomic commit per task.
 `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe -m pytest tests -q -m "not live"`;
 `graphify update .`.
 
-- [ ] Ruff
-- [ ] Suite
-- [ ] Graph refresh
-- [ ] Commits
+- [x] Ruff
+- [x] Suite
+- [x] Graph refresh
+- [x] Commits
+
+## Result — executed 2026-10-30
+
+| Task | Commit | What shipped |
+|---|---|---|
+| 1 | `ef0ecfe` | 15 stale summaries and one-off scripts removed |
+| 2 | `ae42978` | legacy `ISSUE_TEMPLATE.md` + 11 unused screenshots removed |
+| 3 | `5c1f915` | 11 dated graph backups (41 MB) untracked; ignore rules widened |
+| 4 | `41495a9` | graph refreshed; ruff clean; 643 offline tests green |
+
+Push held until the v2.9.2 Release workflow finished.
 
 ## Risks
 
