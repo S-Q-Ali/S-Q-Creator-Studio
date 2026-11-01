@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793309534.5198426,
-    "seen": 1793309600.7442236,
-    "ast_hash": "2fa9dc19976025e3a1f9d45d8edf57a8",
+    "mtime": 1793536723.008768,
+    "seen": 1793542482.3545582,
+    "ast_hash": "1388cf83ede5f10ebdba46c7a83d6ea7",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1793280690.512985,
-    "seen": 1793285047.9896824,
-    "ast_hash": "af7fd8108a30223febae22b3cc9b9671",
+    "mtime": 1793541557.0745068,
+    "seen": 1793542482.3549578,
+    "ast_hash": "31c43f1195c4fb3c90e976ffc59228b6",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793252657.8907268,
-    "seen": 1793254340.5001023,
-    "ast_hash": "fc48154f445c61ac80148b7027dafa25",
+    "mtime": 1793536703.2334769,
+    "seen": 1793542482.3550122,
+    "ast_hash": "f2c7ff96f98554a4449529d312829ab0",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793309554.7776687,
-    "seen": 1793309600.7447813,
-    "ast_hash": "747d15cf7c0f0c8671066adf77afa29e",
+    "mtime": 1793536782.2062542,
+    "seen": 1793542482.3587809,
+    "ast_hash": "32ac454a150f72d86f15e5bb9eeb3d7b",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1398,9 +1398,9 @@
     "semantic_hash": ""
   },
   "requirements.txt": {
-    "mtime": 1793237249.6143115,
-    "seen": 1793239604.3340533,
-    "ast_hash": "46fe13b0d3b463431e9b660930e7062e",
+    "mtime": 1793536723.1124637,
+    "seen": 1793542482.3588538,
+    "ast_hash": "804cf516633251bc6e8293b537a66fa8",
     "semantic_hash": ""
   },
   ".opencode/skills/theme-factory/theme-showcase.pdf": {
@@ -2118,9 +2118,9 @@
     "semantic_hash": ""
   },
   "tasks/plan-repo-cleanup.md": {
-    "mtime": 1793369247.5956945,
-    "seen": 1793369714.1115632,
-    "ast_hash": "b5780f36a0e50f6acdd0c6110e6bf932",
+    "mtime": 1793370868.4318519,
+    "seen": 1793542482.3588808,
+    "ast_hash": "5cf22119d4f8145c024e5ca7eda65672",
     "semantic_hash": ""
   },
   "tasks/plan-tiktok-session-search.md": {
@@ -2139,6 +2139,72 @@
     "mtime": 1793358820.775821,
     "seen": 1793369714.1116066,
     "ast_hash": "92feeabc599a52dd3037e53b757bd487",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/core/music_source.py": {
+    "mtime": 1793542076.255346,
+    "seen": 1793542482.3549037,
+    "ast_hash": "1308a1d32992ab93bb88dd22ba954144",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/core/music_tagging.py": {
+    "mtime": 1793539346.120082,
+    "seen": 1793542482.3549147,
+    "ast_hash": "3c6f6f05a6f1a71e6201c037e82e1602",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/ui/music_page.py": {
+    "mtime": 1793541561.378326,
+    "seen": 1793542482.3550215,
+    "ast_hash": "b47d23b42e5c43fd3cdd3a523749d6ca",
+    "semantic_hash": ""
+  },
+  "tests/test_music_engine.py": {
+    "mtime": 1793536768.1166952,
+    "seen": 1793542482.3553395,
+    "ast_hash": "814f6f15a5f652e1a6e317d6a374bb3c",
+    "semantic_hash": ""
+  },
+  "tests/test_music_live.py": {
+    "mtime": 1793540288.4014182,
+    "seen": 1793542482.3553514,
+    "ast_hash": "8994791570d18e0e9be194812818a44e",
+    "semantic_hash": ""
+  },
+  "tests/test_music_source.py": {
+    "mtime": 1793542097.8157108,
+    "seen": 1793542482.3553617,
+    "ast_hash": "53b619ecd6998d614855917386cd8683",
+    "semantic_hash": ""
+  },
+  "tests/test_music_tagging.py": {
+    "mtime": 1793536502.7598064,
+    "seen": 1793542482.3562338,
+    "ast_hash": "8b7e8536d3634f638b3cf5579eff026f",
+    "semantic_hash": ""
+  },
+  "tests/test_music_ui.py": {
+    "mtime": 1793541570.6128771,
+    "seen": 1793542482.3564587,
+    "ast_hash": "fe0f94b3093aaa4e5963dfb3e7b6ca42",
+    "semantic_hash": ""
+  },
+  "SPEC-music-downloader.md": {
+    "mtime": 1793536314.611964,
+    "seen": 1793542482.3588123,
+    "ast_hash": "8a18790bfa7157296e1f7da82ccc1f58",
+    "semantic_hash": ""
+  },
+  "tasks/plan-music-downloader.md": {
+    "mtime": 1793536314.611964,
+    "seen": 1793542482.3588753,
+    "ast_hash": "34d3c44dbb2b00b9e041012294d52463",
+    "semantic_hash": ""
+  },
+  "tasks/todo-music-downloader.md": {
+    "mtime": 1793542363.1824586,
+    "seen": 1793542482.3589747,
+    "ast_hash": "244102e096f01ba71eca378a36c4841c",
     "semantic_hash": ""
   }
 }
