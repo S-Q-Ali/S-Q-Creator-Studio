@@ -1,14 +1,14 @@
 """Music link detection and metadata resolution.
 
 Spotify links carry no audio this app can download — they are metadata plus a
-DRM-protected stream. ``spotdl`` resolves a Spotify track/album/playlist to the
-matching YouTube audio, which yt-dlp then downloads. No paid account is used.
+DRM-protected stream. ``SpotipyFree`` reads that metadata anonymously, and the
+titles it returns are matched to YouTube audio by yt-dlp's own search. No
+Spotify account, login or client credential is involved.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import re
 from dataclasses import dataclass
 
@@ -27,7 +27,7 @@ class MusicSourceError(Exception):
     """A music link could not be resolved to anything downloadable."""
 
 
-_SPOTDL = None
+_SPOTIFY = None
 
 
 @dataclass
@@ -174,83 +174,117 @@ def resolve_media(url: str, use_cookies: bool = False) -> list[MusicTrack]:
     return tracks
 
 
-def _spotdl_client():
-    """One Spotdl client per process: spotdl refuses a second init.
+def _spotify_client():
+    """One anonymous Spotify client per process.
 
-    spotdl 4.6 defaults to its free Spotify backend, which takes anonymous
-    metadata. Client credentials are optional and only used when the user
-    supplied them (official-API deployments and future spotdl releases where
-    the free backend needs an app).
+    SpotipyFree reads the same public metadata the web player shows, so no
+    client credentials, login or account is involved. It is imported lazily:
+    the rest of the app works when it is missing.
     """
-    global _SPOTDL
-    if _SPOTDL is not None:
-        return _SPOTDL
+    global _SPOTIFY
+    if _SPOTIFY is not None:
+        return _SPOTIFY
 
     try:
-        from spotdl import Spotdl
+        from SpotipyFree import Spotify
     except ImportError as exc:
         raise MusicSourceError(
-            "Spotify links need the spotdl package. Run: pip install spotdl"
+            "Spotify links need the SpotipyFree package. Run: pip install SpotipyFree"
         ) from exc
-
-    client_id = (os.environ.get("SPOTIPY_CLIENT_ID") or "").strip()
-    client_secret = (os.environ.get("SPOTIPY_CLIENT_SECRET") or "").strip()
     try:
-        _SPOTDL = Spotdl(client_id=client_id, client_secret=client_secret)
+        _SPOTIFY = Spotify(login=False)
     except Exception as exc:
-        text = str(exc).lower()
-        if "client" in text or "credential" in text:
-            raise MusicSourceError(
-                "Spotify wants a client ID. Create a free app at "
-                "developer.spotify.com/dashboard and set SPOTIPY_CLIENT_ID "
-                "and SPOTIPY_CLIENT_SECRET, then retry."
-            ) from exc
-        raise MusicSourceError(str(exc)) from exc
-    return _SPOTDL
+        raise MusicSourceError(f"Spotify could not be reached: {exc}") from exc
+    return _SPOTIFY
 
 
-def _spotdl_track(song) -> MusicTrack:
+def _spotify_ref(url: str) -> tuple[str, str]:
+    """The ``(kind, id)`` pair a Spotify URL points at."""
+    match = SPOTIFY_URL_RE.match(_clean(url))
+    if not match:
+        raise MusicSourceError("That is not a Spotify track, album or playlist link.")
+    return match.group("kind").lower(), match.group("id")
+
+
+def _album_cover(album) -> str:
+    images = album.get("images") if isinstance(album, dict) else None
+    for image in images or []:
+        url = (image or {}).get("url")
+        if url:
+            return str(url)
+    return ""
+
+
+def _spotify_track(payload: dict, cover: str = "", album_name: str = "") -> MusicTrack:
     """Spotify metadata plus a YouTube search URL.
 
-    spotdl's own downloader search is a provider chain that can hang for
-    minutes on a throttled network; a ``ytsearch1:`` URL lets yt-dlp's own
-    search (the engine that actually downloads) do the matching instead.
+    The ``ytsearch1:`` URL lets yt-dlp's own search — the engine that actually
+    downloads — do the matching, instead of a separate resolver chain that can
+    stall for minutes on a throttled network.
+
+    Album rows and playlist rows carry no album of their own, so the caller
+    passes the album and cover it already has.
     """
-    artists = getattr(song, "artists", None) or []
-    artist = ", ".join(str(a) for a in artists) if artists else ""
-    title = str(getattr(song, "name", "") or getattr(song, "title", "") or "")
+    title = str(payload.get("name") or "")
+    artist = ", ".join(
+        str(a.get("name"))
+        for a in (payload.get("artists") or [])
+        if isinstance(a, dict) and a.get("name")
+    )
+    album = payload.get("album")
+    album = album if isinstance(album, dict) else {}
     return MusicTrack(
         url=build_yt_search(artist, title) if title else "",
         title=title,
         artist=artist,
-        album=str(getattr(song, "album_name", "") or ""),
-        track_number=int(getattr(song, "track_number", 0) or 0),
-        duration=int(getattr(song, "duration", 0) or 0),
-        cover_url=str(getattr(song, "cover_url", "") or ""),
+        album=str(album.get("name") or album_name or ""),
+        track_number=int(payload.get("track_number") or 0),
+        duration=int(payload.get("duration_ms") or 0) // 1000,
+        cover_url=_album_cover(album) or cover,
         source="spotify",
-        spotify_id=str(getattr(song, "song_id", "") or ""),
+        spotify_id=str(payload.get("id") or ""),
+    )
+
+
+def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
+    if kind == "track":
+        return [_spotify_track(client.track(ref))]
+    if kind == "album":
+        meta = client.album(ref) or {}
+        cover = _album_cover(meta)
+        name = str(meta.get("name") or "")
+        items = (client.album_tracks(ref) or {}).get("items") or []
+        tracks = [
+            _spotify_track(item, cover=cover, album_name=name) for item in items if item
+        ]
+        # Spotify returns album tracks in no fixed order; an album should
+        # download and queue in the order the artist put it in.
+        tracks.sort(key=lambda track: track.track_number or len(tracks) + 1)
+        return tracks
+    if kind == "playlist":
+        # The library pages a playlist itself, so one call holds every row.
+        rows = (client.playlist_items(ref, limit=-1, offset=0) or {}).get("items") or []
+        return [
+            _spotify_track(row["track"]) for row in rows if row and row.get("track")
+        ]
+    raise MusicSourceError(
+        f"Spotify {kind} links are not supported. Use a track, album or playlist link."
     )
 
 
 def resolve_spotify(url: str) -> list[MusicTrack]:
-    """Resolve Spotify metadata to the matching YouTube tracks via spotdl.
-
-    spotdl is imported lazily: the rest of the app works when it is missing.
-    """
-    client = _spotdl_client()
+    """Resolve a Spotify link into tracks that carry YouTube search URLs."""
+    kind, ref = _spotify_ref(url)
+    client = _spotify_client()
     try:
-        songs = client.search([_clean(url)])
+        tracks = _spotify_tracks(client, kind, ref)
+    except MusicSourceError:
+        raise
     except Exception as exc:
-        raise MusicSourceError(f"Spotify search failed: {exc}") from exc
-
-    tracks = [_spotdl_track(song) for song in (songs or [])]
+        raise MusicSourceError(f"Spotify lookup failed: {exc}") from exc
     tracks = [track for track in tracks if track.url]
     if not tracks:
         raise MusicSourceError("Spotify returned no downloadable tracks.")
-    if spotify_kind(_clean(url)) == "album":
-        # Spotify returns album tracks in no fixed order; an album should
-        # download and queue in the order the artist put it in.
-        tracks.sort(key=lambda track: track.track_number or len(tracks) + 1)
     return tracks
 
 
