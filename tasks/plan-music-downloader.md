@@ -5,7 +5,7 @@ Build order follows the capability map in `SPEC-music-downloader.md`.
 ## Slices
 
 1. **music-source** — URL classification, playlist detection, Spotify
-   resolve through spotdl (lazy import), YouTube/SoundCloud resolve through
+   resolve through spotipyFree (lazy import), YouTube/SoundCloud resolve through
    yt-dlp. Pure URL helpers tested first.
 2. **music-engine** — format map, yt-dlp audio option builder, output path
    builder, `MusicResolveThread`, `MusicDownloadThread`.
@@ -18,9 +18,10 @@ Build order follows the capability map in `SPEC-music-downloader.md`.
 
 ## Risks
 
-- spotdl needs Spotify API credentials on some releases → env pass-through
-  and a clear error message; no account is ever stored.
-- spotdl may match the wrong YouTube video → the queue shows the resolved
+- spotipyFree reads the same public endpoints the web player uses; when they
+  change the resolver fails with a clear error and no account is at risk,
+  because there is none.
+- The search may match the wrong YouTube video → the queue shows the resolved
   title/artist and the source, so the user can spot it before/after.
 - YouTube bot checks → reuse the existing player-client fallback and the
   optional Chrome cookies flag.

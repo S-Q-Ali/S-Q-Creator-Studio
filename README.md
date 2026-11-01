@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio)
 
-Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
+Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pull the **audio** behind any YouTube, YouTube Music, SoundCloud or Spotify link, and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
 
 **[Quick Start](#quick-start)** | **[Features](#features)** | **[Install](#install)** | **[Build from Source](#build-from-source)** | **[FAQ](#faq)** | **[Roadmap](#roadmap)**
 
@@ -43,6 +43,7 @@ Download the latest release and start downloading videos in seconds:
 - **YouTube playlists & channels** expand into individual videos in the background.
 - **Instagram profiles** expand into their video posts and reels. Only public profiles — no sign-in, and no account is ever stored. Instagram slows the walk down on purpose, so a listing stops after three minutes and tells you how far it got.
 - **Facebook pages** expand into their videos — *experimental*: the page's Videos tab is read in the app's own browser, and the page's own query pages the rest of the list behind it. Only public pages — no sign-in, and no Facebook session is ever stored.
+- **Music workspace** — its own tab for audio. Paste YouTube, YouTube Music, SoundCloud or Spotify links, one per line; a playlist or an album resolves into its tracks in one click. Choose FLAC (default), MP3 320, M4A, Opus or WAV; each file lands as `Artist/Album/NN - Title` with artwork and tags embedded, and a quality report says what the source stream really was (YouTube serves lossy audio, so FLAC is a container, not recovered detail). Spotify links carry metadata rather than audio: it is read anonymously and every title is matched to its YouTube version by yt-dlp's own search — no Spotify account, password or API key.
 - **Queue management** — add, select, remove, retry, empty. Saved between sessions.
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.
@@ -118,6 +119,8 @@ Each link is tried 4 times on the spot (2–5 s apart). Stills-failing links are
 
 YouTube and TikTok links are handled separately: TikTok uses Chrome impersonation, YouTube skips it and uses native format selection. Instagram and Facebook post links go through yt-dlp's own extractors, without the per-platform tuning TikTok gets. `Audio only` post-processes to MP3 with the bundled ffmpeg.
 
+Music works the same way in its own tab: the links are resolved into tracks first — yt-dlp for YouTube, YouTube Music and SoundCloud, spotipyFree for Spotify metadata — then each track takes the best audio stream and converts it to the chosen codec with the bundled ffmpeg. Tracks are pulled one after another, and the artwork and tags are embedded before each file moves into its `Artist/Album/` folder.
+
 ## Settings
 
 Everything is in the **Settings** tab of the app.
@@ -139,6 +142,8 @@ The API keys are sealed at rest with Windows DPAPI — on Windows they are store
 - **yt-dlp** — extraction and download engine
 - **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.16`)
 - **instaloader** — lists an Instagram profile's posts (yt-dlp's own Instagram extractor is broken upstream)
+- **mutagen** — artwork and tag embedding for the music files
+- **spotipyFree** — anonymous Spotify metadata for the Music tab: no login, no client ID
 - **httpx / pydantic / beautifulsoup4** — discovery HTTP, typed schemas, bio scraping
 - **Playwright** — the real browser that confirms every account
 - **browser-use** *(optional)* — the AI-agent browser, attached over CDP to the session the app already hardened
@@ -186,6 +191,7 @@ A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio 
 ### Q4 2026
 - [ ] Twitch video downloader
 - [x] Instagram & Facebook bulk downloading — expand a profile into its posts, and tune the requests the way TikTok's are
+- [x] Music workspace — audio from YouTube, YouTube Music, SoundCloud and Spotify links, tagged and filed by artist and album
 - [ ] Mobile companion app (Android)
 
 ### Q1 2027

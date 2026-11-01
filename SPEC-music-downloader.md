@@ -4,8 +4,9 @@
 
 A new **Music** workspace in S-Q Creator Studio that downloads audio from
 YouTube, YouTube Music, SoundCloud and Spotify links without any paid
-account. Spotify links are resolved to the matching YouTube audio by
-`spotdl`; `yt-dlp` performs every download. Default output is FLAC with
+account. Spotify links carry metadata rather than audio: `spotipyFree` reads
+that metadata anonymously and `yt-dlp`'s own search matches each title to the
+YouTube audio. `yt-dlp` performs every download. Default output is FLAC with
 embedded cover art and tags. Playlists and albums enter the queue in one
 click.
 
@@ -16,7 +17,7 @@ tagged FLAC files with no account, key or subscription.
 
 - PySide6 6.11 (existing) — UI.
 - yt-dlp (existing) — audio download and conversion.
-- spotdl (new) — Spotify metadata + YouTube match, resolution only.
+- spotipyFree (new) — anonymous Spotify metadata; no login and no client ID.
 - mutagen (new) — tag writing and quality report.
 - ffmpeg (system, located by `find_ffmpeg()`) — format conversion.
 
@@ -31,7 +32,7 @@ tagged FLAC files with no account, key or subscription.
 
 ```
 src/s_q_ali_media_downloader/
-  core/music_source.py     URL classify, Spotify resolve via spotdl,
+  core/music_source.py     URL classify, Spotify resolve via spotipyFree,
                            YouTube/SoundCloud resolve via yt-dlp
   core/music_tagging.py    cover fetch, tag embed, quality report
   engine.py                MUSIC_FORMATS, build_music_opts,
@@ -63,7 +64,7 @@ Pure helpers take plain arguments so they can be tested without network.
 
 - Always: validate URLs at the trust boundary; embed artwork and metadata;
   funnel worker errors to signals; keep the neon theme tokens.
-- Ask first: any dependency beyond spotdl/mutagen; edits to existing
+- Ask first: any dependency beyond spotipyFree/mutagen; edits to existing
   downloader pages; version bumps.
 - Never: commit credentials; bypass DRM; delete or skip failing tests.
 
@@ -86,7 +87,7 @@ clipboard monitor, tray, download history, trim, batch tag editor.
 
 ## Open Questions
 
-- spotdl bundled credentials: if a release requires its own client ID, the
-  app reads `SPOTIPY_CLIENT_ID` / `SPOTIPY_CLIENT_SECRET` from the
-  environment and otherwise shows a clear error.
+- Spotify credentials: resolved. spotdl pinned rich, websockets and uvicorn to
+  versions that broke the Social Discovery browser stack, so Spotify metadata
+  now comes from spotipyFree, which needs no client ID and no login at all.
 - Music downloads run sequentially to stay clear of YouTube bot checks.
