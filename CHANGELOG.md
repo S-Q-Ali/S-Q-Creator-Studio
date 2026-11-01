@@ -10,13 +10,17 @@ All notable changes are documented here. The format follows
 - **Music workspace.** A separate tab for audio. Paste YouTube, YouTube Music,
   SoundCloud or Spotify links — one per line — and the app resolves them into a
   queue and downloads the audio. A playlist or an album becomes its tracks in
-  one click. Formats: FLAC (default), MP3 320, M4A, Opus and WAV; artwork and
-  metadata are embedded, files are filed as `Artist/Album/NN - Title`, and a
-  quality report shows what the source stream really was.
+  one click. Formats: FLAC (default), MP3 320, M4A, Opus and WAV; each file is
+  tagged and filed as `Artist/Album/NN - Title`, and a quality report shows what
+  the source stream really was.
 - **Spotify links resolve without an account.** Their metadata is read
   anonymously with `spotipyFree` and every title is matched to its YouTube
   version by yt-dlp's own search, so no Spotify login, password or client ID
   is needed anywhere in the app.
+- **Known limit:** a Spotify *playlist* row carries no album and no cover in the
+  free metadata endpoint, so those tracks are tagged by artist and title and
+  filed under `Artist/Singles/`. Track and album links keep the album and its
+  artwork, as do YouTube and SoundCloud links (their own thumbnail).
 
 ## [2.9.2] — 2026-10-30
 
