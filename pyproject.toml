@@ -32,6 +32,10 @@ dependencies = [
     # without a login, and yt-dlp's own search matches each title to the
     # YouTube audio — no account, password or API credential is involved.
     "spotipyFree>=1.9.14",
+    # spotapi — the client spotipyFree drives — imports websockets at module
+    # import time but declares it only as an optional extra, so without this
+    # the Spotify resolver breaks on a plain install.
+    "websockets>=15.0.1",
     # Tag and cover embedding for the music downloads, plus the quality
     # report shown next to each finished file.
     "mutagen>=1.47",

@@ -19,5 +19,9 @@ instaloader>=4.16
 # without a login, and yt-dlp's own search matches each title to the YouTube
 # audio — no account, password or API credential is involved.
 spotipyFree>=1.9.14
+# spotapi — the client spotipyFree drives — imports websockets at module import
+# time but declares it only as an optional extra, so a plain install of this
+# file would break the Spotify resolver without it.
+websockets>=15.0.1
 # Tag and cover embedding for music downloads.
 mutagen>=1.47
