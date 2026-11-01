@@ -206,10 +206,18 @@ def _spotify_ref(url: str) -> tuple[str, str]:
     return match.group("kind").lower(), match.group("id")
 
 
+def _as_int(value, default: int = 0) -> int:
+    """A number from a payload we did not write."""
+    try:
+        return int(value or default)
+    except (TypeError, ValueError):
+        return default
+
+
 def _album_cover(album) -> str:
     images = album.get("images") if isinstance(album, dict) else None
     for image in images or []:
-        url = (image or {}).get("url")
+        url = image.get("url") if isinstance(image, dict) else None
         if url:
             return str(url)
     return ""
@@ -238,34 +246,52 @@ def _spotify_track(payload: dict, cover: str = "", album_name: str = "") -> Musi
         title=title,
         artist=artist,
         album=str(album.get("name") or album_name or ""),
-        track_number=int(payload.get("track_number") or 0),
-        duration=int(payload.get("duration_ms") or 0) // 1000,
+        track_number=_as_int(payload.get("track_number")),
+        duration=_as_int(payload.get("duration_ms")) // 1000,
         cover_url=_album_cover(album) or cover,
         source="spotify",
         spotify_id=str(payload.get("id") or ""),
     )
 
 
+def _order_of(payload: dict) -> tuple[int, int]:
+    """Where the track sits on the record.
+
+    A deluxe set restarts its track numbers on disc two, so the disc has to be
+    compared first or the two discs interleave.
+    """
+    return (_as_int(payload.get("disc_number"), 1), _as_int(payload.get("track_number")))
+
+
+def _readable_rows(items) -> list[dict]:
+    """Only the entries that are actually objects.
+
+    The free API returns holes for a local file or a track taken down since the
+    playlist was made; one hole must not cost the user the whole collection.
+    """
+    return [item for item in (items or []) if isinstance(item, dict)]
+
+
 def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
     if kind == "track":
-        return [_spotify_track(client.track(ref))]
-    if kind == "album":
-        meta = client.album(ref) or {}
-        cover = _album_cover(meta)
-        name = str(meta.get("name") or "")
-        items = (client.album_tracks(ref) or {}).get("items") or []
-        tracks = [
-            _spotify_track(item, cover=cover, album_name=name) for item in items if item
+        return [
+            _spotify_track(payload) for payload in _readable_rows([client.track(ref)])
         ]
-        # Spotify returns album tracks in no fixed order; an album should
-        # download and queue in the order the artist put it in.
-        tracks.sort(key=lambda track: track.track_number or len(tracks) + 1)
-        return tracks
+    if kind == "album":
+        meta = client.album(ref)
+        cover = _album_cover(meta)
+        name = str(meta.get("name") or "") if isinstance(meta, dict) else ""
+        rows = _readable_rows((client.album_tracks(ref) or {}).get("items"))
+        rows.sort(key=_order_of)
+        return [_spotify_track(row, cover=cover, album_name=name) for row in rows]
     if kind == "playlist":
         # The library pages a playlist itself, so one call holds every row.
-        rows = (client.playlist_items(ref, limit=-1, offset=0) or {}).get("items") or []
+        page = client.playlist_items(ref, limit=-1, offset=0) or {}
+        rows = _readable_rows(page.get("items"))
         return [
-            _spotify_track(row["track"]) for row in rows if row and row.get("track")
+            _spotify_track(row["track"])
+            for row in rows
+            if isinstance(row.get("track"), dict)
         ]
     raise MusicSourceError(
         f"Spotify {kind} links are not supported. Use a track, album or playlist link."
@@ -281,7 +307,10 @@ def resolve_spotify(url: str) -> list[MusicTrack]:
     except MusicSourceError:
         raise
     except Exception as exc:
-        raise MusicSourceError(f"Spotify lookup failed: {exc}") from exc
+        raise MusicSourceError(
+            f"Spotify could not read that {kind}. It may be private, taken down "
+            f"or regional — or the free metadata endpoint is having a moment. ({exc})"
+        ) from exc
     tracks = [track for track in tracks if track.url]
     if not tracks:
         raise MusicSourceError("Spotify returned no downloadable tracks.")

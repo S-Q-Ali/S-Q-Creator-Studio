@@ -68,6 +68,7 @@ def _track_payload(
     track_id="0VjIjW4GlUZAMYd2vXMi3b",
     name="Blinding Lights",
     number=9,
+    disc=1,
     artist="The Weeknd",
     album="After Hours",
     cover="https://i.scdn.co/image/abc",
@@ -75,6 +76,7 @@ def _track_payload(
     return {
         "id": track_id,
         "name": name,
+        "disc_number": disc,
         "track_number": number,
         "duration_ms": 200040,
         "artists": [{"name": artist}, {"name": "Featured"}],
@@ -178,6 +180,46 @@ def test_resolve_spotify_album_returns_tracks_in_order(monkeypatch):
     assert [track.cover_url for track in tracks] == ["https://i.scdn.co/image/album"] * 2
 
 
+def test_resolve_spotify_album_keeps_the_discs_in_order(monkeypatch):
+    """A deluxe set repeats track numbers per disc."""
+    from s_q_ali_media_downloader.core import music_source
+
+    client = _FakeSpotify(
+        album_tracks=[
+            _track_payload(name="D2-2", disc=2, number=2),
+            _track_payload(name="D1-2", disc=1, number=2),
+            _track_payload(name="D2-1", disc=2, number=1),
+            _track_payload(name="D1-1", disc=1, number=1),
+        ]
+    )
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/album/abc")
+    assert [track.title for track in tracks] == ["D1-1", "D1-2", "D2-1", "D2-2"]
+
+
+def test_resolve_spotify_skips_rows_it_cannot_read(monkeypatch):
+    """A deleted, local or half-formed row must not cost the other 205 tracks."""
+    from s_q_ali_media_downloader.core import music_source
+
+    client = _FakeSpotify(
+        playlist_rows=[_track_payload(name="Good"), "junk", None, {"id": "no-name"}]
+    )
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
+    assert [track.title for track in tracks] == ["Good"]
+
+
+def test_resolve_spotify_reads_garbage_numbers_as_zero():
+    from s_q_ali_media_downloader.core.music_source import _spotify_track
+
+    payload = _track_payload()
+    payload["duration_ms"] = "soon"
+    payload["track_number"] = None
+    track = _spotify_track(payload)
+    assert track.duration == 0
+    assert track.track_number == 0
+
+
 def test_resolve_spotify_playlist_reads_every_row(monkeypatch):
     from s_q_ali_media_downloader.core import music_source
 
@@ -186,16 +228,6 @@ def test_resolve_spotify_playlist_reads_every_row(monkeypatch):
     monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
     tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
     assert [track.title for track in tracks] == ["One", "Two"]
-
-
-def test_resolve_spotify_playlist_skips_empty_rows(monkeypatch):
-    """A deleted or local row arrives as an empty entry, not a track."""
-    from s_q_ali_media_downloader.core import music_source
-
-    client = _FakeSpotify(playlist_rows=[None, _track_payload(name="Only")])
-    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
-    tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
-    assert [track.title for track in tracks] == ["Only"]
 
 
 def test_resolve_spotify_artist_is_declared_unsupported(monkeypatch):
@@ -216,12 +248,15 @@ def test_resolve_spotify_reports_a_failed_lookup(monkeypatch):
 
     class Broken:
         def track(self, track_id):
-            raise RuntimeError("Spotify said no")
+            raise KeyError("content")
 
     monkeypatch.setattr(music_source, "_spotify_client", lambda: Broken())
     try:
         music_source.resolve_spotify("https://open.spotify.com/track/abc")
         raise AssertionError("a failed lookup should raise")
     except MusicSourceError as exc:
+        # The library's own KeyError text is not something to show a user
+        # on its own: say which link failed and what they can do.
         assert "Spotify" in str(exc)
+        assert "track" in str(exc).lower()
 
