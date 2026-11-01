@@ -1,17 +1,17 @@
-# Graph Report - S Q Ali Media Downloader  (2026-11-01)
+# Graph Report - S Q Ali Media Downloader  (2026-11-02)
 
 ## Corpus Check
-- 311 files · ~446,917 words
+- 311 files · ~447,916 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 61 file(s) not represented in the graph (top: .ttf 54, (none) 2, .xml 1)
 
 ## Summary
-- 5417 nodes · 8515 edges · 359 communities (301 shown, 58 thin omitted)
-- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 1101 edges (avg confidence: 0.91)
+- 5440 nodes · 8562 edges · 349 communities (286 shown, 63 thin omitted)
+- Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 1102 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `849116ac`
+- Built from commit: `e86ca13f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,7 +19,7 @@
 - SettingsPage
 - re
 - MainWindow
-- social_discovery.py
+- reconcile
 - LinkParserTool
 - generate_review.py
 - test_core_youtube_client.py
@@ -48,7 +48,7 @@
 - _ApiClient
 - youtube_client.py
 - Building LLM-Powered Applications with Claude
-- JudgeUnavailable
+- test_music_source.py
 - YouTubeSearchTool
 - Managed Agents - Webhooks
 - Python MCP Server Implementation Guide
@@ -79,7 +79,7 @@
 - TikTokApiSession
 - s-q-ali-media-downloader
 - Shipping and Launch
-- CreatorRef
+- browser.py
 - API and Interface Design
 - Browser Testing with DevTools
 - ActivityLog
@@ -142,7 +142,7 @@
 - Files API - Python
 - Managed Agents - Self-Hosted Sandboxes
 - mcp-builder/SKILL.md
-- ChannelInfo
+- widgets.py
 - Source-Driven Development
 - Claude API - PHP
 - Streaming - Python
@@ -182,7 +182,7 @@
 - Web Application Testing
 - Managed Agents - Onboarding Flow
 - SocialStatus
-- main_window.py
+- ._save_queue
 - test_extract_refuses_a_non_youtube_url_before_any_request
 - Message Batches API - TypeScript
 - Frontend Design
@@ -192,7 +192,7 @@
 - Migrating to Opus 4.8
 - ponytail-debt/SKILL.md
 - Plan: audit fixes
-- _ask_searched
+- test_social_discovery_ui.py
 - PULL_REQUEST_TEMPLATE.md
 - Spec: Dual-Check Discovery (AI + Browser), Hardened Browser, Pro-Level Operation Log
 - agent_tab.py
@@ -212,7 +212,7 @@
 - Sunset Boulevard
 - Tech Innovation
 - fake_gemini
-- test_gui.py
+- Running Evaluations
 - test_bio_link_never_downgrades_to_not_found
 - MusicDownloadThread
 - YouTubeFetchThread
@@ -232,34 +232,34 @@
 - All Available Skills
 - pytest
 - platform-availability.md
-- sys
+- run_eval.py
 - idea-refine.sh
 - bundle-artifact.sh
 - init-artifact.sh
 - run_loop.py
 - test_social_judge.py
 - test_social_judge.py
-- media_permalinks
+- test_shutdown_reports_a_worker_that_will_not_stop
 - test_facebook_client.py
 - exporter.py
 - agent_browser.py
 - MCP Tool Conversion Helpers
 - main_window.py
-- ._enforce_rate_limit
+- TestRateLimiting
 - test_expand_threads.py
 - The release
 - time
 - Contributor Covenant Code of Conduct
 - Tasks: Dual-Check Discovery + Hardened Browser + Pro-Level Log
 - test_reconcile.py
-- PlatformAnswer
+- Evaluation Process
 - Spec: Music Downloader (free tier)
 - Server-Side Tools: Code Execution
-- db_path
-- test_social_discovery_ui.py
+- TestRateLimitingBugReproduction
+- SocialDiscoveryPage
 - themes.py
 - Structured Outputs
-- MetadataExtractorTool
+- Answer Guidelines
 - time
 - social_verify.py
 - _FakeSession
@@ -267,9 +267,9 @@
 - social_discovery.py
 - test_social_browser.py
 - Task list
-- Quality Checklist
+- [2.5.1] — 2026-10-21
 - _page
-- FacebookFetchThread
+- test_configured_cookie_file_reaches_every_request
 - Quick Reference
 - _ShellClient
 - Task List
@@ -288,14 +288,14 @@
 - theme.py
 - test_api_handles_parses_item_list
 - Tool Use
-- _ask_groq_search
+- _answer_field
 - HTTP Error Codes Reference
 - todo-discovery-logs-downloads-ai-browser.md
 - Quality Checklist
 - Todo — TikTok discovery via AI search grounding
 - test_a_network_error_is_reported_as_unavailable
 - Advanced FastMCP Features
-- Capability Map: Social Discovery (YouTube → Facebook / Instagram / TikTok)
+- test_api_channel_fetch_includes_the_uploads_with_their_view_counts
 - Task List: Social Discovery (AI Finder)
 - Managed Agents - Outcomes
 - Spec: `social-judge` — the AI agent proposes and adjudicates
@@ -305,7 +305,7 @@
 - Spec: `social-resolve` — find the channel's real name, handle and bio
 - Implementation Plan: Social Discovery (AI Finder)
 - test_the_default_pager_asks_the_page_for_the_rest
-- test_account_fetch_thread_returns_page_urls
+- _FakeChannelYDL
 - Code Execution
 - test_the_key_test_sends_one_small_request
 - test_a_page_that_renders_nothing_is_opened_once_more
@@ -327,7 +327,7 @@
 - test_facebook_client.py
 - Stop Reasons
 - music_tagging.py
-- browser.py
+- BrowserSession
 - Implementation Plan: TikTok discovery via AI search grounding
 - [2.3.0] — 2026-09-10
 - [2.4.0] — 2026-09-10
@@ -337,31 +337,21 @@
 - [2.9.0] — 2026-10-29
 - Plan — remove useless files from the repo
 - Implementation Plan: Review Fixes (Instagram & Facebook Expansion)
-- Advanced MCP Features
-- _youtube_target
+- test_search_via_api_path_used_when_key_set
 - test_a_readable_bio_link_that_does_not_match_stays_no_match
 - test_a_tiktok_footer_above_the_name_is_not_part_of_the_name
-- InstagramFetchThread
 - test_a_busy_model_gives_the_next_one_a_turn
 - [2.8.0] — 2026-10-29
 - Plan — Session search (spike first, feature gated)
 - [2.9.2] — 2026-10-30
-- test_the_session_starts_with_the_hardened_flags
 - Beta Features & Anthropic-Defined Tools
 - test_the_description_is_cut_short_and_marked_as_data
-- Sessions
 - Per-SDK Syntax Reference
-- Security Best Practices
 - test_a_truncated_gemini_answer_is_a_failure
 - test_the_description_sits_inside_the_fenced_block
-- Phase 2 — Per-creator socials
 - test_qss_parses.py
-- test_album_tracks_are_returned_in_track_order
-- Provider Clients (Quick Reference)
-- [2.6.0] — 2026-10-22
 - Model-ID Rename Quick Reference
 - User-Defined Tools
-- test_the_facebook_page_detector
 - test_browser_error_returns_unknown
 
 ## God Nodes (most connected - your core abstractions)
@@ -391,67 +381,67 @@
 ## Import Cycles
 - None detected.
 
-## Communities (359 total, 58 thin omitted)
+## Communities (349 total, 63 thin omitted)
 
 ### Community 0 - "SettingsPage"
 Cohesion: 0.05
-Nodes (18): GeminiKeyTestWorker, GroqKeyTestWorker, make_settings(), SettingsPage, test_a_failed_gemini_test_shows_the_error(), test_a_failed_test_shows_the_error_inline(), test_a_late_result_for_an_old_key_is_not_shown_as_success(), test_a_running_gemini_test_is_reported() (+10 more)
+Nodes (17): GeminiKeyTestWorker, GroqKeyTestWorker, SettingsPage, test_a_failed_gemini_test_shows_the_error(), test_a_failed_test_shows_the_error_inline(), test_a_late_result_for_an_old_key_is_not_shown_as_success(), test_a_running_gemini_test_is_reported(), test_a_running_key_test_is_reported() (+9 more)
 
 ### Community 1 - "re"
 Cohesion: 0.12
 Nodes (16): _bare_stylesheets(), _clipped_widgets(), contrast(), _is_clipped(), _luminance(), qapp_process(), _srgb(), test_every_control_is_big_enough_to_click() (+8 more)
 
 ### Community 2 - "MainWindow"
-Cohesion: 0.05
-Nodes (9): MainWindow, _neon_glow(), Job, test_a_failed_job_keeps_the_error_out_of_the_size(), test_close_waits_for_a_running_worker_without_blocking(), test_close_with_no_workers_accepts(), test_finish_deferred_close_quits_the_app(), test_queue_add_and_remove() (+1 more)
+Cohesion: 0.06
+Nodes (4): MainWindow, test_close_waits_for_a_running_worker_without_blocking(), test_close_with_no_workers_accepts(), test_finish_deferred_close_quits_the_app()
 
-### Community 3 - "social_discovery.py"
-Cohesion: 0.07
-Nodes (17): discover(), say(), DiscoveryResult, _dropped_verdict(), _outcome(), PlatformOutcome, _second_check(), ask_the_web() (+9 more)
+### Community 3 - "reconcile"
+Cohesion: 0.33
+Nodes (4): reconcile(), Reconciliation, Phase 3: Wire the three modes, Phase 2: The two checks
 
 ### Community 4 - "LinkParserTool"
-Cohesion: 0.11
-Nodes (18): LinkParserTool, test_a_real_link_on_a_page_is_still_found(), test_a_tiktok_video_title_is_not_an_account(), test_a_video_title_is_not_an_account(), test_a_video_title_is_not_an_account_in_the_creator_text_either(), test_excluded_ig_segments(), test_extract_both_social_links(), test_extract_facebook_url() (+10 more)
+Cohesion: 0.09
+Nodes (23): LinkParserTool, MetadataExtractorTool, test_a_real_link_on_a_page_is_still_found(), test_a_tiktok_video_title_is_not_an_account(), test_a_video_title_is_not_an_account(), test_a_video_title_is_not_an_account_in_the_creator_text_either(), test_excluded_ig_segments(), test_extract_both_social_links() (+15 more)
 
 ### Community 5 - "generate_review.py"
-Cohesion: 0.11
-Nodes (10): build_run(), embed_file(), find_runs(), _find_runs_recursive(), generate_html(), get_mime_type(), _kill_port(), load_previous_iteration() (+2 more)
+Cohesion: 0.12
+Nodes (8): build_run(), embed_file(), find_runs(), _find_runs_recursive(), generate_html(), get_mime_type(), load_previous_iteration(), ReviewHandler
 
 ### Community 6 - "test_core_youtube_client.py"
-Cohesion: 0.08
-Nodes (6): _isolated_db(), test_api_channel_fetch_includes_the_uploads_with_their_view_counts(), test_api_video_fetch_carries_the_channel_title(), test_base_opts_enable_js_runtimes(), test_is_youtube_url_matches_the_host_not_the_text(), test_search_via_api_path_used_when_key_set()
+Cohesion: 0.09
+Nodes (4): _isolated_db(), test_api_video_fetch_carries_the_channel_title(), test_base_opts_enable_js_runtimes(), test_is_youtube_url_matches_the_host_not_the_text()
 
 ### Community 7 - "SPEC-desktop-shell.md"
-Cohesion: 0.11
-Nodes (17): Acceptance criteria, Boundaries, Layout rules, Objective, Objective, Objective, Objective, Open Questions (+9 more)
+Cohesion: 0.10
+Nodes (20): Acceptance criteria, Boundaries, Capability Map: Desktop Shell (responsive, de-congested, research-free), Layout rules, Module map, Objective, Objective, Objective (+12 more)
 
 ### Community 8 - "test_social_discovery.py"
 Cohesion: 0.13
 Nodes (17): _FakeChannel, _FakeSession, _found_page(), _no_ai_key(), _record(), test_a_bio_link_does_not_stop_the_agent(), test_a_channel_id_back_link_is_used_for_a_handle_input(), test_a_channel_that_cannot_be_resolved_reports_why() (+9 more)
 
 ### Community 9 - "TikTokSearchTool"
-Cohesion: 0.09
-Nodes (17): format_followers(), TikTokSearchTool, Phase 1 — Listing truth (`tiktok_api.py`, `tiktok_search.py`), test_a_multi_word_segment_stays_a_keyword(), test_a_seed_query_never_runs_a_listing_tier(), test_format_followers(), test_handle_from_entry_garbage_uploader(), test_handle_from_entry_uploader() (+9 more)
+Cohesion: 0.11
+Nodes (14): TikTokSearchTool, test_a_multi_word_segment_stays_a_keyword(), test_a_seed_query_never_runs_a_listing_tier(), test_handle_from_entry_garbage_uploader(), test_handle_from_entry_uploader(), test_handle_from_entry_url(), test_hash_tags_are_stripped_lowercased_and_deduped(), test_parse_seed_handles() (+6 more)
 
 ### Community 10 - "YouTubeFetchThread"
 Cohesion: 0.10
-Nodes (17): AccountFetchThread, is_facebook_page_url(), is_instagram_profile_url(), YouTubeFetchThread, Architecture Decisions, Phase 2: The expansion threads and the wiring, Phase 2: The expansion, test_a_pending_close_does_not_start_new_work() (+9 more)
+Nodes (18): AccountFetchThread, FacebookFetchThread, InstagramFetchThread, is_facebook_page_url(), is_instagram_profile_url(), YouTubeFetchThread, Architecture Decisions, Phase 2: The expansion threads and the wiring (+10 more)
 
 ### Community 11 - "AgentOrchestrator"
-Cohesion: 0.07
-Nodes (29): AgentOrchestrator, TikTokProfileMetadata, any_key(), candidate_urls(), Phase 3: The three modes, _channel(), _fake_proposal(), _fake_tiktok_proposal() (+21 more)
+Cohesion: 0.06
+Nodes (34): AgentOrchestrator, AgentSearchResult, TikTokProfileMetadata, TikTokSearchResult, any_key(), candidate_urls(), CreatorRef, Phase 3: The three modes (+26 more)
 
 ### Community 12 - "fake_extract"
-Cohesion: 0.11
-Nodes (8): test_configured_cookie_file_reaches_every_request(), test_daterange_skipped_when_no_window(), test_explicit_cookiefile_wins_over_the_setting(), test_fetch_channel_can_include_upload_stats(), test_fetch_channel_is_flat_by_default(), fake_extract(), test_missing_cookie_file_is_ignored(), test_search_videos_ytdlp_dispatch()
+Cohesion: 0.13
+Nodes (7): test_daterange_skipped_when_no_window(), test_explicit_cookiefile_wins_over_the_setting(), test_fetch_channel_can_include_upload_stats(), test_fetch_channel_is_flat_by_default(), fake_extract(), test_missing_cookie_file_is_ignored(), test_search_videos_ytdlp_dispatch()
 
 ### Community 13 - "AgentTabWidget"
 Cohesion: 0.09
-Nodes (12): ChannelMetadata, AgentTabWidget, test_agent_table_is_read_only_and_clean(), test_copy_facebook_and_instagram_links_work_in_the_tiktok_mode(), test_copy_links_uses_inline_status(), test_open_cell_url_opens_only_link_cells(), test_populate_table_marks_verified_socials_and_channel_as_links(), test_populate_tiktok_table_marks_every_platform_as_a_link() (+4 more)
+Nodes (11): AgentTabWidget, test_agent_table_is_read_only_and_clean(), test_copy_facebook_and_instagram_links_work_in_the_tiktok_mode(), test_copy_links_uses_inline_status(), test_open_cell_url_opens_only_link_cells(), test_populate_table_marks_verified_socials_and_channel_as_links(), test_populate_tiktok_table_marks_every_platform_as_a_link(), test_send_selected_to_queue_uses_inline_status() (+3 more)
 
 ### Community 14 - "engine.py"
-Cohesion: 0.08
-Nodes (27): is_facebook_url(), is_instagram_url(), is_profile_url(), is_tiktok_url(), is_youtube_channel_url(), is_youtube_playlist_url(), is_youtube_url(), normalize_youtube_channel_url() (+19 more)
+Cohesion: 0.06
+Nodes (31): is_facebook_url(), is_instagram_url(), is_profile_url(), is_tiktok_url(), is_youtube_channel_url(), is_youtube_playlist_url(), normalize_youtube_channel_url(), platform_of() (+23 more)
 
 ### Community 15 - "test_social_comprehensive.py"
 Cohesion: 0.06
@@ -470,16 +460,16 @@ Cohesion: 0.12
 Nodes (8): _csv_rows(), test_to_csv_leaves_harmless_values_alone(), test_to_csv_neutralises_formula_prefixes(), test_to_json_does_not_touch_formula_text(), test_to_json_keeps_every_section(), test_to_json_keeps_the_structure(), test_to_json_without_sections_stays_a_plain_list(), test_write_export_for_json()
 
 ### Community 19 - "Agents"
-Cohesion: 0.12
-Nodes (15): Agent Endpoints, Agent Object, Agents, Architecture, Built-in session features, Effort on the agent model, Lifecycle: create once, run many, update in place, Managed Agents - Core Concepts (+7 more)
+Cohesion: 0.10
+Nodes (20): Agent Endpoints, Agent Object, Agents, Architecture, Built-in session features, Creating a session, Effort on the agent model, Lifecycle: create once, run many, update in place (+12 more)
 
 ### Community 20 - "SocialStatus"
 Cohesion: 0.11
-Nodes (31): Page, _answer_field(), run(), read_profile(), _Agent, _presence(), test_a_bio_link_is_verified_when_the_page_matches_the_creator(), test_a_decisive_http_probe_never_opens_the_browser() (+23 more)
+Nodes (36): SocialStatus, Page, _identity_status(), SocialVerifierTool, run(), read_profile(), _Agent, _presence() (+28 more)
 
 ### Community 21 - "NeonTheme"
-Cohesion: 0.17
-Nodes (4): NeonTheme, test_density_change_keeps_the_neon_theme(), test_neon_stylesheet_is_qt_valid(), test_neon_stylesheet_parses_without_warnings()
+Cohesion: 0.16
+Nodes (5): NeonTheme, apply_neon_theme(), test_density_change_keeps_the_neon_theme(), test_neon_stylesheet_is_qt_valid(), test_neon_stylesheet_parses_without_warnings()
 
 ### Community 22 - "test_search_channels_dedupes_same_channel"
 Cohesion: 0.29
@@ -498,32 +488,32 @@ Cohesion: 0.22
 Nodes (8): Band (Claude Code), Configure Default Mode, Deactivate, Levels, More, Ponytail Help, Skills, Update
 
 ### Community 26 - "social_judge.py"
-Cohesion: 0.15
-Nodes (11): _ask_gemini(), _ask_gemini_search(), _error_detail(), gemini_key(), _gemini_payload(), _gemini_search_payload(), _gemini_sources(), _gemini_text() (+3 more)
+Cohesion: 0.04
+Nodes (45): AiAnswer, _answer_from_json(), _answer_summary(), _ask_gemini(), _ask_gemini_search(), _ask_groq_search(), _ask_providers(), _ask_searched() (+37 more)
 
 ### Community 27 - "Node/TypeScript MCP Server Implementation Guide"
-Cohesion: 0.07
-Nodes (27): Async/Await Best Practices, Building and Running, Character Limits and Truncation, Code Best Practices, Code Composability and Reusability, Complete Example, Error Handling, Key Imports (+19 more)
+Cohesion: 0.05
+Nodes (41): Advanced Features (where applicable), Advanced MCP Features, Async/Await Best Practices, Building and Running, Character Limits and Truncation, Code Best Practices, Code Composability and Reusability, Code Quality (+33 more)
 
 ### Community 28 - "test_tiktok_pipeline.py"
 Cohesion: 0.10
 Nodes (20): name_similarity(), _empty_listing(), test_an_empty_tag_listing_returns_no_rows_and_asks_for_handles(), test_cookie_loader_parses_netscape(), test_cookie_loader_tolerates_missing_file(), test_cookiefile_property_refreshes_api_session(), test_cookiefile_property_resets_session_when_cleared(), test_fetch_tag_handles_cleans_and_caps() (+12 more)
 
 ### Community 30 - "youtube_client.py"
-Cohesion: 0.16
-Nodes (14): _api_headers(), _base_opts(), _chunks(), _fetch_channel_uploads_via_api(), _fetch_channels_via_api(), _fetch_videos_via_api(), get_cookies_file(), parse_iso8601_duration() (+6 more)
+Cohesion: 0.11
+Nodes (23): Objective, _api_headers(), _base_opts(), _channel_avatar(), _chunks(), fetch_channel(), _fetch_channel_uploads_via_api(), fetch_channels() (+15 more)
 
 ### Community 31 - "Building LLM-Powered Applications with Claude"
 Cohesion: 0.06
-Nodes (30): Architecture, Authentication (Quick Reference), Before You Start, Building an Agent: Four Approaches, Building LLM-Powered Applications with Claude, Claude Fable 5.1 (`claude-fable-5-1`) - most capable widely released model, Compaction (Quick Reference), Context Editing (Quick Reference) (+22 more)
+Nodes (34): Amazon Bedrock, Architecture, Authentication (Quick Reference), Before You Start, Building an Agent: Four Approaches, Building LLM-Powered Applications with Claude, Claude Fable 5.1 (`claude-fable-5-1`) - most capable widely released model, Compaction (Quick Reference) (+26 more)
 
-### Community 32 - "JudgeUnavailable"
-Cohesion: 0.15
-Nodes (9): _ask_providers(), build_prompt(), _candidate_count(), JudgeUnavailable, parse_response(), Proposal, propose(), _propose_with_gemini() (+1 more)
+### Community 32 - "test_music_source.py"
+Cohesion: 0.11
+Nodes (15): resolve_spotify(), test_spotify_album_resolves_in_track_order(), test_spotify_playlist_resolves_every_row(), test_spotify_track_resolves_anonymously(), _FakeSpotify, test_resolve_spotify_album_returns_tracks_in_order(), test_resolve_spotify_artist_is_declared_unsupported(), test_resolve_spotify_playlist_reads_every_row() (+7 more)
 
 ### Community 33 - "YouTubeSearchTool"
-Cohesion: 0.16
-Nodes (7): YouTubeSearchTool, test_format_subs_helper(), test_handle_from_custom_url_variants(), test_metadatum_empty_title_defaults(), test_metadatum_falls_back_to_channel_url(), test_metadatum_maps_channel_info(), test_youtube_search_initialization()
+Cohesion: 0.13
+Nodes (12): ChannelMetadata, YouTubeSearchTool, format_count(), ChannelInfo, test_format_subs_helper(), test_handle_from_custom_url_variants(), test_metadatum_empty_title_defaults(), test_metadatum_falls_back_to_channel_url() (+4 more)
 
 ### Community 34 - "Managed Agents - Webhooks"
 Cohesion: 0.29
@@ -550,8 +540,8 @@ Cohesion: 0.06
 Nodes (33): 1. Use Prompt Caching for Repeated Context, 2. Choose the Right Model, 3. Use Token Counting Before Requests, Async performance (aiohttp backend), Automatic Caching (Recommended), Base64, Basic Message Request, Claude API - Python (+25 more)
 
 ### Community 41 - "settings_store.py"
-Cohesion: 0.15
-Nodes (12): close_store(), configure(), _DATA_BLOB, _dpapi_protect(), get_setting(), _is_secret_key(), _run(), _seal() (+4 more)
+Cohesion: 0.12
+Nodes (14): close_store(), configure(), _connect(), _DATA_BLOB, db_path(), _dpapi_protect(), get_setting(), _is_secret_key() (+6 more)
 
 ### Community 42 - "Worked example: Agent Teams for competing-hypothesis debugging"
 Cohesion: 0.06
@@ -562,16 +552,16 @@ Cohesion: 0.06
 Nodes (31): Always Do (No Exceptions), Ask First (Requires Human Approval), Broken Access Control, Broken Authentication, Common Rationalizations, Cross-Site Scripting (XSS), Data Privacy & Compliance, Destructive Operations on Derived Paths (+23 more)
 
 ### Community 44 - ".verify_creator_socials"
-Cohesion: 0.12
-Nodes (9): SocialPresence, fake_creator_socials(), fake_youtube(), fake_verify(), test_creator_socials_probe_facebook_and_instagram_only(), fake_fb(), fake_ig(), test_creator_socials_run_the_fallbacks_for_both_platforms() (+1 more)
+Cohesion: 0.07
+Nodes (15): SocialPresence, Phase 2 — Per-creator socials, Task 5: schema, Task 6: one ask for FB / IG / YT, Task 7: FB + IG verifier entry point, Task 8: orchestrator wiring, fake_creator_socials(), fake_youtube() (+7 more)
 
 ### Community 45 - "Managed Agents - Endpoint Reference"
-Cohesion: 0.06
-Nodes (29): Agents, Beta Headers, CreateAgent Request Body, CreateDeployment Request Body, CreateEnvironment Request Body, CreateSession Request Body, Credentials, Define Outcome Event (+21 more)
+Cohesion: 0.07
+Nodes (28): Agents, Beta Headers, CreateAgent Request Body, CreateDeployment Request Body, CreateEnvironment Request Body, CreateSession Request Body, Credentials, Define Outcome Event (+20 more)
 
 ### Community 46 - "MCP Server Evaluation Guide"
-Cohesion: 0.04
-Nodes (44): 1. Local STDIO Server, 2. Server-Sent Events (SSE), 3. HTTP (Streamable HTTP), Answer Guidelines, Command-Line Options, Complete Example Workflow, Complexity and Depth, Connection Errors (+36 more)
+Cohesion: 0.11
+Nodes (18): Complexity and Depth, Core Requirements, Evaluation Examples, Evaluation Overview, Evaluation Requirements, Good Questions, MCP Server Evaluation Guide, Output Format (+10 more)
 
 ### Community 47 - "Code Review and Quality"
 Cohesion: 0.07
@@ -602,8 +592,8 @@ Cohesion: 0.07
 Nodes (26): API, Backend Checklist, Cache checklist, Caching Strategies, Common Anti-Patterns, Connection pooling, Core Web Vitals Targets, CSS (+18 more)
 
 ### Community 54 - "engine.py"
-Cohesion: 0.05
-Nodes (33): DownloadThread, hook(), worker(), human_size(), impersonate_target(), _impersonate_warn(), impersonation_summary(), is_permanent() (+25 more)
+Cohesion: 0.04
+Nodes (37): SDK Method Reference, normalize_page(), normalize_profile(), DownloadThread, hook(), worker(), human_size(), impersonate_target() (+29 more)
 
 ### Community 55 - "Tool Use - Python"
 Cohesion: 0.18
@@ -614,12 +604,12 @@ Cohesion: 0.07
 Nodes (26): 1. Commit Early, Commit Often, 2. Atomic Commits, 3. Descriptive Messages, 4. Keep Concerns Separate, 5. Size Your Changes, Branch Naming, Branching Strategy, Change Summaries (+18 more)
 
 ### Community 57 - "propose_tiktok_socials"
-Cohesion: 0.15
-Nodes (11): build_tiktok_socials_prompt(), propose_tiktok_socials(), Architecture decisions, Implementation Plan: TikTok seeds checked on YouTube + Instagram + Facebook, Open questions, Overview, Phase 2 — Per-creator socials (`schema.py`, `social_judge.py`, `social_verifier.py`, `orchestrator.py`), Phase 3 — UI and docs (+3 more)
+Cohesion: 0.22
+Nodes (8): Implementation Plan: TikTok seeds checked on YouTube + Instagram + Facebook, Open questions, Overview, Phase 2 — Per-creator socials (`schema.py`, `social_judge.py`, `social_verifier.py`, `orchestrator.py`), Phase 3 — UI and docs, Phase 4 — Verification and release, Risks and mitigations, Task list
 
 ### Community 59 - "Ops"
-Cohesion: 0.10
-Nodes (17): format_op(), Op, Ops, verify_candidate(), verify_candidates(), _Session, test_a_broken_sink_does_not_stop_the_run(), test_a_failure_carries_the_error() (+9 more)
+Cohesion: 0.04
+Nodes (34): format_op(), Op, Ops, discover(), say(), DiscoveryResult, _dropped_verdict(), _outcome() (+26 more)
 
 ### Community 60 - "TikTokApiSession"
 Cohesion: 0.29
@@ -629,9 +619,9 @@ Nodes (3): _clean_handles(), TikTokApiSession, Task 1: remove the session-user h
 Cohesion: 0.08
 Nodes (25): Accessibility, Code Quality, Common Rationalizations, Documentation, Error Budget Release Gate, Error Reporting, Feature Flag Strategy, Infrastructure (+17 more)
 
-### Community 63 - "CreatorRef"
-Cohesion: 0.16
-Nodes (4): _identity_status(), _creator_targets(), CreatorRef, match_evidence()
+### Community 63 - "browser.py"
+Cohesion: 0.14
+Nodes (8): browser_executable(), BrowserError, BrowserUnavailable, bundled_browsers_dir(), _chromium_executable(), _playwright_browser_roots(), RenderedProfileChecker, use_bundled_browsers()
 
 ### Community 64 - "API and Interface Design"
 Cohesion: 0.08
@@ -762,16 +752,16 @@ Cohesion: 0.12
 Nodes (16): Accessibility Checklist, Accessible Lists, ARIA Roles, Buttons vs. Links, Common Anti-Patterns, Common HTML Patterns, Content, Essential Checks (+8 more)
 
 ### Community 96 - "MCP Server Best Practices"
-Cohesion: 0.12
-Nodes (17): Documentation Requirements, Error Handling, JSON Format (`response_format="json"`), Markdown Format (`response_format="markdown"`, typically default), MCP Server Best Practices, Pagination, Response Formats, Server Naming Conventions (+9 more)
+Cohesion: 0.09
+Nodes (22): Authentication and Authorization, DNS Rebinding Protection, Documentation Requirements, Error Handling, Error Handling, Input Validation, JSON Format (`response_format="json"`), Markdown Format (`response_format="markdown"`, typically default) (+14 more)
 
 ### Community 97 - "Grader Agent"
 Cohesion: 0.12
 Nodes (16): Field Descriptions, Grader Agent, Grading Criteria, Guidelines, Inputs, Output Format, Process, Role (+8 more)
 
 ### Community 98 - "_extract"
-Cohesion: 0.14
-Nodes (11): Catch most-specific first, in a chain, Error `.type` Field, Exception class names by language, Go - `errors.As` then branch on status, Typed Exceptions in SDKs, Common Pitfalls, _extract(), is_youtube_url() (+3 more)
+Cohesion: 0.17
+Nodes (10): Catch most-specific first, in a chain, Error `.type` Field, Exception class names by language, Go - `errors.As` then branch on status, Typed Exceptions in SDKs, Common Pitfalls, _extract(), NotFoundError (+2 more)
 
 ### Community 99 - "Managed Agents - Python"
 Cohesion: 0.12
@@ -806,8 +796,8 @@ Cohesion: 0.13
 Nodes (14): Basic Message Request, Claude API - Java, Client Initialization, Discovering type and member names, Effort Parameter, Error Type, Installation, Key types per feature (+6 more)
 
 ### Community 107 - "Slices"
-Cohesion: 0.13
-Nodes (11): groq_key(), _post_groq(), test_key(), 2. `research-remove`, 3. `settings-panel`, 4. `density`, 5. `ui-fixes`, Plan: Desktop Shell (responsive, de-congested, research-free) (+3 more)
+Cohesion: 0.22
+Nodes (8): 2. `research-remove`, 3. `settings-panel`, 4. `density`, 5. `ui-fixes`, Plan: Desktop Shell (responsive, de-congested, research-free), Risks, Slices, Why this order
 
 ### Community 108 - "Model Migration Guide"
 Cohesion: 0.13
@@ -847,7 +837,7 @@ Nodes (19): 1.1 Understand Modern MCP Design, 1.2 Study MCP Protocol Documentati
 
 ### Community 117 - "aggregate_benchmark.py"
 Cohesion: 0.18
-Nodes (6): aggregate_results(), calculate_stats(), generate_benchmark(), generate_markdown(), load_run_results(), main()
+Nodes (5): aggregate_results(), calculate_stats(), generate_benchmark(), generate_markdown(), load_run_results()
 
 ### Community 118 - "Spec-Driven Development"
 Cohesion: 0.14
@@ -859,7 +849,7 @@ Nodes (4): 1. Understand first, 2. Look for, 3. Check before you report, 4. Outp
 
 ### Community 120 - "Changelog"
 Cohesion: 0.15
-Nodes (12): [2.2.0] — 2026-09-10, [2.4.1] — 2026-09-11, [2.5.1] — 2026-10-21, [2.9.1] — 2026-10-29, Added, Added, Added, Changed (+4 more)
+Nodes (12): [2.10.0] — not released yet, [2.2.0] — 2026-09-10, [2.4.1] — 2026-09-11, [2.6.0] — 2026-10-22, [2.9.1] — 2026-10-29, Added, Added, Changed (+4 more)
 
 ### Community 121 - "Anthropic Brand Styling"
 Cohesion: 0.15
@@ -878,12 +868,12 @@ Cohesion: 0.15
 Nodes (12): Container orchestration (mid-level), Create the environment, Credentials, Flow, Managed Agents - Self-Hosted Sandboxes, Memory stores, Monitoring & control, Run a worker - `ant` CLI (fixed tools) (+4 more)
 
 ### Community 125 - "mcp-builder/SKILL.md"
-Cohesion: 0.17
+Cohesion: 0.15
 Nodes (8): Core MCP Documentation (Load First), 📚 Documentation Library, Evaluation Guide (Load During Phase 4), Language-Specific Implementation Guides (Load During Phase 2), MCP Server Development Guide, Overview, Reference Files, SDK Documentation (Load During Phase 1/2)
 
-### Community 126 - "ChannelInfo"
-Cohesion: 0.14
-Nodes (12): Objective, format_count(), _channel_avatar(), ChannelInfo, fetch_channel(), fetch_channels(), get_api_key(), search_channels() (+4 more)
+### Community 126 - "widgets.py"
+Cohesion: 0.13
+Nodes (7): is_youtube_url(), _neon_glow(), Chip, JobCard, shield_pixmap(), shorten(), test_youtube_video_urls()
 
 ### Community 127 - "Source-Driven Development"
 Cohesion: 0.15
@@ -1002,8 +992,8 @@ Cohesion: 0.22
 Nodes (8): Create a deployment, Cron and timezone semantics, Deployment budgets, Deployment runs, Failure behavior, Lifecycle: pause / unpause / archive, Managed Agents - Scheduled Deployments, Manual runs
 
 ### Community 156 - "Migrating to Opus 4.7"
-Cohesion: 0.25
-Nodes (8): Breaking changes (will 400 on Opus 4.7), Capability improvements, Choosing an effort level on Opus 4.7, Fast Mode: Claude Opus 5 / Opus 4.8 only, Migrating to Opus 4.7, New feature: Task Budgets (beta), Real-time cybersecurity safeguards, Silent default changes (no error, but behavior differs)
+Cohesion: 0.22
+Nodes (9): Behavioral shifts (prompt-tunable), Breaking changes (will 400 on Opus 4.7), Capability improvements, Choosing an effort level on Opus 4.7, Fast Mode: Claude Opus 5 / Opus 4.8 only, Migrating to Opus 4.7, New feature: Task Budgets (beta), Real-time cybersecurity safeguards (+1 more)
 
 ### Community 157 - "Ponytail"
 Cohesion: 0.40
@@ -1038,12 +1028,12 @@ Cohesion: 0.29
 Nodes (6): 1. Describe the task, 2. Configure the agent - propose, don't interrogate, 3. Environment, 4. Session - auth, then test run, 5. Integrate - emit the code, Managed Agents - Onboarding Flow
 
 ### Community 166 - "SocialStatus"
-Cohesion: 0.23
-Nodes (8): What is reused, not rebuilt, SocialPlatform, SocialStatus, test_a_tiktok_profile_carries_all_three_platforms(), test_agent_search_result_dump(), test_channel_metadata_serialization(), test_social_presence_defaults(), test_social_verifier_none_input()
+Cohesion: 0.12
+Nodes (13): Capability Map: Social Discovery (YouTube → Facebook / Instagram / TikTok), Cost and latency, Module map, Open Questions (blocking for the module specs), Privacy, Sources, The accuracy contract (needs a human decision — see Open Questions), What is reused, not rebuilt (+5 more)
 
-### Community 167 - "main_window.py"
-Cohesion: 0.08
-Nodes (14): app_storage_dir(), default_output_dir(), queue_file(), storage_dir(), Chip, JobCard, shield_pixmap(), shorten() (+6 more)
+### Community 167 - "._save_queue"
+Cohesion: 0.15
+Nodes (12): queue_file(), storage_dir(), Job, test_a_failed_job_keeps_the_error_out_of_the_size(), test_queue_add_and_remove(), _read_queue(), test_a_failed_write_leaves_the_old_queue_readable(), test_a_link_removed_in_one_window_stays_removed() (+4 more)
 
 ### Community 168 - "test_extract_refuses_a_non_youtube_url_before_any_request"
 Cohesion: 0.40
@@ -1081,9 +1071,9 @@ Nodes (3): Boundaries, Output, Scan
 Cohesion: 0.50
 Nodes (3): Plan: audit fixes, Rules, Verification
 
-### Community 177 - "_ask_searched"
-Cohesion: 0.12
-Nodes (10): AiAnswer, _answer_summary(), _ask_searched(), build_search_prompt(), build_youtube_search_prompt(), gemini_models(), propose_searched(), propose_youtube_searched() (+2 more)
+### Community 177 - "test_social_discovery_ui.py"
+Cohesion: 0.33
+Nodes (15): _found(), _result(), test_a_channel_that_could_not_be_resolved_still_gets_a_row(), test_a_finished_result_reaches_the_activity_log(), test_a_found_cell_carries_the_link(), test_a_found_cell_shows_the_confidence_tier(), test_a_result_becomes_a_row(), test_a_warning_is_shown_with_the_row() (+7 more)
 
 ### Community 178 - "PULL_REQUEST_TEMPLATE.md"
 Cohesion: 0.25
@@ -1094,8 +1084,8 @@ Cohesion: 0.15
 Nodes (12): Boundaries, Code Style, Commands, Non-goals, Objective, Open Questions, Project Structure, Spec: Dual-Check Discovery (AI + Browser), Hardened Browser, Pro-Level Operation Log (+4 more)
 
 ### Community 180 - "agent_tab.py"
-Cohesion: 0.12
-Nodes (10): AgentSearchResult, TikTokSearchResult, AgentWorkerThread, discovery_browser_is_visible(), Increment 1 — CI artifact truth, Increment 4 — Visible logs, Plan — four discovery/download improvements, Verification (+2 more)
+Cohesion: 0.13
+Nodes (7): AgentWorkerThread, discovery_browser_is_visible(), make_settings(), Increment 1 — CI artifact truth, Increment 4 — Visible logs, Plan — four discovery/download improvements, Verification
 
 ### Community 181 - "Token Counting"
 Cohesion: 0.40
@@ -1106,16 +1096,16 @@ Cohesion: 0.08
 Nodes (4): test_an_answer_we_cannot_read_is_empty(), test_gemini_gets_every_model_in_the_chain_a_turn(), test_the_search_is_logged(), test_the_search_request_carries_no_key_in_the_payload()
 
 ### Community 183 - "Todo — TikTok seeds checked on YouTube + Instagram + Facebook"
-Cohesion: 0.12
-Nodes (16): Checkpoint: Complete, Checkpoint: Phase 1, Checkpoint: Phase 2, Phase 1 — Listing truth, Phase 3 — UI and docs, Phase 4 — Verification and release, Task 10: docs, Task 11: checks (+8 more)
+Cohesion: 0.08
+Nodes (19): format_followers(), Phase 1 — Listing truth (`tiktok_api.py`, `tiktok_search.py`), Checkpoint: Complete, Checkpoint: Phase 1, Checkpoint: Phase 2, Phase 1 — Listing truth, Phase 3 — UI and docs, Phase 4 — Verification and release (+11 more)
 
 ### Community 184 - "test_instagram_client.py"
 Cohesion: 0.05
 Nodes (34): carousel_node(), _fake_instaloader(), from_username(), FakeClock, FakeIterator, FakePost, photo_node(), sidecar_node() (+26 more)
 
 ### Community 185 - "test_stealth.py"
-Cohesion: 0.15
-Nodes (4): _browser(), test_a_page_cannot_tell_the_browser_is_automated(), test_harden_installs_the_script_on_the_context(), test_the_launch_flags_hide_the_automation_tell()
+Cohesion: 0.10
+Nodes (5): _browser(), test_a_page_cannot_tell_the_browser_is_automated(), test_harden_installs_the_script_on_the_context(), test_the_launch_flags_hide_the_automation_tell(), test_the_session_starts_with_the_hardened_flags()
 
 ### Community 186 - "Arctic Frost"
 Cohesion: 0.40
@@ -1161,9 +1151,9 @@ Nodes (4): Best Used For, Color Palette, Tech Innovation, Typography
 Cohesion: 0.18
 Nodes (5): test_a_malformed_answer_gives_the_next_model_a_turn(), test_gemini_is_told_to_skip_its_thinking(), fake_gemini(), test_the_tiktok_mode_asks_for_all_three_platforms(), test_without_a_groq_key_gemini_is_used()
 
-### Community 197 - "test_gui.py"
-Cohesion: 0.15
-Nodes (5): test_add_links_routes_tiktok_profile_to_expand_queue(), test_agent_urls_reach_the_download_queue(), test_close_can_be_cancelled(), test_main_window_smoke(), test_rail_toggle_button()
+### Community 197 - "Running Evaluations"
+Cohesion: 0.13
+Nodes (15): 1. Local STDIO Server, 2. Server-Sent Events (SSE), 3. HTTP (Streamable HTTP), Command-Line Options, Complete Example Workflow, Connection Errors, Evaluation File Format, Low Accuracy (+7 more)
 
 ### Community 199 - "MusicDownloadThread"
 Cohesion: 0.12
@@ -1174,32 +1164,28 @@ Cohesion: 0.08
 Nodes (7): _is_video_id(), test_a_channel_expands_into_its_videos_not_its_tabs(), test_a_playlist_is_still_expanded_as_it_was(), test_the_shorts_tab_is_fetched_when_asked_for(), test_extract_flat_is_not_passed(), test_js_runtimes_enabled(), test_limit_is_clamped()
 
 ### Community 213 - "classify_url"
-Cohesion: 0.14
-Nodes (13): build_yt_search(), classify_url(), _clean(), _host(), is_music_url(), is_playlist_url(), spotify_kind(), test_build_yt_search() (+5 more)
+Cohesion: 0.15
+Nodes (12): classify_url(), _clean(), _host(), is_music_url(), is_playlist_url(), spotify_kind(), _spotify_ref(), test_classify_url_platforms() (+4 more)
 
 ### Community 214 - "All Available Skills"
 Cohesion: 0.14
 Nodes (13): 🤖 AI & Agent, All Available Skills, 📊 Architecture, 🐛 Debugging & Review, 🔧 Development, 📄 Documents, 🎨 Frontend & Design, 🛠 Internal (+5 more)
 
 ### Community 215 - "pytest"
-Cohesion: 0.13
+Cohesion: 0.15
 Nodes (4): _isolated_db(), test_a_key_written_by_the_older_module_still_reads_back(), test_get_setting_returns_none_when_a_sealed_key_cannot_be_decrypted(), test_the_database_file_keeps_its_name_and_place()
 
-### Community 217 - "sys"
-Cohesion: 0.20
-Nodes (5): _call_claude(), improve_description(), main(), is_server_ready(), main()
+### Community 217 - "run_eval.py"
+Cohesion: 0.23
+Nodes (4): find_project_root(), main(), run_eval(), run_single_query()
 
 ### Community 221 - "run_loop.py"
-Cohesion: 0.10
-Nodes (10): generate_html(), main(), find_project_root(), main(), run_eval(), run_single_query(), main(), run_loop() (+2 more)
+Cohesion: 0.08
+Nodes (14): _kill_port(), main(), main(), generate_html(), main(), _call_claude(), improve_description(), main() (+6 more)
 
 ### Community 223 - "test_social_judge.py"
 Cohesion: 0.13
 Nodes (14): Checklist, Step 0: Confirm scope, current version, and target, Step 10: Bedrock - a region is required, Step 11: Verify, Step 12: Report, Step 1: Inventory the call sites, Step 2: Environment - Python >= 3.10 and the dependency pins, Step 3: `httpx` -> `httpx2`, only where objects cross the SDK boundary (+6 more)
-
-### Community 224 - "media_permalinks"
-Cohesion: 0.17
-Nodes (4): carries_video(), media_permalinks(), profile_permalink(), _RawPost
 
 ### Community 230 - "test_facebook_client.py"
 Cohesion: 0.14
@@ -1218,16 +1204,12 @@ Cohesion: 0.40
 Nodes (5): MCP Prompts, MCP Resources as Content, MCP Tool Conversion Helpers, MCP Tools with Tool Runner, Upload MCP Resources as Files
 
 ### Community 236 - "main_window.py"
-Cohesion: 0.07
-Nodes (14): _excepthook(), main(), RedactSecrets, setup_logging(), resource(), apply_neon_theme(), load_system_fonts(), main() (+6 more)
-
-### Community 237 - "._enforce_rate_limit"
-Cohesion: 0.09
-Nodes (6): SocialVerifierTool, TestRateLimiting, TestRateLimitingBugReproduction, TestRateLimitingIntegration, test_closing_the_verifier_closes_the_agent(), test_social_verifier_valid_format()
+Cohesion: 0.06
+Nodes (15): _excepthook(), main(), RedactSecrets, setup_logging(), app_storage_dir(), default_output_dir(), resource(), load_system_fonts() (+7 more)
 
 ### Community 238 - "test_expand_threads.py"
-Cohesion: 0.13
-Nodes (16): Listing, _collect(), test_a_facebook_failure_is_one_sentence(), test_a_facebook_listing_that_stops_short_says_why(), fake_list(), test_a_facebook_page_expands_into_permalinks(), fake_list(), test_a_link_that_is_not_a_facebook_page_fails() (+8 more)
+Cohesion: 0.09
+Nodes (22): Listing, _collect(), test_a_facebook_failure_is_one_sentence(), fake_list(), test_a_facebook_failure_that_is_not_a_facebook_error_still_says_something(), test_a_facebook_listing_that_stops_short_says_why(), fake_list(), test_a_facebook_page_expands_into_permalinks() (+14 more)
 
 ### Community 239 - "The release"
 Cohesion: 0.29
@@ -1235,7 +1217,7 @@ Nodes (6): Building it locally, Building it on the server instead, If Inno Setup
 
 ### Community 240 - "time"
 Cohesion: 0.07
-Nodes (25): _ask(), _checksum(), _default_pager(), pager(), FacebookError, FacebookNotFound, FacebookUnavailable, _first_cursor() (+17 more)
+Nodes (26): _ask(), _checksum(), _default_pager(), pager(), FacebookError, FacebookNotFound, FacebookUnavailable, _first_cursor() (+18 more)
 
 ### Community 241 - "Contributor Covenant Code of Conduct"
 Cohesion: 0.25
@@ -1249,9 +1231,9 @@ Nodes (10): Checkpoint: Complete, Checkpoint: Core, Checkpoint: Foundations, Che
 Cohesion: 0.16
 Nodes (14): _browser(), test_a_page_we_could_not_read_is_not_a_missing_account(), test_both_agree_the_account_is_the_creator_s(), test_both_say_the_account_is_missing(), test_the_ai_alone_never_proves_an_account_is_missing(), test_the_ai_lead_is_kept_when_the_page_could_not_be_read(), test_the_ai_lead_is_kept_when_the_page_is_not_there(), test_the_browser_answers_alone_when_the_account_is_missing() (+6 more)
 
-### Community 244 - "PlatformAnswer"
-Cohesion: 0.14
-Nodes (7): _answer_from_json(), _cleaned_lines(), _first_url(), _parse_platform(), parse_search_answer(), PlatformAnswer, _search_json()
+### Community 244 - "Evaluation Process"
+Cohesion: 0.33
+Nodes (6): Evaluation Process, Step 1: Documentation Inspection, Step 2: Tool Inspection, Step 3: Developing Understanding, Step 4: Read-Only Content Inspection, Step 5: Task Generation
 
 ### Community 245 - "Spec: Music Downloader (free tier)"
 Cohesion: 0.13
@@ -1261,29 +1243,25 @@ Nodes (12): Boundaries, Code Style, Commands, Objective, Open Questions, Out of 
 Cohesion: 0.29
 Nodes (7): Container Reuse, Key Facts, Pre-installed Python Libraries, Response Structure, Server-Side Tools: Code Execution, Supported File Types for Upload, Tool Definition
 
-### Community 247 - "db_path"
-Cohesion: 0.25
-Nodes (5): Capability Map: Desktop Shell (responsive, de-congested, research-free), Module map, What is reused, not rebuilt, _connect(), db_path()
-
-### Community 248 - "test_social_discovery_ui.py"
-Cohesion: 0.10
-Nodes (22): suggested_filename(), SocialDiscoveryPage, _found(), _result(), test_a_channel_that_could_not_be_resolved_still_gets_a_row(), test_a_failure_reaches_the_activity_log(), test_a_finished_result_reaches_the_activity_log(), test_a_found_cell_carries_the_link() (+14 more)
+### Community 248 - "SocialDiscoveryPage"
+Cohesion: 0.14
+Nodes (5): suggested_filename(), SocialDiscoveryPage, test_a_failure_reaches_the_activity_log(), test_the_page_explains_the_backend_order(), test_the_page_has_a_column_per_platform()
 
 ### Community 250 - "Structured Outputs"
 Cohesion: 0.40
 Nodes (5): JSON Outputs (Pydantic - Recommended), Raw Schema, Strict Tool Use, Structured Outputs, Using Both Together
 
-### Community 251 - "MetadataExtractorTool"
-Cohesion: 0.30
-Nodes (5): MetadataExtractorTool, _channel(), test_enrich_empty_description_is_noop(), test_enrich_from_description_links(), test_enrich_partial_links_keep_missing()
+### Community 251 - "Answer Guidelines"
+Cohesion: 0.40
+Nodes (5): Answer Guidelines, Diversity, Readability, Stability, Verification
 
 ### Community 252 - "time"
 Cohesion: 0.16
 Nodes (8): agent_loop(), evaluate_single_task(), extract_xml_content(), main(), parse_env_vars(), parse_evaluation_file(), parse_headers(), run_evaluation()
 
 ### Community 253 - "social_verify.py"
-Cohesion: 0.06
-Nodes (20): _agent_field(), _agent_result(), _compact(), confidence_tier(), _facebook_profile(), _handle_from_url(), _instagram_profile(), _meta() (+12 more)
+Cohesion: 0.05
+Nodes (25): _agent_field(), _agent_result(), _compact(), confidence_tier(), _creator_targets(), _facebook_profile(), _handle_from_url(), _instagram_profile() (+17 more)
 
 ### Community 254 - "_FakeSession"
 Cohesion: 0.14
@@ -1305,9 +1283,9 @@ Nodes (15): _browser(), _FakeBrowser, _FakeChromium, _FakeContext, _FakePlaywrig
 Cohesion: 0.15
 Nodes (12): Architecture decisions, Checkpoint: Complete, Checkpoint: Decision, Checkpoint: Evidence, Implementation Plan: stricter Social Discovery verification, Open questions, Overview, Phase 1: Evidence (+4 more)
 
-### Community 259 - "Quality Checklist"
-Cohesion: 0.25
-Nodes (8): Advanced Features (where applicable), Code Quality, Implementation Quality, Project Configuration, Quality Checklist, Strategic Design, Testing and Build, TypeScript Quality
+### Community 259 - "[2.5.1] — 2026-10-21"
+Cohesion: 0.67
+Nodes (3): [2.5.1] — 2026-10-21, Added, Fixed
 
 ### Community 260 - "_page"
 Cohesion: 0.17
@@ -1326,8 +1304,8 @@ Cohesion: 0.12
 Nodes (15): Checkpoint: Clients, Checkpoint: Expansion, Checkpoint: Ship, Checkpoint: Spikes, Decisions taken (2026-10-29, user-approved), Implementation Plan: Instagram & Facebook Bulk Expansion, Overview, Phase 0: Spikes (read-only, no product code) (+7 more)
 
 ### Community 265 - "list_profile_media"
-Cohesion: 0.12
-Nodes (11): _build_loader(), InstagramError, InstagramNotFound, InstagramPrivate, InstagramRateLimited, list_profile_media(), normalize_profile(), _raw_timeline() (+3 more)
+Cohesion: 0.09
+Nodes (12): _build_loader(), carries_video(), InstagramError, InstagramNotFound, InstagramPrivate, InstagramRateLimited, list_profile_media(), media_permalinks() (+4 more)
 
 ### Community 266 - "Task List"
 Cohesion: 0.12
@@ -1373,10 +1351,6 @@ Nodes (5): apply_density(), _remember_base(), _rescale_controls(), _rescale_layo
 Cohesion: 0.29
 Nodes (6): Advisor tool (beta), Anthropic-Defined Tools, Manual Loop, Tool Runner (Beta - Recommended), Tool Use, Tool Use - Go
 
-### Community 283 - "_ask_groq_search"
-Cohesion: 0.33
-Nodes (3): _ask_groq_search(), _groq_search_payload(), _groq_sources()
-
 ### Community 284 - "HTTP Error Codes Reference"
 Cohesion: 0.29
 Nodes (3): Common Mistakes and Fixes, Error Code Summary, HTTP Error Codes Reference
@@ -1392,10 +1366,6 @@ Nodes (18): Checkpoint: Complete, Checkpoint: Phases 1-2, Phase 1 — The ask, P
 ### Community 290 - "Advanced FastMCP Features"
 Cohesion: 0.33
 Nodes (6): Advanced FastMCP Features, Context Parameter Injection, Lifespan Management, Resource Registration, Structured Output Types, Transport Options
-
-### Community 291 - "Capability Map: Social Discovery (YouTube → Facebook / Instagram / TikTok)"
-Cohesion: 0.25
-Nodes (7): Capability Map: Social Discovery (YouTube → Facebook / Instagram / TikTok), Cost and latency, Module map, Open Questions (blocking for the module specs), Privacy, Sources, The accuracy contract (needs a human decision — see Open Questions)
 
 ### Community 292 - "Task List: Social Discovery (AI Finder)"
 Cohesion: 0.22
@@ -1446,8 +1416,8 @@ Cohesion: 0.33
 Nodes (6): Basic Usage, Code Execution, Container Reuse, Reading Local Files (ESM note), Retrieve Generated Files, Upload Files for Analysis
 
 ### Community 306 - "music_source.py"
-Cohesion: 0.11
-Nodes (14): _entry_to_track(), MusicSourceError, MusicTrack, resolve_media(), resolve_spotify(), resolve_url(), _spotdl_client(), _spotdl_track() (+6 more)
+Cohesion: 0.12
+Nodes (15): _album_cover(), build_yt_search(), _entry_to_track(), MusicSourceError, MusicTrack, resolve_media(), resolve_url(), _spotify_client() (+7 more)
 
 ### Community 307 - "Task List: stricter Social Discovery verification"
 Cohesion: 0.33
@@ -1493,10 +1463,6 @@ Nodes (3): Refusal Fallbacks (Claude Fable 5.1) - opt in by default, Stop Reason
 Cohesion: 0.08
 Nodes (24): _double_md5(), generate_xbogus(), _md5_user_agent(), _rc4(), AudioReport, _codec_name(), _embed_flac(), _embed_m4a() (+16 more)
 
-### Community 323 - "browser.py"
-Cohesion: 0.05
-Nodes (17): browser_executable(), BrowserError, BrowserSession, BrowserUnavailable, bundled_browsers_dir(), _chromium_executable(), default_profile_dir(), _playwright_browser_roots() (+9 more)
-
 ### Community 324 - "Implementation Plan: TikTok discovery via AI search grounding"
 Cohesion: 0.18
 Nodes (10): Checkpoint: Complete, Implementation Plan: TikTok discovery via AI search grounding, Open questions, Overview, Phase 1 — The ask (`social_judge.py`), Phase 2 — The fallback (`tiktok_search.py`), Phase 3 — The wiring (`orchestrator.py`), Phase 4 — Text and docs (+2 more)
@@ -1533,25 +1499,13 @@ Nodes (11): Ask first (not in scope), Findings, Keep (deliberately), Plan — re
 Cohesion: 0.20
 Nodes (9): Checkpoint: Complete, Checkpoint: Required, Implementation Plan: Review Fixes (Instagram & Facebook Expansion), Open Questions, Overview, Phase 1: The Required defects, Phase 2: The Optional items, Risks and Mitigations (+1 more)
 
-### Community 333 - "Advanced MCP Features"
-Cohesion: 0.33
-Nodes (6): Advanced MCP Features, Notification Support, Resource Registration, stdio (For Local Integrations), Streamable HTTP (Recommended for Remote Servers), Transport Options
-
-### Community 334 - "_youtube_target"
-Cohesion: 0.33
-Nodes (3): _link_matches_creator(), _unwrap_link(), _youtube_target()
-
-### Community 337 - "InstagramFetchThread"
-Cohesion: 0.33
-Nodes (3): InstagramFetchThread, test_an_instagram_failure_is_one_sentence(), fake_list()
-
 ### Community 339 - "[2.8.0] — 2026-10-29"
 Cohesion: 0.50
 Nodes (4): [2.8.0] — 2026-10-29, Added, Changed, Fixed
 
 ### Community 340 - "Plan — Session search (spike first, feature gated)"
-Cohesion: 0.33
-Nodes (5): Phase 1 — the feature (conditional on the gate), Plan — Session search (spike first, feature gated), Risks and mitigation, Shape, Verification checkpoints
+Cohesion: 0.17
+Nodes (8): harden(), Phase 0 — the spike (`tasks/spike_session_search.py`, gitignored), Phase 1 — the feature (conditional on the gate), Plan — Session search (spike first, feature gated), Risks and mitigation, Shape, Verification checkpoints, value()
 
 ### Community 341 - "[2.9.2] — 2026-10-30"
 Cohesion: 0.50
@@ -1561,33 +1515,9 @@ Nodes (4): [2.9.2] — 2026-10-30, Added, Fixed, Removed
 Cohesion: 0.40
 Nodes (5): Beta Features & Anthropic-Defined Tools, Cache diagnostics, Memory tool (non-beta, client-executed), Task budgets, Tool search (non-beta, server-side)
 
-### Community 345 - "Sessions"
-Cohesion: 0.40
-Nodes (5): Creating a session, Seeding a session with `initial_events`, Session budgets, Session Object, Sessions
-
 ### Community 346 - "Per-SDK Syntax Reference"
 Cohesion: 0.40
 Nodes (5): Per-SDK Syntax Reference, Prefill replacement - structured outputs via `output_config.format`, Sampling parameters - `temperature` / `top_p` / `top_k`, `thinking` - `budget_tokens` -> adaptive, `thinking.display` - opt back into summarized reasoning (Opus 4.7)
-
-### Community 347 - "Security Best Practices"
-Cohesion: 0.40
-Nodes (5): Authentication and Authorization, DNS Rebinding Protection, Error Handling, Input Validation, Security Best Practices
-
-### Community 350 - "Phase 2 — Per-creator socials"
-Cohesion: 0.40
-Nodes (5): Phase 2 — Per-creator socials, Task 5: schema, Task 6: one ask for FB / IG / YT, Task 7: FB + IG verifier entry point, Task 8: orchestrator wiring
-
-### Community 352 - "test_album_tracks_are_returned_in_track_order"
-Cohesion: 0.67
-Nodes (4): Behavioral shifts (prompt-tunable), test_album_tracks_are_returned_in_track_order(), search(), song()
-
-### Community 353 - "Provider Clients (Quick Reference)"
-Cohesion: 0.50
-Nodes (4): Amazon Bedrock, Google Cloud Vertex AI, Microsoft Foundry, Provider Clients (Quick Reference)
-
-### Community 354 - "[2.6.0] — 2026-10-22"
-Cohesion: 0.67
-Nodes (3): [2.6.0] — 2026-10-22, Changed, Fixed
 
 ### Community 355 - "Model-ID Rename Quick Reference"
 Cohesion: 0.67
@@ -1599,22 +1529,22 @@ Nodes (5): Handling Tool Results, Tool Choice Options, Tool Definition Structure
 
 ## Knowledge Gaps
 - **1 isolated node(s):** `s-q-ali-media-downloader`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3235 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **58 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3246 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **63 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ActivityLog` connect `ActivityLog` to `agent_tab.py`, `AgentTabWidget`, `.text`?**
-  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `ActivityLog` connect `ActivityLog` to `main_window.py`, `AgentTabWidget`, `.text`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Are the 42 inferred relationships involving `MainWindow` (e.g. with `AccountFetchThread` and `DownloadThread`) actually correct?**
   _`MainWindow` has 42 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `s-q-ali-media-downloader` to the rest of the system?**
   _1 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `SettingsPage` be split into smaller, more focused modules?**
-  _Cohesion score 0.0504828797190518 - nodes in this community are weakly interconnected._
-- **Why does `MainWindow` connect `MainWindow` to `SettingsPage`, `re`, `MusicResolveThread`, `FacebookFetchThread`, `test_gui.py`, `main_window.py`, `MusicDownloadThread`, `YouTubeFetchThread`, `main_window.py`, `AgentTabWidget`, `engine.py`, `InstagramFetchThread`, `engine.py`, `MusicPage`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
+  _Cohesion score 0.05384615384615385 - nodes in this community are weakly interconnected._
+- **Why does `MainWindow` connect `MainWindow` to `SettingsPage`, `re`, `MusicResolveThread`, `._save_queue`, `MusicDownloadThread`, `YouTubeFetchThread`, `main_window.py`, `AgentTabWidget`, `engine.py`, `engine.py`, `widgets.py`, `MusicPage`?**
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **Are the 49 inferred relationships involving `SocialVerifierTool` (e.g. with `AgentOrchestrator` and `Ops`) actually correct?**
   _`SocialVerifierTool` has 49 INFERRED edges - model-reasoned connections that need verification._
 - **Should `re` be split into smaller, more focused modules?**
