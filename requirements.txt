@@ -15,8 +15,9 @@ playwright>=1.44
 # broken upstream (yt-dlp issue #4394), so instaloader lists the profile.
 # It only reads public profiles and needs no sign-in.
 instaloader>=4.16
-# Spotify links carry metadata, not audio. spotdl resolves them to the
-# matching YouTube audio so the download needs no paid account.
-spotdl>=4.4
+# Spotify links carry metadata, not audio. spotipyFree reads that metadata
+# without a login, and yt-dlp's own search matches each title to the YouTube
+# audio — no account, password or API credential is involved.
+spotipyFree>=1.9.14
 # Tag and cover embedding for music downloads.
 mutagen>=1.47

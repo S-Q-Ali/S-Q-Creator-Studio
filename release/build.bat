@@ -72,6 +72,9 @@ echo.
     --collect-all browser_use ^
     --collect-all browser_harness ^
     --collect-all cdp_use ^
+    --collect-all mutagen ^
+    --collect-all SpotipyFree ^
+    --collect-all spotapi ^
     --workpath "%WORKPATH%" ^
     --distpath "%DISTPATH%" ^
     "%ENTRY%"

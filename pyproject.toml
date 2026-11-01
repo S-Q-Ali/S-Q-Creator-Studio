@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "s-q-ali-media-downloader"
-version = "2.9.2"
+version = "2.10.0"
 description = "AI-powered bulk video downloader for TikTok, YouTube, Instagram & Facebook with neon theme and cross-platform social discovery."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,9 +28,10 @@ dependencies = [
     # Instagram profile expansion. yt-dlp's own instagram:user extractor is
     # broken upstream (yt-dlp issue #4394), so instaloader lists the profile.
     "instaloader>=4.16",
-    # Spotify links carry metadata, not audio. spotdl resolves them to the
-    # matching YouTube audio so the download needs no paid account.
-    "spotdl>=4.4",
+    # Spotify links carry metadata, not audio. spotipyFree reads that metadata
+    # without a login, and yt-dlp's own search matches each title to the
+    # YouTube audio — no account, password or API credential is involved.
+    "spotipyFree>=1.9.14",
     # Tag and cover embedding for the music downloads, plus the quality
     # report shown next to each finished file.
     "mutagen>=1.47",
