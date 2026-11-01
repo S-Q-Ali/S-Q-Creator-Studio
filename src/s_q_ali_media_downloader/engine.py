@@ -95,6 +95,15 @@ QUALITY_OPTIONS = {
     "Audio only": "bestaudio/best",
 }
 
+MUSIC_FORMATS = {
+    "FLAC · lossless container": "flac",
+    "MP3 · 320 kbps": "mp3",
+    "M4A · original AAC": "m4a",
+    "Opus · smallest": "opus",
+    "WAV · uncompressed": "wav",
+}
+DEFAULT_MUSIC_FORMAT = "FLAC · lossless container"
+
 # Derive MAX_ACCOUNT_VIDEOS from ACCOUNT_LIMITS so changing the UI list
 # automatically updates the cap.
 ACCOUNT_LIMITS = [20, 40, 60, 80, 100, 120, 140, 160, 180, 200]
@@ -705,6 +714,76 @@ def find_ffmpeg():
     return None
 
 
+def build_music_opts(fmt, outtmpl, ffmpeg_dir=None, use_cookies=False):
+    """yt-dlp options for one music track: best audio → requested codec.
+
+    The FLAC file from YouTube is a lossless container around the best stream
+    YouTube serves; it cannot restore detail the source never had. Embedding
+    the artwork and the metadata is what makes the file usable in a library.
+    """
+    extract = {"key": "FFmpegExtractAudio", "preferredcodec": fmt}
+    if fmt == "mp3":
+        extract["preferredquality"] = "0"
+    can_embed_thumb = fmt != "wav"  # RIFF WAV has no thumbnail container
+    postprocessors = [extract, {"key": "FFmpegMetadata", "add_metadata": True}]
+    if can_embed_thumb:
+        postprocessors.append({"key": "EmbedThumbnail"})
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "noprogress": True,
+        "noplaylist": True,
+        "format": "bestaudio/best",
+        "outtmpl": outtmpl,
+        "writethumbnail": can_embed_thumb,
+        "postprocessors": postprocessors,
+        "js_runtimes": js_runtime_opts(),
+        "extractor_args": {"youtube": {"player_client": list(YOUTUBE_PLAYER_CLIENTS)}},
+        "retries": 0,
+        "fragment_retries": 0,
+        "overwrites": True,
+        "ignoreerrors": False,
+    }
+    if ffmpeg_dir:
+        opts["ffmpeg_location"] = ffmpeg_dir
+    if use_cookies:
+        opts["cookiesfrombrowser"] = ("chrome",)
+    return opts
+
+
+def music_output_path(output_dir, track, ext, position=1):
+    """Artist/Album/NN - Title.ext, with a numeric suffix on collision."""
+    artist = sanitize_filename(track.artist) if track.artist else "Unknown Artist"
+    album = sanitize_filename(track.album) if track.album else "Singles"
+    number = track.track_number or position
+    title = sanitize_filename(track.title) if track.title else "Untitled"
+    base = f"{number:02d} - {title}" if number else title
+    folder = os.path.join(output_dir, artist, album)
+    os.makedirs(folder, exist_ok=True)
+    with _NAME_LOCK:
+        return os.path.join(folder, unique_basename(folder, base) + ext)
+
+
+def music_quality_label(info):
+    """Human label for the source stream, shown next to the downloaded file."""
+    codec = str((info or {}).get("acodec") or "").lower()
+    if codec.startswith("opus"):
+        name = "Opus"
+    elif codec.startswith("mp4a") or codec == "aac":
+        name = "AAC"
+    elif codec.startswith("flac"):
+        name = "FLAC"
+    elif codec.startswith("vorbis"):
+        name = "Vorbis"
+    elif codec in ("", "none"):
+        return "best available"
+    else:
+        name = codec.split(".")[0].upper()
+    abr = (info or {}).get("abr") or (info or {}).get("tbr")
+    return f"{name} {round(abr)}kbps" if abr else name
+
+
 def tidy_error(exc):
     message = str(exc).replace("\n", " ").strip()
     message = re.sub(r"\s*;?\s*please report this issue on.*", "", message, flags=re.IGNORECASE)
@@ -1084,5 +1163,206 @@ class DownloadThread(QThread):
                 self.log.emit(f"{len(waiting)} could not be downloaded.")
         except _Stopped:
             self.log.emit("Run stopped.")
+        finally:
+            self.finished_all.emit()
+
+
+class MusicResolveThread(QThread):
+    """Expand pasted music links into a flat list of downloadable tracks."""
+
+    resolved = Signal(list)
+    failed = Signal(str)
+    note = Signal(str)
+
+    def __init__(self, urls, use_cookies=False, parent=None):
+        super().__init__(parent)
+        self.urls = [url for url in urls if str(url).strip()]
+        self.use_cookies = use_cookies
+        self._stop = False
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        from s_q_ali_media_downloader.core.music_source import resolve_url
+
+        tracks = []
+        errors = []
+        for url in self.urls:
+            if self._stop:
+                break
+            try:
+                found = resolve_url(url, use_cookies=self.use_cookies)
+            except Exception as exc:
+                logger.warning("Music resolve failed: %s — %s", url, exc)
+                errors.append(tidy_error(exc))
+                continue
+            tracks.extend(found)
+            self.note.emit(
+                f"{len(found)} track{'s' if len(found) != 1 else ''} found: {url}"
+            )
+        if tracks:
+            self.resolved.emit(tracks)
+        else:
+            self.failed.emit(errors[0] if errors else "No tracks found.")
+
+
+class MusicDownloadThread(QThread):
+    """Download a resolved track list one song at a time.
+
+    Sequential on purpose: YouTube bot checks punish bursts, and a music album
+    is small enough that the wait costs less than a failed run.
+    """
+
+    track_started = Signal(int, str)
+    track_progress = Signal(int, float, str, str)
+    track_result = Signal(int, str, str, str)
+    log = Signal(str)
+    finished_all = Signal()
+
+    def __init__(self, tracks, output_dir, fmt, use_cookies=False, parent=None):
+        super().__init__(parent)
+        self.tracks = list(tracks)
+        self.output_dir = output_dir
+        self.fmt = fmt
+        self.use_cookies = use_cookies
+        self._stop = False
+        self._ffmpeg_dir = find_ffmpeg()
+
+    def stop(self):
+        self._stop = True
+
+    def _hook_factory(self, uid):
+        def hook(d):
+            if self._stop:
+                raise _Stopped()
+            status = d.get("status")
+            if status == "downloading":
+                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                got = d.get("downloaded_bytes") or 0
+                pct = (got / total) * 100.0 if total else 0.0
+                speed = d.get("speed")
+                self.track_progress.emit(
+                    uid,
+                    min(pct, 99.0),
+                    human_size(total),
+                    (human_size(speed) + "/s") if speed else "—",
+                )
+            elif status == "finished":
+                self.track_progress.emit(uid, 99.0, "—", "finishing")
+
+        return hook
+
+    def _find_downloaded(self, ydl, info, temp_prefix):
+        for item in info.get("requested_downloads") or []:
+            filepath = item.get("filepath") or item.get("_filename")
+            if filepath and os.path.isfile(filepath):
+                return filepath
+        try:
+            candidate = ydl.prepare_filename(info)
+        except Exception:
+            candidate = None
+        if candidate and os.path.isfile(candidate):
+            return candidate
+        for name in _listdir(self.output_dir):
+            if name.startswith(temp_prefix) and not name.endswith((".jpg", ".png", ".webp")):
+                return os.path.join(self.output_dir, name)
+        return None
+
+    def _download_one(self, uid, track, position):
+        from s_q_ali_media_downloader.core.music_tagging import read_report
+
+        os.makedirs(self.output_dir, exist_ok=True)
+        temp_prefix = f"{TEMP_PREFIX}{position}-"
+        opts = build_music_opts(
+            self.fmt,
+            os.path.join(self.output_dir, temp_prefix + "%(id)s.%(ext)s"),
+            self._ffmpeg_dir,
+            self.use_cookies,
+        )
+        opts["progress_hooks"] = [self._hook_factory(uid)]
+
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(track.url, download=True)
+            if info is None:
+                raise RuntimeError("This link returned no audio")
+            if info.get("_type") == "playlist":
+                entries = [entry for entry in (info.get("entries") or []) if entry]
+                if not entries:
+                    raise RuntimeError("This playlist has no tracks")
+                info = entries[0]
+            downloaded = self._find_downloaded(ydl, info, temp_prefix)
+        if not downloaded:
+            raise RuntimeError("Download finished but the file is missing")
+
+        ext = os.path.splitext(downloaded)[1] or f".{self.fmt}"
+        target = music_output_path(self.output_dir, track, ext, position)
+        try:
+            os.replace(downloaded, target)
+        except OSError:
+            target = downloaded
+
+        source_label = music_quality_label(info)
+        if track.source == "spotify":
+            from s_q_ali_media_downloader.core.music_tagging import embed_tags, fetch_cover
+
+            cover = fetch_cover(track.cover_url) if track.cover_url else None
+            try:
+                embed_tags(
+                    target,
+                    title=track.title,
+                    artist=track.artist,
+                    album=track.album,
+                    track_number=track.track_number,
+                    cover=cover,
+                )
+            except Exception as exc:
+                # Keep the audio; a tag failure is not worth losing the file.
+                logger.warning("Tagging failed for %s — %s", target, exc)
+                self.log.emit(f"Tags could not be written: {exc}")
+        report = read_report(target, source=source_label)
+        return target, report.label()
+
+    def _attempt(self, uid, track, position):
+        try:
+            return (True, *self._download_one(uid, track, position))
+        except _Stopped:
+            raise
+        except Exception as exc:
+            logger.warning("Music download failed: %s — %s", track.url, exc)
+            return (False, "—", tidy_error(exc))
+
+    def run(self):
+        from s_q_ali_media_downloader.core.music_source import track_label
+
+        total = len(self.tracks)
+        self.log.emit(f"Downloading {total} track{'s' if total != 1 else ''}.")
+        try:
+            for index, track in enumerate(self.tracks, start=1):
+                if self._stop:
+                    break
+                uid = index
+                self.track_started.emit(uid, track_label(track))
+                ok = False
+                size = "—"
+                detail = "Unknown error"
+                for attempt in range(1, INLINE_RETRIES + 2):
+                    if self._stop:
+                        break
+                    ok, size, detail = self._attempt(uid, track, index)
+                    if ok:
+                        break
+                    if attempt <= INLINE_RETRIES:
+                        self.log.emit(f"Retry {attempt}/{INLINE_RETRIES}: {track_label(track)}")
+                        time.sleep(1.5)
+                if self._stop:
+                    break
+                if ok:
+                    self.track_result.emit(uid, "Done", size, detail)
+                else:
+                    self.track_result.emit(uid, "Failed", "—", detail)
+                    self.log.emit(f"Failed: {track_label(track)} — {detail}")
+        except _Stopped:
+            self.log.emit("Music run stopped.")
         finally:
             self.finished_all.emit()
