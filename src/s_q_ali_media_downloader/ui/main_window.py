@@ -70,6 +70,7 @@ from s_q_ali_media_downloader.engine import (
 )
 from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
+from s_q_ali_media_downloader.ui.music_page import MusicPage
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
 from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, shield_pixmap
 
@@ -411,11 +412,12 @@ class MainWindow(QMainWindow):
         nav_lay.addWidget(self.btn_toggle_rail)
 
         self.btn_nav_queue = QPushButton("📥 Download Queue")
+        self.btn_nav_music = QPushButton("🎵 Music")
         self.btn_nav_agent = QPushButton("🤖 AI Channel Finder && Social Inspector")
         self.btn_nav_settings = QPushButton("⚙️ Settings")
 
         for idx, btn in enumerate(
-            (self.btn_nav_queue, self.btn_nav_agent, self.btn_nav_settings)
+            (self.btn_nav_queue, self.btn_nav_music, self.btn_nav_agent, self.btn_nav_settings)
         ):
             btn.setCheckable(True)
             btn.setProperty("kind", "tab")
@@ -534,12 +536,16 @@ class MainWindow(QMainWindow):
 
         self.workspace_stack.addWidget(page_queue)
 
-        # Page 1: AI Agent Container Workspace Page
+        # Page 1: Music Downloader
+        self.music_page = MusicPage()
+        self.workspace_stack.addWidget(self.music_page)
+
+        # Page 2: AI Agent Container Workspace Page
         self.agent_tab = AgentTabWidget()
         self.agent_tab.send_to_queue_requested.connect(self._handle_agent_urls)
         self.workspace_stack.addWidget(self.agent_tab)
 
-        # Page 2: Settings
+        # Page 3: Settings
         self.workspace_stack.addWidget(self.settings_page)
 
         lay.addWidget(self.workspace_stack, 1)
@@ -1269,9 +1275,11 @@ class MainWindow(QMainWindow):
 
     def _workers_running(self):
         social = getattr(getattr(self, "agent_tab", None), "social_page", None)
+        music = getattr(self, "music_page", None)
         return (
             self.running()
             or self.fetching()
+            or (music is not None and music.is_running())
             or (self.expander is not None and self.expander.isRunning())
             or self.settings_page.key_test_running()
             or (
@@ -1308,6 +1316,9 @@ class MainWindow(QMainWindow):
         self._close_pending = True
         if self.running():
             self.thread.stop()
+        music = getattr(self, "music_page", None)
+        if music is not None:
+            music.stop()
         social = getattr(getattr(self, "agent_tab", None), "social_page", None)
         if social is not None:
             social.cancel()
