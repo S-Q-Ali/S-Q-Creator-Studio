@@ -3,6 +3,18 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Music workspace.** Paste YouTube, YouTube Music, SoundCloud or Spotify
+  links — one per line — and the app resolves them into a queue and downloads
+  the audio. Spotify links are resolved to the matching YouTube audio by
+  `spotdl`, so no Spotify account is needed. Formats: FLAC (default), MP3 320,
+  M4A, Opus and WAV; artwork and metadata are embedded, and a quality report
+  shows what the source stream really was. Playlists and albums enter the
+  queue in one click.
+
 ## [2.9.2] — 2026-10-30
 
 ### Fixed
