@@ -216,6 +216,7 @@ def test_the_persistent_profile_is_used_and_chrome_is_tried_first(tmp_path, monk
 
 
 def test_edge_the_full_chromium_and_the_shell_are_the_fallbacks(tmp_path, monkeypatch):
+    monkeypatch.setattr(br.sys, "platform", "win32")
     chromium = _FakeChromium(fail_channels={"chrome", "msedge", "chromium"})
     _install_fake_playwright(monkeypatch, chromium)
     session = br.BrowserSession(profile_dir=tmp_path / "profile")
@@ -320,3 +321,129 @@ def test_the_rendered_checker_reuses_one_session(tmp_path, monkeypatch):
     assert created[0] == {"headless": False, "profile_dir": tmp_path}
     checker.close()
     assert closed == [True]
+
+
+# --------------------------------------------------------------------------- #
+# The browser this OS has, and the cache this OS keeps
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("platform", "expected"),
+    [
+        ("win32", ("chrome", "msedge", "chromium", None)),
+        ("darwin", ("chrome", "chromium", None)),
+        ("linux", ("chrome", "chromium", None)),
+    ],
+)
+def test_edge_is_only_tried_where_it_comes_preinstalled(monkeypatch, platform, expected):
+    """Windows ships Edge; Linux and macOS usually do not.
+
+    Asking for it anyway costs a failed launch whose message is then part of
+    the "No usable browser was found" line the user has to read.
+    """
+    monkeypatch.setattr(br.sys, "platform", platform)
+
+    assert br.browser_channels() == expected
+
+
+@pytest.mark.parametrize(
+    ("platform", "relative"),
+    [("linux", ".cache/ms-playwright"), ("darwin", "Library/Caches/ms-playwright")],
+)
+def test_the_os_playwright_cache_is_searched_off_windows(
+    tmp_path, monkeypatch, platform, relative
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(br.sys, "platform", platform)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: None)
+
+    assert br._playwright_browser_roots() == [home / relative]
+
+
+def test_the_xdg_cache_location_is_honoured(tmp_path, monkeypatch):
+    cache = tmp_path / "cache"
+    monkeypatch.setattr(br.sys, "platform", "linux")
+    monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: None)
+
+    assert br._playwright_browser_roots() == [cache / "ms-playwright"]
+
+
+def test_a_chromium_in_the_linux_cache_is_the_one_used(tmp_path, monkeypatch):
+    """The browser the agent launches, found where Linux keeps it."""
+    monkeypatch.setattr(br.sys, "platform", "linux")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: None)
+    monkeypatch.setattr(br.shutil, "which", lambda name: None)
+    exe = tmp_path / ".cache/ms-playwright/chromium-1248/chrome-linux/chrome"
+    exe.parent.mkdir(parents=True)
+    exe.write_text("", encoding="utf-8")
+
+    assert br.browser_executable() == exe
+
+
+@pytest.mark.parametrize(
+    ("platform", "layout"),
+    [
+        ("linux", "chrome-linux64/chrome"),
+        ("linux", "chrome-linux-arm64/chrome"),
+        (
+            "darwin",
+            "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        ),
+        (
+            "darwin",
+            "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        ),
+        ("win32", "chrome-win64/chrome.exe"),
+    ],
+)
+def test_the_full_chromium_of_this_platform_is_found(
+    tmp_path, monkeypatch, platform, layout
+):
+    """Playwright names the folder and the binary per platform, and the names
+    changed when it started shipping "Google Chrome for Testing"."""
+    monkeypatch.setattr(br.sys, "platform", platform)
+    monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+    cache = tmp_path / "browsers"
+    exe = cache / "chromium-1248" / layout
+    exe.parent.mkdir(parents=True)
+    exe.write_text("", encoding="utf-8")
+    monkeypatch.setattr(br, "bundled_browsers_dir", lambda: cache)
+
+    assert br._chromium_executable(cache) == exe
+
+
+# --------------------------------------------------------------------------- #
+# Chromium's sandbox, for the sessions that cannot use it
+# --------------------------------------------------------------------------- #
+def test_a_root_session_gives_up_the_chromium_sandbox(monkeypatch):
+    """CI containers and headless boxes run as root, where Chromium's sandbox
+    refuses to start and the browser dies before it opens a page."""
+    chromium = _FakeChromium()
+    _install_fake_playwright(monkeypatch, chromium)
+    monkeypatch.setattr(br.os, "geteuid", lambda: 0, raising=False)
+
+    br.BrowserSession().start()
+
+    assert "--no-sandbox" in chromium.launch_calls[0]["args"]
+
+
+def test_an_ordinary_session_keeps_the_chromium_sandbox(monkeypatch):
+    chromium = _FakeChromium()
+    _install_fake_playwright(monkeypatch, chromium)
+    monkeypatch.setattr(br.os, "geteuid", lambda: 1000, raising=False)
+
+    br.BrowserSession().start()
+
+    assert "--no-sandbox" not in chromium.launch_calls[0]["args"]
