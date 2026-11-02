@@ -116,9 +116,11 @@ class GeminiKeyTestWorker(QThread):
 def make_settings() -> QSettings:
     """The app's preferences.
 
-    On Windows these live in the registry. ``SQ_SETTINGS_FILE`` points them
-    at an ini file instead, which is how the tests keep out of the user's
-    own preferences without changing the format for the whole process.
+    On Windows these live in the registry, on macOS in a plist and on Linux in
+    an ini file — Qt picks the native place, and the keys are the same.
+    ``SQ_SETTINGS_FILE`` points them at an ini file instead, which is how the
+    tests keep out of the user's own preferences without changing the format
+    for the whole process.
     """
     override = os.environ.get("SQ_SETTINGS_FILE")
     if override:
