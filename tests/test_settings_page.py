@@ -156,3 +156,60 @@ def test_the_discovery_browser_is_shown_by_default_and_can_be_hidden(
 
     page.show_browser_check.setChecked(True)
     page.save()
+
+
+# --------------------------------------------------------------------------- #
+# where the keys live, stated per OS (issue #13)
+# --------------------------------------------------------------------------- #
+def _page_with_backend(qapp, isolated_appdata, monkeypatch, backend: str) -> SettingsPage:
+    from s_q_ali_media_downloader.ui import settings_page as sp
+
+    monkeypatch.setattr(sp.settings_store, "secret_backend_name", lambda: backend)
+    page = SettingsPage()
+    page.load()
+    return page
+
+
+def test_the_keyring_note_names_the_keychain_and_not_windows(
+    qapp, isolated_appdata, monkeypatch
+):
+    page = _page_with_backend(qapp, isolated_appdata, monkeypatch, "keyring")
+
+    text = page.key_storage_note.text().lower()
+    assert "keychain" in text
+    assert "windows" not in text
+
+
+def test_the_plain_note_admits_the_keys_are_unencrypted(
+    qapp, isolated_appdata, monkeypatch
+):
+    page = _page_with_backend(qapp, isolated_appdata, monkeypatch, "plain")
+
+    text = page.key_storage_note.text().lower()
+    assert "unencrypted" in text
+    assert "windows" not in text
+
+
+def test_the_dpapi_note_keeps_the_windows_wording(qapp, isolated_appdata, monkeypatch):
+    page = _page_with_backend(qapp, isolated_appdata, monkeypatch, "dpapi")
+
+    assert "windows" in page.key_storage_note.text().lower()
+
+
+def test_an_unreadable_key_asks_again_without_naming_windows(
+    qapp, isolated_appdata, monkeypatch
+):
+    """The database can be copied from a machine that sealed the key a
+    different way; the message must fit the machine it is shown on."""
+    from s_q_ali_media_downloader.ui import settings_page as sp
+
+    monkeypatch.setattr(sp.settings_store, "secret_backend_name", lambda: "keyring")
+    monkeypatch.setattr(sp.settings_store, "secret_is_unreadable", lambda key: True)
+
+    page = SettingsPage()
+    page.load()
+
+    assert page.key_warning.isHidden() is False
+    assert "Groq API key" in page.key_warning.text()
+    assert "Windows" not in page.key_warning.text()
+    assert "Enter them again" in page.key_warning.text()

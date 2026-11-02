@@ -58,6 +58,16 @@ GROQ_KEY = "groq_api_key"
 GEMINI_KEY = "gemini_api_key"
 YOUTUBE_KEY = "youtube_api_key"
 COOKIES_FILE_KEY = "youtube_cookies_file"
+
+# What each sealing backend means for the person reading the Settings page.
+STORAGE_NOTES = {
+    "dpapi": "Keys are encrypted by your Windows account. The settings file "
+             "cannot be read on another PC or under another user.",
+    "keyring": "Keys live in this machine's keychain, not in the settings file - "
+               "the file only holds the item's name.",
+    "plain": "This system has no secret store available, so keys are saved "
+             "unencrypted in the settings file.",
+}
 SHOW_BROWSER_KEY = "show_discovery_browser"
 
 
@@ -289,6 +299,10 @@ class SettingsPage(QWidget):
         self.key_warning.setStyleSheet("color: #FFB020;")
         self.key_warning.setVisible(False)
 
+        self.key_storage_note = QLabel("")
+        self.key_storage_note.setProperty("role", "hint")
+        self.key_storage_note.setWordWrap(True)
+
         return [
             (
                 "Groq API key",
@@ -325,6 +339,7 @@ class SettingsPage(QWidget):
                 ),
             ),
             ("", self.key_warning, ""),
+            ("", self.key_storage_note, ""),
         ]
 
     def _build_downloads(self) -> list[tuple]:
@@ -474,10 +489,17 @@ class SettingsPage(QWidget):
             if settings_store.secret_is_unreadable(key)
         ]
         if unreadable:
+            # Only the DPAPI sentence may mention Windows; on Linux and macOS
+            # the key is missing from the keychain, not encrypted elsewhere.
+            where = (
+                "this Windows account"
+                if settings_store.secret_backend_name() == "dpapi"
+                else "this machine"
+            )
             self.key_warning.setText(
                 "The stored "
                 + " and ".join(unreadable)
-                + " cannot be decrypted on this Windows account. Enter them again."
+                + f" cannot be read on {where}. Enter them again."
             )
             self.key_warning.setVisible(True)
         elif cookies_path and not os.path.isfile(cookies_path):
@@ -490,6 +512,8 @@ class SettingsPage(QWidget):
             self.key_warning.setVisible(True)
         else:
             self.key_warning.setVisible(False)
+
+        self.key_storage_note.setText(STORAGE_NOTES[settings_store.secret_backend_name()])
 
         self._refresh_identity()
         self._refresh_density_note()
