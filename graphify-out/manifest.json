@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793651902.6196518,
-    "seen": 1793655445.5467157,
-    "ast_hash": "21b1e1a93ee6506123a16d2552b0a250",
+    "mtime": 1793657548.8416312,
+    "seen": 1793658219.1737943,
+    "ast_hash": "c71578ffd2ca9f54feb548aff6a76092",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793653130.0761514,
-    "seen": 1793655445.5483072,
-    "ast_hash": "45287f013be1f0213f3af39e46dc7222",
+    "mtime": 1793657763.7080295,
+    "seen": 1793658219.1757627,
+    "ast_hash": "9bdec8b49c152d0a139882a6cd2caf5a",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1380,15 +1380,15 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793649120.8901465,
-    "seen": 1793655445.548322,
-    "ast_hash": "3b369b0171b3a97a1569454ff041297a",
+    "mtime": 1793657742.345253,
+    "seen": 1793658219.1757982,
+    "ast_hash": "b0494d6cb354d9b81679c77a92f248e5",
     "semantic_hash": ""
   },
   "SECURITY.md": {
-    "mtime": 1793649135.7367215,
-    "seen": 1793655445.548327,
-    "ast_hash": "635d8b0fd7b56e7379a6141d909a747b",
+    "mtime": 1793657749.4291492,
+    "seen": 1793658219.1758084,
+    "ast_hash": "a945e3a646253e29da5106a644e5fd20",
     "semantic_hash": ""
   },
   "requirements-dev.txt": {
@@ -1398,9 +1398,9 @@
     "semantic_hash": ""
   },
   "requirements.txt": {
-    "mtime": 1793574278.118385,
-    "seen": 1793574949.234828,
-    "ast_hash": "7743814d665d2f944a235adf2c7d9e77",
+    "mtime": 1793657543.2015686,
+    "seen": 1793658219.1759143,
+    "ast_hash": "d3f1e0f868caf2ef7852dc0aa9828363",
     "semantic_hash": ""
   },
   ".opencode/skills/theme-factory/theme-showcase.pdf": {
@@ -1560,9 +1560,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/settings_store.py": {
-    "mtime": 1792932980.3779428,
-    "seen": 1792962038.9106998,
-    "ast_hash": "ba35818865c759f22cfd687d9eb64228",
+    "mtime": 1793658089.6495893,
+    "seen": 1793658219.1739745,
+    "ast_hash": "f4536c08b8ba6758abf12487f9905215",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/youtube_client.py": {
@@ -1572,9 +1572,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/settings_page.py": {
-    "mtime": 1793197840.522045,
-    "seen": 1793201248.6323822,
-    "ast_hash": "964beae33962aff636a02ad97bbe7c33",
+    "mtime": 1793657667.7157934,
+    "seen": 1793658219.17403,
+    "ast_hash": "55512f12ccb79ca4d0d23dab5d978f3f",
     "semantic_hash": ""
   },
   "tests/test_core_exporter.py": {
@@ -1842,9 +1842,9 @@
     "semantic_hash": ""
   },
   "tests/test_settings_page.py": {
-    "mtime": 1793151543.8357992,
-    "seen": 1793152404.9174001,
-    "ast_hash": "3e3764416ba0071468a6b724f0c4b85e",
+    "mtime": 1793657705.7016072,
+    "seen": 1793658219.1742575,
+    "ast_hash": "76f0c683950f245d9090affdb44b00c4",
     "semantic_hash": ""
   },
   "tasks/spec-groq-key-test.md": {
@@ -2238,9 +2238,15 @@
     "semantic_hash": ""
   },
   "tasks/todo-cross-platform.md": {
-    "mtime": 1793654908.3407207,
-    "seen": 1793655445.5485115,
-    "ast_hash": "e7b9be6eaf61896487b99f727837189a",
+    "mtime": 1793658139.812606,
+    "seen": 1793658219.1761656,
+    "ast_hash": "e05b9fb76a65ac702c6b955e74768277",
+    "semantic_hash": ""
+  },
+  "tests/test_core_storage_secrets.py": {
+    "mtime": 1793658089.648584,
+    "seen": 1793658219.1741111,
+    "ast_hash": "861249242328863be918afbdaf415e20",
     "semantic_hash": ""
   }
 }
