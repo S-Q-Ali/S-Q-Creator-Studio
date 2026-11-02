@@ -123,17 +123,40 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       once at startup — only when the legacy folder exists and the new one does
       not, so a current install is never touched. 7 tests in
       `tests/test_engine_paths.py`; the full offline suite is green on Windows.
-- [ ] **D2. ffmpeg discovery** — `find_ffmpeg()` (`engine.py:694-714`) checks a
+- [x] **D2. ffmpeg discovery** — `find_ffmpeg()` (`engine.py:694-714`) checks a
       bundled `ffmpeg` as well as `ffmpeg.exe`, then PATH. Acceptance: a POSIX
       bundle with `bin/ffmpeg` is found with an empty PATH. Files: `engine.py`,
       `tests/test_engine_ffmpeg.py` · **S**
-- [ ] **D3. Browser resolution** — POSIX playwright cache roots
+      Done: the bundled name follows `sys.platform` (win32 → `ffmpeg.exe`,
+      anything else → `ffmpeg`), probed beside the app and in `bin/` before
+      PATH. 5 tests in `tests/test_engine_ffmpeg.py` cover win32/linux/darwin
+      with an empty PATH; the Windows bundle and the PATH fallback keep their
+      own cases so the shipped behaviour is guarded, not just the new branch.
+- [x] **D3. Browser resolution** — POSIX playwright cache roots
       (`browser.py:160-162`), `msedge` channel gated to Windows (`:41`),
       Chromium sandbox handling for root/CI (`:288-301`). Acceptance: the
       darwin/linux branches each have a test that fails without the change.
       Files: `agent/tools/browser.py`, `tests/test_social_browser.py` · **M**
-- [ ] **D4. OS-neutral strings** — `browser.py:12`/`:269`,
+      Done: `browser_channels()` and `_playwright_cache_dir()` replace the
+      Windows constants, `launch_args()` adds `--no-sandbox` only when the uid
+      is 0, and 14 tests cover the three OSes. Reading the installed Playwright
+      package turned up a fourth gap the plan did not name: the cached Chromium
+      layouts. 1.64 installs `chrome-linux64/chrome`, `chrome-linux-arm64/chrome`
+      and `chrome-mac-{x64,arm64}/Google Chrome for Testing.app/…`, none of which
+      the old list (`chrome-linux`, `Chromium.app`) would find — so even with the
+      cache root fixed, the browser stayed invisible. Verified against
+      `playwright/driver/package/lib/coreBundle.js`, not guessed.
+- [x] **D4. OS-neutral strings** — `browser.py:12`/`:269`,
       `settings_page.py:109`, `engine.py:815-820`. Files: as listed · **XS**
+      Done: the module header and the "no Playwright" message now say "this
+      machine", and the preferences comment names the registry, the plist and the
+      ini file. `engine.py:815-820` needed nothing — those strings name Chrome,
+      not Windows. Left alone on purpose: the four hardcoded
+      `Mozilla/5.0 (Windows NT 10.0…)` user-agent strings in
+      `metadata_extractor.py`, `social_verifier.py`, `tiktok_api.py` and
+      `youtube_existence.py`. They are a fingerprint the scraping was tuned
+      against, not a sentence anyone reads, and making them "honest" would
+      change what TikTok and YouTube see from a Linux session.
 
 ## Phase E — make the suite portable before CI sees it (`test-portable`)
 

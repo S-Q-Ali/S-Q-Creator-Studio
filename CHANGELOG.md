@@ -58,6 +58,19 @@ All notable changes are documented here. The format follows
   and the downloads — so a bug report asking for "the folder with your data"
   found a folder without the log. One location now decides all four; on Windows
   the log moves into the storage folder the rest of the app already used.
+- **A bundled ffmpeg is recognised on every platform.** The app looked for
+  `ffmpeg.exe` only, so a Linux or macOS bundle that ships its own ffmpeg beside
+  the app reported none, and the formats that merge video and audio failed with
+  nothing to point at. The name now follows the platform it is running on.
+- **Social Discovery finds a browser on Linux and macOS.** Three Windows-only
+  assumptions were fixed at once: Microsoft Edge is asked for only where it comes
+  preinstalled, Playwright's own browser cache is read from the folder this OS
+  uses (`~/.cache/ms-playwright`, `~/Library/Caches/ms-playwright`, or
+  `%LOCALAPPDATA%\ms-playwright`), and the current Chromium folder layouts are
+  recognised — Linux installs `chrome-linux64`/`chrome-linux-arm64`, macOS a
+  "Google Chrome for Testing" bundle. Chromium is also started without its own
+  sandbox when the app runs as root, which is the only way it will launch in a CI
+  container or a headless box.
 
 ## [2.10.0] — 2026-11-02
 
