@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793574281.8019512,
-    "seen": 1793574949.231419,
-    "ast_hash": "d0a90f6cad67fd290f9379815e620fb9",
+    "mtime": 1793651902.6196518,
+    "seen": 1793655445.5467157,
+    "ast_hash": "21b1e1a93ee6506123a16d2552b0a250",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -1368,27 +1368,27 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793634573.9584181,
-    "seen": 1793634911.9458227,
-    "ast_hash": "aa6ebefe2f5f64e586b88da60cae6ac2",
+    "mtime": 1793653130.0761514,
+    "seen": 1793655445.5483072,
+    "ast_hash": "45287f013be1f0213f3af39e46dc7222",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
-    "mtime": 1792679715.7401924,
-    "seen": 1792728948.8114655,
-    "ast_hash": "b7d958434d1f3884b831a1fad95fed83",
+    "mtime": 1793649152.9575474,
+    "seen": 1793655445.5483177,
+    "ast_hash": "d0b57ad1a09cea477e1131d6afe11f81",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793634562.7468708,
-    "seen": 1793634911.945843,
-    "ast_hash": "c90878d13ac11e9435152d311965cd44",
+    "mtime": 1793649120.8901465,
+    "seen": 1793655445.548322,
+    "ast_hash": "3b369b0171b3a97a1569454ff041297a",
     "semantic_hash": ""
   },
   "SECURITY.md": {
-    "mtime": 1792953604.7039237,
-    "seen": 1792962038.911936,
-    "ast_hash": "57e9dac2ad5ec5602025fb66c3c96ffc",
+    "mtime": 1793649135.7367215,
+    "seen": 1793655445.548327,
+    "ast_hash": "635d8b0fd7b56e7379a6141d909a747b",
     "semantic_hash": ""
   },
   "requirements-dev.txt": {
@@ -2160,9 +2160,9 @@
     "semantic_hash": ""
   },
   "tests/test_music_engine.py": {
-    "mtime": 1793632351.8081648,
-    "seen": 1793634911.9440773,
-    "ast_hash": "ad8e92862339ac91b72b26237cc1a332",
+    "mtime": 1793634978.2203767,
+    "seen": 1793655445.547087,
+    "ast_hash": "c1f46727346f9c91aa756a502dd8b295",
     "semantic_hash": ""
   },
   "tests/test_music_live.py": {
@@ -2205,6 +2205,42 @@
     "mtime": 1793565565.3688283,
     "seen": 1793569551.6514258,
     "ast_hash": "7a8e049f4657042c27a2fe0b191410c9",
+    "semantic_hash": ""
+  },
+  "tests/test_requirements_agree.py": {
+    "mtime": 1793651940.6428595,
+    "seen": 1793655445.5471687,
+    "ast_hash": "45a47b62a3f9c153481dc77eebebcf76",
+    "semantic_hash": ""
+  },
+  "tasks/capability-map-cross-platform.md": {
+    "mtime": 1793648631.8720446,
+    "seen": 1793655445.5483859,
+    "ast_hash": "31e73f0769be1dd8eb62a8f82a33d833",
+    "semantic_hash": ""
+  },
+  "tasks/design-brief-glass-ui.md": {
+    "mtime": 1793648632.1659458,
+    "seen": 1793655445.5483902,
+    "ast_hash": "e8c0538e3f48e8948bce438d3bf302b7",
+    "semantic_hash": ""
+  },
+  "tasks/plan-cross-platform.md": {
+    "mtime": 1793648817.440168,
+    "seen": 1793655445.5484,
+    "ast_hash": "4b705a9b8fc04f6f39780ff45cd42a08",
+    "semantic_hash": ""
+  },
+  "tasks/spec-cross-platform.md": {
+    "mtime": 1793655267.004481,
+    "seen": 1793655445.5484703,
+    "ast_hash": "14d1fbfea60107218132dbbee9956842",
+    "semantic_hash": ""
+  },
+  "tasks/todo-cross-platform.md": {
+    "mtime": 1793654908.3407207,
+    "seen": 1793655445.5485115,
+    "ast_hash": "e7b9be6eaf61896487b99f727837189a",
     "semantic_hash": ""
   }
 }
