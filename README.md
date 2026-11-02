@@ -139,7 +139,7 @@ Everything is in the **Settings** tab of the app.
 | **Save to / Quality / Pace / Workers / End passes** | Where the videos land and how hard the app works. |
 | **Compact layout** | Follows the window by default: below 1500×850 the interface tightens itself so nothing is clipped on a small laptop. Tick the box to choose it yourself. |
 
-On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account — and no key is ever written to a URL or to the log. On Linux and macOS the store has no sealing backend yet, so a key there would be written in plain text; that is one of the reasons those platforms are not supported (issue #13).
+On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account — and no key is ever written to a URL or to the log. Off Windows the store asks the machine's own keychain (the login keychain, GNOME Keyring, KWallet) through `keyring` and keeps only the item's name in the database. A system with no keychain available marks those rows `plain:` and says so on the Settings page instead of pretending the key is safe. The keychain path is covered by unit tests but has not yet been run on a real Linux or macOS machine, and Windows remains the only supported platform (issue #13).
 
 ## Tech stack
 

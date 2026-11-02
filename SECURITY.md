@@ -46,10 +46,13 @@ Please report security vulnerabilities via email to:
 
 ## Security Features
 
-- **Encrypted Settings:** API keys are stored encrypted with Windows DPAPI on
-  Windows. On Linux and macOS there is no sealing backend yet, so a key there is
-  written to the settings table in plain text — one reason those platforms are
-  unsupported (issue #13).
+- **Encrypted Settings:** API keys are sealed at rest, and the row says which
+  backend sealed it. Windows uses DPAPI, tied to your Windows account. Linux and
+  macOS use the machine's keychain through `keyring`, and the database keeps only
+  the item's name. Where no secret store is reachable, the value is stored with a
+  `plain:` marker, the Settings page states it, and a warning is logged that names
+  the key and never the key's value. The keychain path is unit-tested and has not
+  yet run on real Linux or macOS hardware (issue #13).
 - **Input Validation:** All user inputs are validated to prevent injection attacks
 - **Secure Downloads:** Downloads are sandboxed and use yt-dlp's security features
 - **No Telemetry:** The app does not collect or send user data to any server

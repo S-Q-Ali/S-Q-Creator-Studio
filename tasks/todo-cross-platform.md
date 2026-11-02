@@ -80,21 +80,31 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase C — secrets on every OS (`secrets-portable`)
 
-- [ ] **C1. Failing tests for the three backends** — fake keyring injected;
-      asserts no plaintext in the row when keyring works, `plain` marker +
-      warning when the backend raises, `dpapi1:` round-trip on Windows, and
-      `caplog` never contains the key. Acceptance: red before the code exists.
+- [x] **C1. Failing tests for the three backends** — written first and red
+      (13 failures on 14 tests), then green: fake keyring injected; no plaintext
+      in the row when keyring works; `plain:` marker + warning when there is no
+      store or the keychain refuses the write; a `plain:` row upgraded to the
+      keychain when a store appears; `dpapi1:` round-trip on Windows; `caplog`
+      never contains the key.
       Files: `tests/test_core_storage_secrets.py` (new) · **S**
-- [ ] **C2. Backend table in `settings_store`** — `_secret_backend()`,
-      `SEAL_DPAPI` / `SEAL_KEYRING` / `SEAL_PLAIN`, explicit
-      `keyring.backends.macOS` / `SecretService` imports (frozen-safe), re-seal a
-      `plain` row once a store appears. Acceptance: Windows branch byte-identical
-      in behaviour. Files: `core/settings_store.py`, `requirements.txt`,
-      `pyproject.toml` · **M**
-- [ ] **C3. OS-aware Settings wording** — the unreadable-key message
-      (`settings_page.py:480`) and a one-line note on how the key is stored here.
-      Acceptance: no sentence says "Windows" on macOS; an unencrypted save is
-      stated in the panel, not only the log. Files: `ui/settings_page.py` · **S**
+- [x] **C2. Backend table in `settings_store`** — `_secret_backend()` /
+      `_detect_secret_backend()` / `secret_backend_name()`, `SEAL_DPAPI` /
+      `SEAL_KEYRING` / `SEAL_PLAIN`, the keyring backends imported by name for
+      frozen builds, and the re-seal of a `plain` row. The Windows-only
+      `ctypes.wintypes` import now sits behind `if sys.platform == "win32"`,
+      which is what had made the module (and Settings) unimportable off Windows.
+      `keyring>=25.0; sys_platform != "win32"` is in `requirements.txt` and
+      `pyproject.toml`, so the Windows dependency set is unchanged.
+      Acceptance held: the Windows branch is behaviourally byte-identical, and
+      `tests/test_core_settings_store.py` still passes untouched. · **M**
+- [x] **C3. OS-aware Settings wording** — `settings_page.py:480` no longer says
+      "this Windows account" off Windows, and the keys card now carries
+      `key_storage_note` stating where the keys live for the backend in use,
+      including the unencrypted case. README and SECURITY.md describe all three
+      backends and mark the keychain path as unit-tested but not yet run on real
+      Linux/macOS hardware.
+      Files: `ui/settings_page.py`, `tests/test_settings_page.py`, `README.md`,
+      `SECURITY.md`, `CHANGELOG.md` · **S**
 
 ## Phase D — runtime portability (`runtime-portable`)
 
