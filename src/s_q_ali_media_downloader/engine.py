@@ -723,6 +723,9 @@ def find_ffmpeg():
     import shutil
     import sys
 
+    # The bundle carries the binary this OS runs: ffmpeg.exe on Windows,
+    # a plain ffmpeg on Linux and macOS.
+    binary = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
     roots = [os.path.dirname(os.path.abspath(sys.argv[0]))]
     if getattr(sys, "frozen", False):
         roots.append(os.path.dirname(sys.executable))
@@ -731,8 +734,8 @@ def find_ffmpeg():
         if not root:
             continue
         for candidate in (
-            os.path.join(root, "ffmpeg.exe"),
-            os.path.join(root, "bin", "ffmpeg.exe"),
+            os.path.join(root, binary),
+            os.path.join(root, "bin", binary),
         ):
             if os.path.isfile(candidate):
                 return os.path.dirname(candidate)
