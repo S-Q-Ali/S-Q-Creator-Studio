@@ -46,13 +46,13 @@ The same six are skills, so they can be invoked by name as well.
 - `src/s_q_ali_media_downloader/app.py` — application entry point.
 - `src/s_q_ali_media_downloader/ui/` — `main_window.py` (window + wiring) and `widgets.py` (cards, chips, drawing helpers).
 - `src/s_q_ali_media_downloader/agent/` — AI Channel Finder: discovery orchestrator, typed schemas, social verification tools.
-- `src/s_q_ali_media_downloader/core/` — the parts that are not a feature: the secret store (API keys, sealed with DPAPI), the YouTube client, the exporter.
+- `src/s_q_ali_media_downloader/core/` — the parts that are not a feature: the secret store (API keys, sealed with DPAPI on Windows; see `SECURITY.md` for the other platforms), the YouTube client, the exporter.
 - `tests/` — pytest suite. Keep it green; add tests alongside new behaviour.
 
 ## Guidelines
 
 - Keep engine logic free of UI imports so it stays unit-testable.
-- Keep `curl_cffi` in the `>=0.15.0,<0.18` range in `requirements.txt` /
+- Keep `curl_cffi` in the `>=0.15,<0.16` range in `requirements.txt` /
   `pyproject.toml` — newer curl_cffi is not yet supported by yt-dlp's
   impersonation.
 - Do not commit build artifacts (`dist/`, `_internal/`, `release/*`,

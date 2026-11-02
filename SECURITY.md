@@ -46,7 +46,10 @@ Please report security vulnerabilities via email to:
 
 ## Security Features
 
-- **Encrypted Settings:** API keys are stored encrypted using Windows DPAPI
+- **Encrypted Settings:** API keys are stored encrypted with Windows DPAPI on
+  Windows. On Linux and macOS there is no sealing backend yet, so a key there is
+  written to the settings table in plain text — one reason those platforms are
+  unsupported (issue #13).
 - **Input Validation:** All user inputs are validated to prevent injection attacks
 - **Secure Downloads:** Downloads are sandboxed and use yt-dlp's security features
 - **No Telemetry:** The app does not collect or send user data to any server

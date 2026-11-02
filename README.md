@@ -3,8 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/S-Q-Ali/S-Q-Creator-Studio)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions)
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio)
+[![Python](https://img.shields.io/badge/python-3.14%20tested-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows-orange.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues/13)
 
 Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pull the **audio** behind any YouTube, YouTube Music, SoundCloud or Spotify link, and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
 
@@ -62,7 +62,7 @@ Download the latest release and start downloading videos in seconds:
 
 ## Install
 
-The installer is Windows-only. The source itself runs on Linux and macOS too.
+The installer and the portable build are Windows-only. The app is written portably and is expected to start on Linux and macOS from source, but neither platform is tested, packaged or supported today — there is no CI job and no artifact for them. Issue #13 tracks the work to make that claim true.
 
 ### Installer (recommended)
 
@@ -70,7 +70,7 @@ Download the newest `S-Q-Creator-Studio-Setup-*.exe` from the [latest release](h
 
 - Per-user install — **no administrator rights needed**.
 - Bundles `ffmpeg.exe`, so audio-only extraction and format merging work out of the box.
-- Bundles a headless Chromium, so Social Discovery works even where no browser is installed.
+- Bundles the full Chromium build, so Social Discovery works even where no browser is installed.
 - Installs Start-menu and (optional) desktop shortcuts, plus an uninstaller.
 
 ### Portable
@@ -79,7 +79,7 @@ The release also ships a portable folder — just unzip and run `S-Q Creator Stu
 
 ## Build from source
 
-Requires Python 3.10+.
+Requires Python 3.10+; 3.14 is the version CI runs the suite and the release build on.
 
 ```powershell
 git clone https://github.com/S-Q-Ali/S-Q-Creator-Studio.git
@@ -104,14 +104,19 @@ pip install -r requirements-dev.txt
 pytest -m "not live"        # the live tests hit the network; run them with `pytest -m live`
 ruff check src tests
 
-# build a standalone EXE (onedir, windowed)
-pyinstaller --noconfirm --clean --onedir --windowed `
-  --name "S-Q Creator Studio" `
-  --icon "src\s_q_ali_media_downloader\resources\icon.ico" `
-  --add-data "src\s_q_ali_media_downloader\resources\icon.ico;." `
-  --paths "src" `
-  "src\s_q_ali_media_downloader\__main__.py"
+# build the Windows EXE + installer — this is what CI runs
+release\build.bat     # PyInstaller onedir, then Inno Setup; it also stages
+                      # ffmpeg and the bundled Chromium next to the app
 ```
+
+The packaging flags PyInstaller actually needs live in `release/build.bat`
+(`--collect-all` for `yt_dlp`, `curl_cffi`, `playwright`, `instaloader`,
+`mutagen`, `SpotipyFree`, `spotapi`, `browser_use` and friends). Building with a
+hand-rolled `pyinstaller` command tends to produce an app that starts and then
+fails to import one of those at runtime, so prefer the script.
+
+There is no Linux or macOS build script yet — the Windows one uses cmd, winget
+and Inno Setup throughout.
 
 ## How downloads work
 
@@ -134,7 +139,7 @@ Everything is in the **Settings** tab of the app.
 | **Save to / Quality / Pace / Workers / End passes** | Where the videos land and how hard the app works. |
 | **Compact layout** | Follows the window by default: below 1500×850 the interface tightens itself so nothing is clipped on a small laptop. Tick the box to choose it yourself. |
 
-The API keys are sealed at rest with Windows DPAPI — on Windows they are stored encrypted and tied to your Windows account, and no key is ever written to a URL or to the log.
+On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account — and no key is ever written to a URL or to the log. On Linux and macOS the store has no sealing backend yet, so a key there would be written in plain text; that is one of the reasons those platforms are not supported (issue #13).
 
 ## Tech stack
 
@@ -146,7 +151,7 @@ The API keys are sealed at rest with Windows DPAPI — on Windows they are store
 - **spotipyFree** — anonymous Spotify metadata for the Music tab: no login, no client ID
 - **httpx / pydantic / beautifulsoup4** — discovery HTTP, typed schemas, bio scraping
 - **Playwright** — the real browser that confirms every account
-- **browser-use** *(optional)* — the AI-agent browser, attached over CDP to the session the app already hardened
+- **browser-use** *(optional)* — the AI-agent browser for the pages a script cannot read; it starts its own browser session on the app's persistent profile rather than riding the hardened Playwright session
 - **PyInstaller** — standalone EXE packaging
 - **Inno Setup** — per-user installer
 - **pytest / ruff / GitHub Actions (pip-audit gate)** — tests, lint, CI

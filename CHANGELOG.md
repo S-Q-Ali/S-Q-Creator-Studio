@@ -3,6 +3,29 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **The docs no longer promise platforms the app does not deliver.** The README
+  showed a `Windows | Linux | macOS` badge and said the source runs on Linux and
+  macOS too; CI has only ever run Windows and no Linux or macOS artifact has ever
+  been built. Both now say Windows is the only tested and packaged platform, and
+  the work is tracked in issue #13.
+- **The secret store's promise is scoped to the platform that keeps it.** Keys
+  are encrypted with DPAPI *on Windows*; on Linux and macOS the store has no
+  sealing backend and writes them in plain text. The README and SECURITY.md now
+  say so instead of implying the encryption is universal.
+- **The build-from-source instructions no longer build a broken app.** A
+  hand-written `pyinstaller` command misses the `--collect-all` flags the real
+  build carries, which produces an app that starts and then cannot import
+  `mutagen`, `SpotipyFree`, `browser_use` and friends. The README now points at
+  `release\build.bat`, the script CI runs.
+- Smaller wording: the installer bundles the **full** Chromium build rather than
+  the headless shell, `browser-use` runs its own browser session on the app's
+  profile instead of "attached over CDP" to the hardened one, the tested Python
+  version is named, and `curl_cffi`'s documented range matches the real pin.
+
 ## [2.10.0] — 2026-11-02
 
 ### Added
