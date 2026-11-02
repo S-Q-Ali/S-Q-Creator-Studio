@@ -128,6 +128,10 @@ exception message or a URL (standing project invariant).
 2. macOS Keychain access from a GitHub runner: the default login keychain is
    unlocked there, but if a prompt blocks the job, the keyring test degrades to
    a fake-backend unit test and the real round-trip becomes a manual step.
-3. Do we keep `browser-use==0.13.14` exact-pinned on all three OSes, or move it
-   to the `agent` extra only? Depends on whether its transitives resolve on
-   manylinux/macOS in the E3 wheel proof.
+3. ~~Do we keep `browser-use==0.13.14` exact-pinned on all three OSes, or move it
+   to the `agent` extra only?~~ **Answered by the B1 spike:** the exact pin and
+   all of its transitives resolve on manylinux, macOS arm64 and macOS x86_64, and
+   `pywin32` is marker-gated to Windows. So it stays exact-pinned, in the `agent`
+   extra and `requirements-dev.txt` only — never a runtime requirement.
+   `pyproject.toml` now states the same pin as the requirements file, and
+   `tests/test_requirements_agree.py` keeps them that way.

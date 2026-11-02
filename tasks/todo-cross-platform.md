@@ -6,34 +6,77 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase A — stop the false claim shipping (`docs-truth-interim`)
 
-- [ ] **A1. Honest platform + security wording** — README:7 badge, README:65,
+- [x] **A1. Honest platform + security wording** — README:7 badge, README:65,
       README:137, README:73, README:82 + :6, README:107-113 recipe,
       README:149 browser-use wording; SECURITY.md:49; CONTRIBUTING.md:49.
       Acceptance: no claim survives that CI does not currently prove; Windows
       stays the stated platform; "Linux/macOS: not yet tested, help wanted".
       Verify: `grep` for the removed strings; diff reviewed line by line.
       Files: `README.md`, `SECURITY.md`, `CONTRIBUTING.md` · **S**
-- [ ] **A2. CHANGELOG 2.10.1 + commit** — docs-only entry under Fixed; no
-      version bump of the package itself unless we ship it.
+- [x] **A2. CHANGELOG + commit** — docs-only entry under Unreleased/Fixed; no
+      version bump of the package itself. Committed as `282622b`.
       Acceptance: dated heading, phrased as user impact, not internal mechanics.
       Verify: `git diff --stat` shows docs only. Files: `CHANGELOG.md` · **XS**
 
 ## Phase B — prove the dependencies resolve (`deps-proof`)
 
-- [ ] **B1. Wheel + import proof spike** — one throwaway CI job (or a local
-      `pip download` per target) resolving `requirements.txt` and
-      `requirements-dev.txt` on manylinux x86_64, macOS arm64, macOS x86_64,
-      Python 3.12 and 3.14, then importing every runtime module.
-      Acceptance: a written result table in `tasks/` naming what resolves, what
-      does not, and whether `browser-use==0.13.14`'s pins survive.
-      Verify: the job runs green or produces the failure list. Files: a scratch
-      workflow or `tasks/spike_platform_wheels.py` · **M**
-- [ ] **B2. Decide `browser-use` placement** — runtime pin vs the `agent` extra,
-      per B1's result; reconcile the pin drift already found
-      (`requirements-dev.txt:15` exact vs `pyproject.toml:59-61` range) and the
-      curl_cffi range contradicting `CONTRIBUTING.md:55-57`.
-      Acceptance: one source of truth per dependency. Files: `requirements.txt`,
-      `requirements-dev.txt`, `pyproject.toml`, `CONTRIBUTING.md` · **S**
+- [x] **B1. Wheel + import proof spike** — the wheel half ran locally
+      (`tasks/spike_platform_wheels.py`, results in
+      `tasks/spike_platform_wheels.json` — both under the gitignored
+      `tasks/spike_*` path, so the command is recorded here); the import half
+      cannot run here and moves to the CI matrix (F1/F2), which is where
+      importing on Linux/macOS is actually proven.
+
+      Reproduce one target with:
+      `uv pip compile --only-binary :all: --python-version 3.14
+      --python-platform x86_64-manylinux_2_35 requirements.txt
+      requirements-dev.txt` (stdout, no install).
+
+      | Target | 3.12 | 3.14 |
+      |---|---|---|
+      | linux x86_64, glibc ≥ 2.34 | ok · 149 pkgs | ok · 149 pkgs |
+      | linux x86_64, glibc 2.28 | **no PySide6 6.11 wheel** | same |
+      | linux x86_64, manylinux2014 (2.17) | PySide6 **and** pillow 12.3.0 have no wheel | same |
+      | linux arm64, glibc ≥ 2.39 | ok · 149 pkgs | ok · 149 pkgs |
+      | linux arm64, glibc 2.35 | **no PySide6 6.11 wheel** (aarch64 ships 2.39) | same |
+      | macos arm64 | ok · 153 pkgs | ok · 153 pkgs |
+      | macos x86_64 | ok · 153 pkgs | ok · 153 pkgs |
+      | windows x86_64 (today's CI) | ok · 152 pkgs | ok · 152 pkgs |
+
+      Verdicts that change the plan:
+      1. **Scope does not change.** Every pin — `PySide6 6.11.3`,
+         `curl_cffi 0.15.0`, `yt-dlp 2026.10.26`, `playwright 1.64.1`,
+         `instaloader 4.16`, `mutagen 1.48.1`, `SpotipyFree 1.9.14`,
+         `browser-use 0.13.14`, `pyinstaller 6.22.3` — resolves identically on
+         all four platforms. Nothing has to be loosened or replaced.
+      2. **`pywin32` was a false alarm.** `pip install --platform` filters wheel
+         tags but still evaluates environment markers against the *host*, so on
+         Windows it demands `pywin32; sys_platform=="win32"` for a Linux target
+         and reports a failure that does not exist. `uv pip compile
+         --python-platform` rewrites markers for the target; with it,
+         `pywin32`/`pywin32-ctypes` appear only in the Windows lock. Cross-
+         resolution in this repo is a uv job, and the spike now shells out to it.
+      3. **The floors are real and must be documented:** Linux x86_64 needs
+         glibc ≥ 2.34 (Ubuntu 22.04, Debian 12, Fedora 36+), Linux arm64 needs
+         glibc ≥ 2.39, macOS needs 13 Ventura+ (PySide6 ships
+         `macosx_13_0_universal2` only). Python 3.12 and 3.14 both work; 3.10 and
+         3.11 are untested and are not claimed.
+      4. **Still open:** the Linux Qt runtime libraries (`libxkbcommon`,
+         `libEGL`, `libGL`) and whether the headless runner has them — only a CI
+         run shows that.
+
+      Files: `tasks/spike_platform_wheels.py`, `tasks/spike_platform_wheels.json` · **M**
+- [x] **B2. Reconcile the dependency sources** — B1 removed the portability
+      argument for moving `browser-use`, so it stays out of the runtime
+      requirements. The spike instead surfaced a worse drift: **`playwright` was
+      in `requirements.txt` and only in a `.[social]` pyproject extra**, so
+      `pip install .` built an app without the browser Social Discovery needs.
+      `tests/test_requirements_agree.py` now compares both requirements files
+      against `pyproject.toml` and names every mismatch; it was red on exactly
+      three findings (playwright's home, `browser-use` exact-vs-range,
+      `pip-audit` undeclared) and is green now that they are fixed.
+      Acceptance: one source of truth per dependency, guarded by a test.
+      Files: `pyproject.toml`, `tests/test_requirements_agree.py` · **S**
 
 ## Phase C — secrets on every OS (`secrets-portable`)
 
@@ -99,8 +142,10 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       only where needed, pip-audit kept. Acceptance: the same tests that pass
       locally pass on all three runners. Files: `.github/workflows/ci.yml` · **M**
 - [ ] **F2. Per-OS build + smoke** — portable build on each OS, launch for 15 s,
-      assert alive, clean kill; artifacts uploaded per OS.
-      Files: `.github/workflows/ci.yml` · **M**
+      assert alive, clean kill; artifacts uploaded per OS. The runner floors
+      come from B1: `ubuntu-24.04` or newer (glibc ≥ 2.34 x86_64, 2.39 arm64)
+      and a macOS 13+ runner, or PySide6 6.11 has no wheel to install.
+      Files: `.github/workflows/ci.yml`, `.github/workflows/release.yml` · **M**
 
 ## Phase G — one build script (`packaging`, portable-first scope)
 
@@ -126,8 +171,9 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 - [ ] **H1. Per-OS install/run/build docs** — README install + Quick Start +
       build-from-source recipe (now `python release/build.py`), FAQ per OS,
-      Python "3.12 and 3.14 tested", keyring/DPAPI statement, CONTRIBUTING setup
-      blocks, SECURITY per-OS storage table, issue-template OS line.
+      Python "3.12 and 3.14 tested", the OS floors from B1 (glibc ≥ 2.34
+      x86_64 / ≥ 2.39 arm64, macOS 13+), keyring/DPAPI statement, CONTRIBUTING
+      setup blocks, SECURITY per-OS storage table, issue-template OS line.
       Acceptance: every claim maps to a CI job or an artifact that exists.
       Files: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `release/README.md`,
       `.github/ISSUE_TEMPLATE/bug_report.md` · **M**
