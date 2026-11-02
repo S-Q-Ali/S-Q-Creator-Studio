@@ -5,7 +5,22 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Your API keys are sealed on Linux and macOS as well as Windows.** The store
+  now uses the machine's own keychain (the login keychain, GNOME Keyring or
+  KWallet) through `keyring`, and the settings database keeps only the name of
+  the item — never the key. A system with no secret store reachable marks those
+  rows `plain:`, states it on the Settings page, and logs a warning that names
+  the key but never its value. Windows keeps using DPAPI exactly as before.
+
 ### Fixed
+
+- **The settings store no longer needs Windows to import.** It read
+  `ctypes.wintypes` at module import, which raises on Linux and macOS, so the
+  whole Settings page could not load off Windows.
+- A key that was saved unencrypted on a machine without a keychain is moved into
+  the keychain automatically the first time it is read on a machine that has one.
 
 - **The docs no longer promise platforms the app does not deliver.** The README
   showed a `Windows | Linux | macOS` badge and said the source runs on Linux and

@@ -6,6 +6,10 @@ pydantic>=2.0.0
 beautifulsoup4>=4.12.0
 # PYSEC-2026-4320: the emSign ECC root was revoked (compromised keys).
 certifi>=2026.10.19
+# The API keys are sealed at rest. Windows uses DPAPI through ctypes; Linux and
+# macOS have no DPAPI, so the OS keychain is reached through keyring. Windows
+# never installs it — nothing about the shipped Windows path changes.
+keyring>=25.0; sys_platform != "win32"
 # The Social Discovery feature confirms every account in a real browser, and
 # this package is what drives it. The browser download itself is optional:
 # Chrome or Edge is used when the machine has one, and the Playwright

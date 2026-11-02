@@ -25,6 +25,10 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     # PYSEC-2026-4320: the emSign ECC root was revoked (compromised keys).
     "certifi>=2026.10.19",
+    # The secret store seals API keys at rest: DPAPI through ctypes on Windows,
+    # the OS keychain through keyring everywhere else. Windows does not install
+    # keyring, so its behaviour is unchanged.
+    "keyring>=25.0; sys_platform != \"win32\"",
     # Social Discovery confirms every account in a real browser. Chrome or Edge
     # is used when the machine has one; this is what downloads the fallback
     # Chromium and what drives it.
