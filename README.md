@@ -43,7 +43,7 @@ Download the latest release and start downloading videos in seconds:
 - **YouTube playlists & channels** expand into individual videos in the background.
 - **Instagram profiles** expand into their video posts and reels. Only public profiles — no sign-in, and no account is ever stored. Instagram slows the walk down on purpose, so a listing stops after three minutes and tells you how far it got.
 - **Facebook pages** expand into their videos — *experimental*: the page's Videos tab is read in the app's own browser, and the page's own query pages the rest of the list behind it. Only public pages — no sign-in, and no Facebook session is ever stored.
-- **Music workspace** — its own tab for audio. Paste YouTube, YouTube Music, SoundCloud or Spotify links, one per line; a playlist or an album resolves into its tracks in one click. Choose FLAC (default), MP3 320, M4A, Opus or WAV; each file is tagged and filed as `Artist/Album/NN - Title`, and a quality report says what the source stream really was (YouTube serves lossy audio, so FLAC is a container, not recovered detail). Spotify links carry metadata rather than audio: it is read anonymously and every title is matched to its YouTube version by yt-dlp's own search — no Spotify account, password or API key. Artwork comes with the link's own metadata: a track or an album brings its cover, and so does a YouTube or SoundCloud link (its thumbnail); a **Spotify playlist** row carries no album and no cover, so those files are tagged by artist and title and filed under `Artist/Singles/`.
+- **Music workspace** — its own tab for audio. Paste YouTube, YouTube Music, SoundCloud or Spotify links, one per line; a playlist or an album resolves into its tracks in one click. Choose FLAC (default), MP3 320, M4A, Opus or WAV; a quality report says what the source stream really was (YouTube serves lossy audio, so FLAC is a container, not recovered detail). Files land where the link pointed: a collection link — album, playlist or YouTube set — puts all its tracks in that collection's folder as `Collection/NN - Title`, and a single track link uses `Artist/Album/NN - Title`. Spotify links carry metadata rather than audio: it is read anonymously and every title is matched to its YouTube version by yt-dlp's own search — no Spotify account, password or API key. Artwork comes with the link's own metadata: a track or an album brings its cover, and so does a YouTube or SoundCloud link (its thumbnail); a **Spotify playlist** row carries no album and no cover in the free endpoint, so those files are tagged by artist and title only — they still land in the playlist's folder.
 - **Queue management** — add, select, remove, retry, empty. Saved between sessions.
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.
@@ -119,7 +119,7 @@ Each link is tried 4 times on the spot (2–5 s apart). Stills-failing links are
 
 YouTube and TikTok links are handled separately: TikTok uses Chrome impersonation, YouTube skips it and uses native format selection. Instagram and Facebook post links go through yt-dlp's own extractors, without the per-platform tuning TikTok gets. `Audio only` post-processes to MP3 with the bundled ffmpeg.
 
-Music works the same way in its own tab: the links are resolved into tracks first — yt-dlp for YouTube, YouTube Music and SoundCloud, spotipyFree for Spotify metadata — then each track takes the best audio stream and converts it to the chosen codec with the bundled ffmpeg. Tracks are pulled one after another, and the tags and whatever artwork the source carries are embedded before each file moves into its `Artist/Album/` folder.
+Music works the same way in its own tab: the links are resolved into tracks first — yt-dlp for YouTube, YouTube Music and SoundCloud, spotipyFree for Spotify metadata — then each track takes the best audio stream and converts it to the chosen codec with the bundled ffmpeg. Tracks are pulled one after another, and the tags and whatever artwork the source carries are embedded before each file moves. A collection link (album, playlist or YouTube set) files its tracks in that collection's folder; a single track link files under `Artist/Album/`.
 
 ## Settings
 
@@ -191,7 +191,7 @@ A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio 
 ### Q4 2026
 - [ ] Twitch video downloader
 - [x] Instagram & Facebook bulk downloading — expand a profile into its posts, and tune the requests the way TikTok's are
-- [x] Music workspace — audio from YouTube, YouTube Music, SoundCloud and Spotify links, tagged and filed by artist and album
+- [x] Music workspace — audio from YouTube, YouTube Music, SoundCloud and Spotify links, tagged and filed by collection or artist/album
 - [ ] Mobile companion app (Android)
 
 ### Q1 2027

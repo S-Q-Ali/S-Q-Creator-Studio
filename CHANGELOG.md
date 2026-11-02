@@ -11,16 +11,19 @@ All notable changes are documented here. The format follows
   SoundCloud or Spotify links — one per line — and the app resolves them into a
   queue and downloads the audio. A playlist or an album becomes its tracks in
   one click. Formats: FLAC (default), MP3 320, M4A, Opus and WAV; each file is
-  tagged and filed as `Artist/Album/NN - Title`, and a quality report shows what
-  the source stream really was.
+  tagged, and a quality report shows what the source stream really was.
+- **Files land where the link pointed.** A collection link — album, playlist or
+  YouTube set — puts all of its tracks in that collection's folder as
+  `Collection/NN - Title`, so one download no longer scatters across a dozen
+  `Artist/Album/` folders. A single track link still files `Artist/Album/NN - Title`.
 - **Spotify links resolve without an account.** Their metadata is read
   anonymously with `spotipyFree` and every title is matched to its YouTube
   version by yt-dlp's own search, so no Spotify login, password or client ID
   is needed anywhere in the app.
 - **Known limit:** a Spotify *playlist* row carries no album and no cover in the
-  free metadata endpoint, so those tracks are tagged by artist and title and
-  filed under `Artist/Singles/`. Track and album links keep the album and its
-  artwork, as do YouTube and SoundCloud links (their own thumbnail).
+  free metadata endpoint, so those tracks are tagged by artist and title only —
+  they still file into the playlist's folder. Track and album links keep the
+  album and its artwork, as do YouTube and SoundCloud links (their own thumbnail).
 
 ## [2.9.2] — 2026-10-30
 
