@@ -43,6 +43,7 @@ class MusicTrack:
     cover_url: str = ""
     source: str = ""
     spotify_id: str = ""
+    collection: str = ""  # the album or playlist this row came from
 
 
 def _host(url: str) -> str:
@@ -107,7 +108,7 @@ def track_label(track: MusicTrack) -> str:
     return track.title or "Untitled track"
 
 
-def _entry_to_track(entry: dict, source: str) -> MusicTrack | None:
+def _entry_to_track(entry: dict, source: str, collection: str = "") -> MusicTrack | None:
     url = entry.get("webpage_url") or entry.get("url") or ""
     if not url:
         video_id = entry.get("id")
@@ -134,6 +135,7 @@ def _entry_to_track(entry: dict, source: str) -> MusicTrack | None:
         duration=int(entry.get("duration") or 0),
         cover_url=str(cover or ""),
         source=source,
+        collection=collection,
     )
 
 
@@ -164,8 +166,14 @@ def resolve_media(url: str, use_cookies: bool = False) -> list[MusicTrack]:
 
     source = classify_url(url) or "youtube"
     if info.get("_type") == "playlist":
+        # Every row of a set or playlist files under the collection's own folder.
+        collection = str(info.get("title") or "")
         entries = [entry for entry in (info.get("entries") or []) if entry]
-        tracks = [track for entry in entries if (track := _entry_to_track(entry, source))]
+        tracks = [
+            track
+            for entry in entries
+            if (track := _entry_to_track(entry, source, collection))
+        ]
     else:
         track = _entry_to_track(info, source)
         tracks = [track] if track else []
@@ -223,7 +231,9 @@ def _album_cover(album) -> str:
     return ""
 
 
-def _spotify_track(payload: dict, cover: str = "", album_name: str = "") -> MusicTrack:
+def _spotify_track(
+    payload: dict, cover: str = "", album_name: str = "", collection: str = ""
+) -> MusicTrack:
     """Spotify metadata plus a YouTube search URL.
 
     The ``ytsearch1:`` URL lets yt-dlp's own search — the engine that actually
@@ -251,6 +261,7 @@ def _spotify_track(payload: dict, cover: str = "", album_name: str = "") -> Musi
         cover_url=_album_cover(album) or cover,
         source="spotify",
         spotify_id=str(payload.get("id") or ""),
+        collection=collection,
     )
 
 
@@ -272,6 +283,19 @@ def _readable_rows(items) -> list[dict]:
     return [item for item in (items or []) if isinstance(item, dict)]
 
 
+def _playlist_title(client, ref: str) -> str:
+    """A playlist's name, or an empty string when it cannot be read.
+
+    The rows are already in hand; failing to label the folder is not a reason
+    to throw away the playlist.
+    """
+    try:
+        meta = client.playlist(ref)
+    except Exception:
+        return ""
+    return str(meta.get("name") or "") if isinstance(meta, dict) else ""
+
+
 def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
     if kind == "track":
         return [
@@ -283,13 +307,17 @@ def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
         name = str(meta.get("name") or "") if isinstance(meta, dict) else ""
         rows = _readable_rows((client.album_tracks(ref) or {}).get("items"))
         rows.sort(key=_order_of)
-        return [_spotify_track(row, cover=cover, album_name=name) for row in rows]
+        return [
+            _spotify_track(row, cover=cover, album_name=name, collection=name)
+            for row in rows
+        ]
     if kind == "playlist":
         # The library pages a playlist itself, so one call holds every row.
         page = client.playlist_items(ref, limit=-1, offset=0) or {}
         rows = _readable_rows(page.get("items"))
+        collection = _playlist_title(client, ref)
         return [
-            _spotify_track(row["track"])
+            _spotify_track(row["track"], collection=collection)
             for row in rows
             if isinstance(row.get("track"), dict)
         ]

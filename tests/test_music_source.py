@@ -122,7 +122,7 @@ def test_spotify_track_falls_back_to_the_parent_album():
 class _FakeSpotify:
     """The anonymous Spotify client, stubbed at its JSON boundary."""
 
-    def __init__(self, *, album=None, album_tracks=None, track=None, playlist_rows=()):
+    def __init__(self, *, album=None, album_tracks=None, track=None, playlist_rows=(), playlist=None):
         self._album = album or {
             "name": "After Hours",
             "images": [{"url": "https://i.scdn.co/image/album"}],
@@ -130,6 +130,7 @@ class _FakeSpotify:
         self._album_tracks = album_tracks or []
         self._track = track
         self._playlist_rows = list(playlist_rows)
+        self._playlist = playlist or {"name": "Classical Essentials"}
 
     def track(self, track_id):
         return self._track or _track_payload(track_id=track_id)
@@ -144,6 +145,9 @@ class _FakeSpotify:
             row = {key: value for key, value in item.items() if key != "album"}
             rows.append(row)
         return {"items": rows}
+
+    def playlist(self, playlist_id):
+        return self._playlist
 
     def playlist_items(self, playlist_id, limit=-1, offset=0):
         # The library pages internally, so one call holds the whole playlist.
@@ -228,6 +232,98 @@ def test_resolve_spotify_playlist_reads_every_row(monkeypatch):
     monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
     tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
     assert [track.title for track in tracks] == ["One", "Two"]
+
+
+def test_resolve_spotify_playlist_stamps_the_collection(monkeypatch):
+    """A playlist link files its rows under the playlist, not per-artist folders."""
+    from s_q_ali_media_downloader.core import music_source
+
+    rows = [_track_payload(name="One", number=1), _track_payload(name="Two", number=2)]
+    client = _FakeSpotify(playlist_rows=rows)
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
+    assert [track.collection for track in tracks] == ["Classical Essentials"] * 2
+
+
+def test_resolve_spotify_album_stamps_the_collection(monkeypatch):
+    from s_q_ali_media_downloader.core import music_source
+
+    client = _FakeSpotify(album_tracks=[_track_payload(name="First", number=1)])
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/album/abc")
+    assert tracks[0].collection == "After Hours"
+
+
+def test_resolve_spotify_track_has_no_collection(monkeypatch):
+    """A lone link keeps the Artist/Album layout."""
+    from s_q_ali_media_downloader.core import music_source
+
+    client = _FakeSpotify()
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/track/abc")
+    assert tracks[0].collection == ""
+
+
+def test_resolve_spotify_keeps_the_tracks_when_the_title_lookup_fails(monkeypatch):
+    """Rows already in hand are not lost over a playlist name we cannot read."""
+    from s_q_ali_media_downloader.core import music_source
+
+    class NoTitle(_FakeSpotify):
+        def playlist(self, playlist_id):
+            raise KeyError("name")
+
+    client = NoTitle(playlist_rows=[_track_payload(name="One", number=1)])
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/abc")
+    assert [track.title for track in tracks] == ["One"]
+    assert tracks[0].collection == ""
+
+
+def _fake_yt_dlp(monkeypatch, info):
+    """resolve_media's yt-dlp call, stubbed at the same boundary as Spotify."""
+    import sys
+    from types import SimpleNamespace
+
+    class FakeYdl:
+        def __init__(self, opts):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def extract_info(self, url, download=False):
+            return info
+
+    monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=FakeYdl))
+
+
+def test_resolve_media_playlist_stamps_the_collection(monkeypatch):
+    from s_q_ali_media_downloader.core import music_source
+
+    _fake_yt_dlp(
+        monkeypatch,
+        {
+            "_type": "playlist",
+            "title": "Chill Lo-Fi",
+            "entries": [{"url": "https://soundcloud.com/a/one", "title": "One"}],
+        },
+    )
+    tracks = music_source.resolve_media("https://soundcloud.com/a/sets/chill")
+    assert tracks[0].collection == "Chill Lo-Fi"
+
+
+def test_resolve_media_single_link_has_no_collection(monkeypatch):
+    from s_q_ali_media_downloader.core import music_source
+
+    _fake_yt_dlp(
+        monkeypatch,
+        {"_type": "url", "title": "One", "url": "https://soundcloud.com/a/one"},
+    )
+    tracks = music_source.resolve_media("https://soundcloud.com/a/one")
+    assert tracks[0].collection == ""
 
 
 def test_resolve_spotify_artist_is_declared_unsupported(monkeypatch):

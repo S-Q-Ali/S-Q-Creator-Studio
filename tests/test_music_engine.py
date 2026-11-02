@@ -1,5 +1,7 @@
 """Music download options and paths — pure helpers, no network."""
 
+from pathlib import Path
+
 from s_q_ali_media_downloader.core.music_source import MusicTrack
 from s_q_ali_media_downloader.engine import (
     DEFAULT_MUSIC_FORMAT,
@@ -59,6 +61,35 @@ def test_music_output_path_organises_by_artist_album(tmp_path):
     )
 
 
+def test_music_output_path_files_a_collection_in_one_folder(tmp_path):
+    """Rows from an album or playlist link share that collection's folder."""
+    first = music_output_path(
+        str(tmp_path),
+        MusicTrack(url="u", title="Teardrops", artist="Wheeler Jr.", track_number=3,
+                   collection="Throwback Vibes"),
+        ".flac",
+    )
+    second = music_output_path(
+        str(tmp_path),
+        MusicTrack(url="u", title="Say So", artist="Doja Cat", track_number=4,
+                   collection="Throwback Vibes"),
+        ".flac",
+    )
+    assert first.replace("\\", "/").endswith("Throwback Vibes/03 - Teardrops.flac")
+    assert Path(first).parent == Path(second).parent
+
+
+def test_music_output_path_sanitises_the_collection_folder(tmp_path):
+    """A playlist title is a folder name as much as the artist is."""
+    path = music_output_path(
+        str(tmp_path),
+        MusicTrack(url="u", title="Song", collection="Best of: 2024"),
+        ".flac",
+        position=1,
+    )
+    assert path.replace("\\", "/").endswith("Best of 2024/01 - Song.flac")
+
+
 def test_music_output_path_defaults_and_sanitises(tmp_path):
     track = MusicTrack(url="u", title='a/b:c*?"', artist="", album="")
     path = music_output_path(str(tmp_path), track, ".mp3", position=7)
@@ -68,8 +99,6 @@ def test_music_output_path_defaults_and_sanitises(tmp_path):
 def test_music_output_path_avoids_overwrite(tmp_path):
     track = MusicTrack(url="u", title="Song", artist="A", album="B", track_number=1)
     first = music_output_path(str(tmp_path), track, ".flac")
-    from pathlib import Path
-
     Path(first).write_bytes(b"x")
     second = music_output_path(str(tmp_path), track, ".flac")
     assert second != first

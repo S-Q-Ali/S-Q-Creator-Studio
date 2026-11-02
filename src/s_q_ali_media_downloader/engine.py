@@ -753,13 +753,20 @@ def build_music_opts(fmt, outtmpl, ffmpeg_dir=None, use_cookies=False):
 
 
 def music_output_path(output_dir, track, ext, position=1):
-    """Artist/Album/NN - Title.ext, with a numeric suffix on collision."""
-    artist = sanitize_filename(track.artist) if track.artist else "Unknown Artist"
-    album = sanitize_filename(track.album) if track.album else "Singles"
+    """Collection links file flat into the collection's folder; a lone link into Artist/Album.
+
+    A playlist's rows come from many artists, so one Artist/Album folder per row
+    scatters a single download across the library.
+    """
     number = track.track_number or position
     title = sanitize_filename(track.title) if track.title else "Untitled"
     base = f"{number:02d} - {title}" if number else title
-    folder = os.path.join(output_dir, artist, album)
+    if track.collection:
+        folder = os.path.join(output_dir, sanitize_filename(track.collection))
+    else:
+        artist = sanitize_filename(track.artist) if track.artist else "Unknown Artist"
+        album = sanitize_filename(track.album) if track.album else "Singles"
+        folder = os.path.join(output_dir, artist, album)
     os.makedirs(folder, exist_ok=True)
     with _NAME_LOCK:
         return os.path.join(folder, unique_basename(folder, base) + ext)
