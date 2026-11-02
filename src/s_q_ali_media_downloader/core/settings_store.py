@@ -21,8 +21,8 @@ that must never change. Renaming the file or the entropy would make every
 stored key unreadable and the user would have to enter them again.
 
 Override the location with the ``SQ_DB_PATH`` environment variable (or the
-older ``NICHE_DB_PATH``); otherwise it lives next to the app's own storage
-folder under ``LOCALAPPDATA\\S-Q-Ali Media Downloader\\storage``.
+older ``NICHE_DB_PATH``); otherwise it lives in the app's own storage folder,
+which ``engine.app_storage_dir()`` resolves for the running OS.
 """
 
 from __future__ import annotations
@@ -227,12 +227,13 @@ def db_path() -> str:
             if env:
                 _db_path = env
             else:
-                base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+                # The storage folder is the engine's decision, so the database,
+                # the downloads and the log all live in one place on every OS.
+                from s_q_ali_media_downloader.engine import app_storage_dir
+
                 # The file name is the legacy one. The keys in it were sealed
                 # for this exact file; a rename would only orphan them.
-                _db_path = os.path.join(
-                    base, "S-Q-Ali Media Downloader", "storage", "niche_research.db"
-                )
+                _db_path = os.path.join(app_storage_dir(), "niche_research.db")
         return _db_path
 
 

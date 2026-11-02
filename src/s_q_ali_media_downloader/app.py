@@ -7,11 +7,11 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
-from s_q_ali_media_downloader.engine import APP_NAME
+from s_q_ali_media_downloader.engine import APP_NAME, app_storage_dir, migrate_legacy_storage_dir
 from s_q_ali_media_downloader.ui.main_window import ORG, MainWindow, resource
 
 _SECRET_RE = re.compile(
@@ -43,11 +43,10 @@ class RedactSecrets(logging.Filter):
 def setup_logging() -> None:
     """Rotating file log (1 MB x 3) plus console while running from source.
 
-    Uses the same per-user local-app-data folder as the settings store, so
-    support logs live next to the user's data instead of next to the EXE.
+    The log lives in the app's own storage folder, next to the settings and
+    the downloads, so one folder holds everything support asks for.
     """
-    base = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation)
-    log_dir = Path(base) if base else Path.home() / ".s_q_ali_media_downloader"
+    log_dir = Path(app_storage_dir())
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
         file_handler = RotatingFileHandler(
@@ -88,6 +87,7 @@ def main():
     from s_q_ali_media_downloader.ui.themes import apply_neon_theme
     apply_neon_theme(app)
     
+    migrate_legacy_storage_dir()
     setup_logging()
     sys.excepthook = _excepthook
 

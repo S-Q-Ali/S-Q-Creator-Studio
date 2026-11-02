@@ -26,7 +26,7 @@ import time
 import unicodedata
 
 import yt_dlp
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QStandardPaths, QThread, Signal
 
 from s_q_ali_media_downloader.core.facebook_client import (
     FacebookError,
@@ -208,10 +208,38 @@ def impersonation_summary():
 def app_storage_dir():
     """Where the app keeps its data: the queue, the settings, the downloads.
 
-    One place decides this, so the folders cannot drift apart.
+    One place decides this, so the folders cannot drift apart. Windows reads
+    LOCALAPPDATA, which is also where Qt sends the generic data location, so
+    its path is unchanged; Linux and macOS get their own data folder instead
+    of the app name dropped into the home directory.
     """
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    base = (
+        os.environ.get("LOCALAPPDATA")
+        or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericDataLocation)
+        or os.path.expanduser("~")
+    )
     return os.path.join(base, APP_NAME, "storage")
+
+
+def migrate_legacy_storage_dir():
+    """Move the data folder an early POSIX run left in the home directory.
+
+    With no LOCALAPPDATA, Linux and macOS used to fall back to
+    ``~/S-Q-Ali Media Downloader/storage``, and the API keys are in it. Run
+    once at startup, before anything opens a file.
+    """
+    legacy = os.path.join(os.path.expanduser("~"), APP_NAME, "storage")
+    target = app_storage_dir()
+    if not os.path.isdir(legacy) or os.path.exists(target):
+        return
+    try:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        os.replace(legacy, target)
+        logger.info("Moved the app data folder to %s", target)
+    except OSError:
+        # A folder in use or on another volume: the app starts on an empty
+        # store and the user's own folder is left untouched.
+        logger.warning("Could not move the app data folder to %s", target, exc_info=True)
 
 
 def default_output_dir():
