@@ -25,6 +25,12 @@ All notable changes are documented here. The format follows
   the headless shell, `browser-use` runs its own browser session on the app's
   profile instead of "attached over CDP" to the hardened one, the tested Python
   version is named, and `curl_cffi`'s documented range matches the real pin.
+- **`pip install .` no longer installs an app that cannot open a browser.**
+  Playwright was listed in the runtime requirements but only as an optional
+  extra in the package metadata, so an install from `pyproject.toml` produced an
+  app whose Social Discovery could not verify any account. It is a real
+  dependency now, and a test keeps the requirements files and the package
+  metadata from drifting apart again.
 
 ## [2.10.0] — 2026-11-02
 
