@@ -108,12 +108,21 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase D — runtime portability (`runtime-portable`)
 
-- [ ] **D1. Storage dirs** — `app_storage_dir()` (`engine.py:208-218`) and
+- [x] **D1. Storage dirs** — `app_storage_dir()` (`engine.py:208-218`) and
       `db_path()` (`settings_store.py:117`) onto `QStandardPaths`, Windows path
       byte-identical, `SQ_DB_PATH`/`LOCALAPPDATA` overrides still honoured,
       migrate a POSIX `~/S-Q Ali…` folder if it exists. Acceptance: the log dir
       and the data dir stop disagreeing (`app.py:49-50`).
       Files: `engine.py`, `core/settings_store.py`, `tests/test_engine_paths.py` · **M**
+      Done: the base is `LOCALAPPDATA` → `QStandardPaths.GenericDataLocation` →
+      home, so Windows keeps `%LOCALAPPDATA%\S-Q-Ali Media Downloader\storage`,
+      Linux gets `~/.local/share/…` and macOS `~/Library/Application Support/…`.
+      `db_path()` and `setup_logging()` now read that one decision (the log left
+      `AppData\Local\S-Q-Ali\S-Q-Ali Media Downloader` for the storage folder),
+      and `migrate_legacy_storage_dir()` moves a home-directory folder into place
+      once at startup — only when the legacy folder exists and the new one does
+      not, so a current install is never touched. 7 tests in
+      `tests/test_engine_paths.py`; the full offline suite is green on Windows.
 - [ ] **D2. ffmpeg discovery** — `find_ffmpeg()` (`engine.py:694-714`) checks a
       bundled `ffmpeg` as well as `ffmpeg.exe`, then PATH. Acceptance: a POSIX
       bundle with `bin/ffmpeg` is found with an empty PATH. Files: `engine.py`,

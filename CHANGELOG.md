@@ -13,6 +13,12 @@ All notable changes are documented here. The format follows
   the item — never the key. A system with no secret store reachable marks those
   rows `plain:`, states it on the Settings page, and logs a warning that names
   the key but never its value. Windows keeps using DPAPI exactly as before.
+- **The app's folder is the one this OS uses for app data.** Linux keeps it in
+  `~/.local/share/S-Q-Ali Media Downloader`, macOS in
+  `~/Library/Application Support/S-Q-Ali Media Downloader`, Windows in the
+  `%LOCALAPPDATA%` folder it has always used. A data folder an early Linux or
+  macOS run left in the home directory is moved into place on the next start,
+  so the keys already entered are not lost.
 
 ### Fixed
 
@@ -27,10 +33,11 @@ All notable changes are documented here. The format follows
   macOS too; CI has only ever run Windows and no Linux or macOS artifact has ever
   been built. Both now say Windows is the only tested and packaged platform, and
   the work is tracked in issue #13.
-- **The secret store's promise is scoped to the platform that keeps it.** Keys
-  are encrypted with DPAPI *on Windows*; on Linux and macOS the store has no
-  sealing backend and writes them in plain text. The README and SECURITY.md now
-  say so instead of implying the encryption is universal.
+- **The secret store's promise is scoped to the platform that keeps it.** The
+  README and SECURITY.md no longer imply one universal encryption. They name
+  DPAPI on Windows, the machine's keychain on Linux and macOS, and the
+  unencrypted fallback when neither is reachable — and say that the keychain
+  path is unit-tested but has not run on real Linux or macOS hardware yet.
 - **The build-from-source instructions no longer build a broken app.** A
   hand-written `pyinstaller` command misses the `--collect-all` flags the real
   build carries, which produces an app that starts and then cannot import
@@ -46,6 +53,11 @@ All notable changes are documented here. The format follows
   app whose Social Discovery could not verify any account. It is a real
   dependency now, and a test keeps the requirements files and the package
   metadata from drifting apart again.
+- **The support log is filed with the data it describes.** `app.log` resolved
+  its own folder and landed somewhere else than the settings, the saved queue
+  and the downloads — so a bug report asking for "the folder with your data"
+  found a folder without the log. One location now decides all four; on Windows
+  the log moves into the storage folder the rest of the app already used.
 
 ## [2.10.0] — 2026-11-02
 
