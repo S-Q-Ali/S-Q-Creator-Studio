@@ -79,6 +79,18 @@ All notable changes are documented here. The format follows
   folder, and a worker thread that outlives its test is named in a failure
   instead of being killed with `QThread.terminate()` — which Linux and macOS do
   not offer, and which stopped a thread mid-call when it worked.
+- **Contributors: one build script, on any platform.** The release build lived
+  entirely in a Windows batch file, so there was nothing to run on Linux or
+  macOS — and keeping the same steps in two places is how three platforms end up
+  shipping three different apps. `release/build.py` builds the bundle on all
+  three: the `--add-data` separator, the ffmpeg file name, the Playwright cache
+  folder, the launcher name and the keyring collection follow the OS that is
+  doing the build, and Inno Setup is tried only where it exists.
+  `release\build.bat` is now the Windows entry point that starts it. The Windows
+  artifact did not move: the rebuilt bundle carries the same files with the same
+  `--collect-all` and `--hidden-import` set, and the rebuilt app still runs — the
+  only additions were two OpenSSL DLLs the build machine's PATH offered, which
+  PyInstaller picks up wherever the build happens to run.
 
 ## [2.10.0] — 2026-11-02
 

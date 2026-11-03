@@ -238,16 +238,16 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       come from B1: `ubuntu-24.04` or newer (glibc ≥ 2.34 x86_64, 2.39 arm64)
       and a macOS 13+ runner, or PySide6 6.11 has no wheel to install.
       Files: `.github/workflows/ci.yml`, `.github/workflows/release.yml` · **M**
-      **Blocked by G1, not by F1.** A POSIX build needs `release/build.py`: the
-      only build script today is `release/build.bat`, and its ffmpeg staging
-      probes `bin\ffmpeg.exe` — a name that does not exist on Linux or macOS, so
-      the build fails out on the spot (B2's "the build fails" finding). F2 is
-      therefore the job that runs G1's script on three OSes, and moves here once
-      that script exists.
+      **Was blocked by G1, not by F1 — now unblocked.** A POSIX build needs
+      `release/build.py`: the only build script was `release/build.bat`, and its
+      ffmpeg staging probed `bin\ffmpeg.exe` — a name that does not exist on
+      Linux or macOS, so the build failed out on the spot (B2's "the build fails"
+      finding). G1 landed and is verified on Windows (G2), so F2 is now the job
+      that runs that script on three OSes — which needs a push to be seen.
 
 ## Phase G — one build script (`packaging`, portable-first scope)
 
-- [ ] **G1. `release/build.py`** — the `build.bat:47-189` logic ported: PyInstaller
+- [x] **G1. `release/build.py`** — the `build.bat:47-189` logic ported: PyInstaller
       with the same `--hidden-import`/`--collect-all` set plus `keyring`
       (submodules + metadata), OS-correct `--add-data` separator, ffmpeg and
       Chromium staging from the right cache per OS, portable folder assembly
@@ -255,15 +255,41 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       Acceptance: `build.bat` becomes a thin wrapper and the Windows artifact is
       unchanged file-for-file. Files: `release/build.py` (new), `release/build.bat`,
       `release/README.md` · **L**
-- [ ] **G2. Verify the Windows artifact did not move** — rebuild and compare
-      against published 2.10.0 (251,752,029 bytes) + bundle contents + a 40 s
-      offscreen frozen run. Acceptance: no unexplained delta. Files: none · **S**
+      Done: the script builds, stages and installs exactly as the batch file did,
+      with every OS-dependent decision in a named function. 19 tests in
+      `tests/test_release_build_script.py` cover the flag set, the `--add-data`
+      separator, the ffmpeg search order and staged name, the browser cache the
+      app itself reports (one definition, shared with `agent/tools/browser.py`),
+      the locked-`portable` fallback, and that `build.bat` no longer mentions
+      PyInstaller, `robocopy`, `xcopy` or `attrib` at all.
+      `.gitignore` gained `!release/build.py` / `!release/build.bat` — both are
+      source now, not output.
+- [x] **G2. Verify the Windows artifact did not move** — rebuilt
+      `release\build.py` end to end on Windows (exit 0, 14 min):
+      3,610 files vs the recorded 3,608 — the two additions are
+      `_internal/libcrypto-3-x64.dll` and `_internal/libssl-3-x64.dll`, resolved
+      from `C:\Program Files\Git\mingw64\bin` because PyInstaller searches the
+      build machine's PATH for a loose DLL name. Nothing else differs; the file
+      lists match line for line (`/tmp/pre_files.txt` vs `/tmp/post_files.txt`).
+      Launcher 41,071,419 B (was 41,066,924 — the bootloader embeds its own
+      build stamp); installer 336,254,560 B (was 334,776,797 — the same 6.8 MB of
+      DLLs compressed). `bin\ffmpeg.exe` from the winget folder,
+      `browsers\chromium-1248` (the full build, headless shell skipped), Inno
+      compile first attempt, and the frozen EXE alive 40 s offscreen with no
+      orphan left behind. Command-line proof that the script did not change what
+      is collected: the old `build.bat`'s 16 `--collect-all` and 6
+      `--hidden-import` values are the same sets, and the keyring flags appear
+      only where keyring is importable (not on this machine).
+      Verdict: no unexplained delta. The PATH-resolved DLLs are a property of
+      the machine, not of the script — recorded here because it is how a future
+      artifact diff gets explained. Files: none · **S**
 - [ ] **G3. `release.yml` three archives** — tag builds and uploads a portable
       archive per OS, notes state the platform support honestly.
       Files: `.github/workflows/release.yml` · **M**
 - [ ] **G4. File the deferred scope as issues** — native `.AppImage`/`.deb`/`.dmg`,
       signing + notarisation, each with the reason it was cut. Cross-linked to
-      this plan. Files: GitHub issues · **XS**
+      this plan. Files: GitHub issues · **XS** — not filed: writing to the public
+      tracker needs a fresh go from the user.
 
 ## Phase H — docs that match the build (`docs-truth`)
 
