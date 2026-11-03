@@ -200,6 +200,28 @@ not one per commit — the per-slice runs were the four files each slice touches
 
 **Dependencies:** Task 4 · **Scope:** M each (1-3 files per commit)
 
+### Checkpoint: state-language
+- [x] Suite green, no hex literal left outside `theme.py`, no colour named by a
+      hue the brief does not allow.
+- [x] The queue, Music, discovery and Settings pages rendered offscreen and
+      read as pixels, not as arithmetic.
+
+Phase 2 leaves the app readable: seven statuses told apart by luminance and
+weight, verdict tables saying the same thing in the same words, and a guard
+test that fails the next time a page reaches for `#` instead of a token.
+
+The render review found two things the suite could not see:
+
+- The active nav tab bolded itself out of its own width. `sizeHint()` is
+  measured with the calm font, so `:checked { font-weight: 700 }` painted
+  wider text into a narrower box and ate the last letter of "Inspector" —
+  while `test_ui_layout.py` stayed green, because it measures the calm font
+  too. Weight now belongs to the base rule only, and a sheet-wide guard test
+  refuses any pseudo-state that changes the font.
+- A completed job had a full *blue* bar. Blue is the moving colour; the widest
+  element in the row was contradicting the word COMPLETED above it. A finished
+  bar is now chalk.
+
 ## Phase 3 — glass-treatment
 
 ### Task 6: One backdrop, painted once
