@@ -160,21 +160,57 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase E — make the suite portable before CI sees it (`test-portable`)
 
-- [ ] **E1. Per-OS font sourcing** — replace `%WINDIR%\Fonts` seeding
+- [x] **E1. Per-OS font sourcing** — replace `%WINDIR%\Fonts` seeding
       (`conftest.py:143`) with a per-OS source, keep the documented intent
       ("tests see the same clipping the user does"), no-op cleanly when absent.
       Files: `tests/conftest.py` · **M**
-- [ ] **E2. POSIX-safe teardown** — remove the `QThread.terminate()` reliance
+      Done: `FONT_SOURCES` names the folders and the faces per OS (Windows
+      Segoe/Consolas from `%WINDIR%\Fonts`, macOS Helvetica/Menlo, Linux
+      DejaVu/Liberation/Noto/Ubuntu under `/usr/share/fonts` and the user's own
+      font dirs) and `system_font_files()` resolves them, skipping a folder that
+      is not there and a font nobody has. The intent sentence is unchanged and
+      the fixture says out loud, rather than failing quietly, when a machine has
+      none of them: the widths then are Qt's fallback metrics.
+- [x] **E2. POSIX-safe teardown** — remove the `QThread.terminate()` reliance
       (`conftest.py:77`, `:192-197`): interruption + bounded wait, then a loud
       failure instead of a silent kill. Acceptance: no orphaned process on any
       OS. Files: `tests/conftest.py` · **S**
-- [ ] **E3. Storage isolation** — make the temp-appdata fixture autouse for
+      Done: `terminate()` is gone from both teardowns. `_stop_running_qthreads()`
+      now calls the worker's own `stop()` (the app's threads check that flag
+      between jobs and inside every wait, so they end in under 0.2 s), asks Qt
+      for an interruption as well, waits, and *returns* the threads that would
+      not stop. The per-test fixture fails naming them; the session fixture does
+      the same after its 10 s grace. Nothing in the current suite was relying on
+      the silent kill — 761 offline tests pass with the loud version, and no
+      `python.exe` survives the run.
+- [x] **E3. Storage isolation** — make the temp-appdata fixture autouse for
       anything touching `app_storage_dir()`/`db_path()`. Acceptance: a test run
       creates nothing in the real home. Files: `tests/conftest.py` · **S**
+      Done: a session-scoped autouse fixture points `LOCALAPPDATA` at one
+      `sqali_appdata_*` temp folder, which is the base `app_storage_dir()` reads
+      on every OS, so the queue, downloads, database, browser profile and log of
+      a test run all land there. The per-test `isolated_appdata` stays for the
+      tests that want a clean folder and now restores to the session's, not the
+      developer's. Verified by marker: the 70 GUI/queue/settings tests that open
+      a window leave the real `%LOCALAPPDATA%\S-Q-Ali Media Downloader` untouched.
+- [x] **E4. The suite guards itself** — `tests/test_suite_portability.py` (new,
+      6 tests): the font lookup finds a named face in a subfolder and ignores
+      what it is not told to read, every OS the suite can run on has a source,
+      the run's app folder is inside the temporary appdata, and the teardown
+      helper stops a cooperating worker but *reports* one that ignores the stop
+      request. Writing it found the shape of the crash the old `terminate()` was
+      hiding: a test that starts a QThread and drops the reference has it deleted
+      while running, which kills the process mid-run with no summary at all
+      (exit 127, empty log). The tests now hold the thread and wait for it.
 
 ### Checkpoint: before any CI change
-- [ ] Offline suite green on Windows, `ruff` clean, `graphify update .` run, the
+- [x] Offline suite green on Windows, `ruff` clean, `graphify update .` run, the
       pre-baked `dpapi1:` row still reads, no plaintext key when a store exists.
+      Results: 761 passed / 19 deselected in 3 min 38 s, exit 0, no summary lost.
+      `ruff check src tests` clean. All six stored keys in the real
+      `%LOCALAPPDATA%\S-Q-Ali Media Downloader\storage\niche_research.db` are
+      `dpapi1:` sealed and unseal (lengths checked, never the values), and none
+      is plaintext or `plain:`. No `python.exe` left running after the suite.
 
 ## Phase F — the matrix (`ci-matrix`)
 

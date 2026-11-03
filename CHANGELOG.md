@@ -71,6 +71,14 @@ All notable changes are documented here. The format follows
   "Google Chrome for Testing" bundle. Chromium is also started without its own
   sandbox when the app runs as root, which is the only way it will launch in a CI
   container or a headless box.
+- **Contributors: a test run keeps to itself and stops its own workers.** The
+  suite points the app's data folder at a temporary one for the whole run, so
+  opening a window in a test no longer writes a queue, a downloads folder, a
+  browser profile or a log into the folder your own app uses. The interface is
+  measured with the fonts this OS actually keeps rather than the Windows font
+  folder, and a worker thread that outlives its test is named in a failure
+  instead of being killed with `QThread.terminate()` — which Linux and macOS do
+  not offer, and which stopped a thread mid-call when it worked.
 
 ## [2.10.0] — 2026-11-02
 
