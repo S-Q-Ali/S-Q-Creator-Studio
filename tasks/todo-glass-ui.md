@@ -75,17 +75,31 @@ compact actually restyles. `comfortable` must reproduce today's literals
 uses the existing `DENSITY` numbers.
 
 **Acceptance criteria:**
-- [ ] A test pins that the comfortable render emits today's font sizes and paddings.
-- [ ] Toggling density re-renders the same tokens and leaves the sheet parse-clean.
-- [ ] `test_ui_layout.py`'s clipping and click-target tests pass at all four sizes in both densities.
+- [x] A test pins that the comfortable render emits today's font sizes and paddings.
+- [x] Toggling density re-renders the same tokens and leaves the sheet parse-clean.
+- [x] `test_ui_layout.py`'s clipping and click-target tests pass at all four sizes in both densities.
 
 **Verification:**
-- [ ] `pytest tests/test_ui_layout.py tests/test_theme.py -q`.
+- [x] `pytest tests/test_ui_layout.py tests/test_theme.py -q`.
+
+**Built as:** the swap itself stopped being skipped in Task 2, when the
+`s_q_theme` check went with the modules it guarded. What was left is proof.
+`test_ui_layout.py`'s two size tests are now parametrised over both densities —
+8 extra tests, all green, and they had never run in compact before because the
+density pass never reached the stylesheet. The parse guard covers both renders
+and one test pins that `STYLESHEET` *is* the comfortable render, so the sheet
+the tests read and the sheet `app.py` applies cannot diverge again.
 
 **Dependencies:** Task 2 · **Scope:** S (2-3 files: `theme.py`, `tests/test_theme.py`, `tests/test_ui_layout.py`)
 
 ### Checkpoint: tokens-unify
-- [ ] Suite green, PNG reviewed, one module owns the look, no test asserts on CSS the app does not render.
+- [x] Suite green, PNG reviewed, one module owns the look, no test asserts on CSS the app does not render.
+
+The reviewed PNG is the 1568×1097 queue render from Task 2: the void, the panel
+and the action blue all land where the tokens say they do, and the two warm
+spots still visible (the usage notice, the GitHub chip) are the Tasks 4-5
+backlog, not breakage. `graphify update .` has not been re-run since Task 2
+deleted two modules — do it with the next commit.
 
 ## Phase 2 — state-language
 

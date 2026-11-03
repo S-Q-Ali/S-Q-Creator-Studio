@@ -108,7 +108,10 @@ def window(qapp, isolated_appdata):
 
 
 @pytest.mark.parametrize("size", SIZES)
-def test_nothing_is_clipped_at_any_size(window, size):
+@pytest.mark.parametrize("compact", [False, True], ids=["comfortable", "compact"])
+def test_nothing_is_clipped_at_any_size(window, size, compact):
+    window.settings_page.compact_check.setChecked(compact)
+    window._apply_density()
     window.resize(*size)
     window.show()
     for _ in range(40):
@@ -119,7 +122,10 @@ def test_nothing_is_clipped_at_any_size(window, size):
 
 
 @pytest.mark.parametrize("size", SIZES)
-def test_every_control_is_big_enough_to_click(window, size):
+@pytest.mark.parametrize("compact", [False, True], ids=["comfortable", "compact"])
+def test_every_control_is_big_enough_to_click(window, size, compact):
+    window.settings_page.compact_check.setChecked(compact)
+    window._apply_density()
     window.resize(*size)
     window.show()
     for _ in range(40):

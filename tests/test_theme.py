@@ -188,6 +188,29 @@ def test_compact_renders_smaller_from_the_same_tokens():
     assert comfortable != compact
 
 
+def test_comfortable_keeps_the_measurements_the_app_shipped_with():
+    """The glass switch is meant to be visually flat: new paint, same sizes.
+
+    These are the numbers the pre-glass app rendered. If one of them moves,
+    that belongs in its own commit with its own reason, not in a restyle.
+    """
+    css = stylesheet("comfortable")
+    assert "font-size: 13px" in _rule(css, "QWidget")
+    assert "font-size: 19px" in _rule(css, "#Wordmark")
+    assert "font-size: 10px" in _rule(css, 'QLabel[role="section"]')
+    assert "padding: 8px 14px" in _rule(css, "QPushButton")
+    assert "padding: 8px 10px" in _rule(css, "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox")
+
+
+def test_compact_measures_the_same_sheet_down():
+    css = stylesheet("compact")
+    assert "font-size: 12px" in _rule(css, "QWidget")
+    assert "font-size: 17px" in _rule(css, "#Wordmark")
+    assert "font-size: 9px" in _rule(css, 'QLabel[role="section"]')
+    assert "padding: 5px 11px" in _rule(css, "QPushButton")
+    assert "padding: 5px 8px" in _rule(css, "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox")
+
+
 def test_stylesheet_references_accent():
     assert C["accent"] in STYLESHEET
 
