@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from s_q_ali_media_downloader.engine import is_youtube_url
-from s_q_ali_media_downloader.theme import STATUS_COLORS, C
+from s_q_ali_media_downloader.theme import STATUS_COLORS, STATUS_WEIGHTS, C
 
 
 def shorten(text, limit=95):
@@ -139,7 +139,16 @@ class JobCard(QFrame):
         self.spine.setStyleSheet(f"#Spine {{ background: {colour}; }}")
 
         self.status.setText(j.status.upper())
-        self.status.setStyleSheet(f"color: {colour};")
+        weight = STATUS_WEIGHTS.get(j.status, 600)
+        if j.status == "Failed":
+            # The one inverted chip: with no red left in the palette, a failure
+            # has to be the brightest thing in the list rather than the warmest.
+            self.status.setStyleSheet(
+                f"color: {C['bg']}; background: {colour}; font-weight: {weight};"
+                " padding: 1px 6px; border-radius: 4px;"
+            )
+        else:
+            self.status.setStyleSheet(f"color: {colour}; font-weight: {weight};")
 
         self.title.setText(shorten(j.title) if j.title else "Waiting for details")
         self.title.setStyleSheet("" if j.title else f"color: {C['faint']}; font-weight: 500;")

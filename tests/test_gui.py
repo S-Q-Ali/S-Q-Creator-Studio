@@ -2,10 +2,12 @@
 
 import os
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton
 
 from s_q_ali_media_downloader import __version__
+from s_q_ali_media_downloader.theme import STYLESHEET, C
 from s_q_ali_media_downloader.ui.main_window import MainWindow, resource
 from s_q_ali_media_downloader.ui.widgets import Job
 
@@ -39,6 +41,50 @@ def test_a_failed_job_keeps_the_error_out_of_the_size(qapp, isolated_appdata):
 
     assert job.error == "HTTP 404"
     assert job.size != "HTTP 404"
+    window.close()
+
+
+def _mean_lightness(widget):
+    """Average grey of what the widget actually paints, 0-255."""
+    image = widget.grab().toImage()
+    total = 0
+    samples = 0
+    for y in range(image.height()):
+        for x in range(image.width()):
+            rgb = image.pixelColor(x, y).getRgb()[:3]
+            total += sum(rgb) / 3
+            samples += 1
+    return total / max(samples, 1)
+
+
+def test_failed_and_completed_are_told_apart_without_colour(qapp, isolated_appdata):
+    """A black-and-white screenshot of the queue still separates the two.
+
+    The palette has no red, so a failure cannot be warm. It is instead the
+    one inverted chip in the app: void text on a chalk fill, which reads
+    bright against every other status in the list.
+    """
+    window = MainWindow()
+    window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+    window.setStyleSheet(STYLESHEET)
+    window.resize(1440, 900)
+    window.show()
+    qapp.processEvents()
+
+    failed = Job("https://www.tiktok.com/@creator/video/1234567890")
+    done = Job("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    window._add_job(failed)
+    window._add_job(done)
+    window.on_result(failed.uid, "Failed", "—", "HTTP 403")
+    window.on_result(done.uid, "Completed", "12 MB", "")
+
+    chip = window.cards[failed.uid].status
+    calm = window.cards[done.uid].status
+
+    assert f"color: {C['bg']}" in chip.styleSheet()
+    assert "background" not in calm.styleSheet()
+    assert _mean_lightness(chip) - _mean_lightness(calm) > 60
+
     window.close()
 
 

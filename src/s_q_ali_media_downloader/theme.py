@@ -75,9 +75,11 @@ C = {
     "muted": "#7C8794",
     "faint": "#A6B0BC",
     "accent": "#2F81F7",
+    "accent_mid": "#6FB2F9",
     "accent_hi": "#8FC1FF",
     # The action fill. Chalk text never reaches 4.5:1 on the accent itself
     # (3.76 is the ceiling), so the primary button sits on this darker blue.
+    # It is a fill only: at 3.28:1 it is too dim to be written on as text.
     "accent_deep": "#3A6BB0",
     # The four hue slots the old palette spent on amber, teal, pink and purple
     # are now grey and blue. The names stay because the call sites do.
@@ -85,9 +87,13 @@ C = {
     "done": "#C6CFD8",
     "failed": _CHALK,
     "queued": "#7C8794",
-    "waiting": "#3A6BB0",
+    "waiting": "#6FB2F9",
 }
 
+# The state language, once red, amber and violet are gone: grey is not moving,
+# blue is moving, chalk is finished. Luminance ranks the blues by urgency and
+# the label carries the word, so no state depends on colour alone. Failed also
+# inverts its chip - the one place the app flips text and fill.
 STATUS_COLORS = {
     "Queued": C["queued"],
     "Downloading": C["accent"],
@@ -96,6 +102,18 @@ STATUS_COLORS = {
     "Paused": C["faint"],
     "Completed": C["done"],
     "Failed": C["failed"],
+}
+
+# Weight is the second channel the palette no longer has: 600 is standing
+# still, 700 is doing something, 800 needs a decision from you.
+STATUS_WEIGHTS = {
+    "Queued": 600,
+    "Paused": 600,
+    "Downloading": 700,
+    "Waiting": 700,
+    "Retrying": 700,
+    "Completed": 700,
+    "Failed": 800,
 }
 
 # Every foreground/background pair the sheet actually paints with text. A

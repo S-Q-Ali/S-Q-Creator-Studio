@@ -99,6 +99,18 @@ def test_palette_stays_in_black_white_grey_and_blue():
             assert blue > green > red or abs(blue - green) < 8, f"{key} is not a blue"
 
 
+def test_the_rendered_sheet_holds_no_warm_colour():
+    """Red above blue is the tell of a warm hue, and the sheet is what paints.
+
+    The token table can be clean while a literal left over in the CSS is not,
+    so both renders are read rather than the dictionary alone.
+    """
+    for density in ("comfortable", "compact"):
+        for colour in re.findall(r"#[0-9A-Fa-f]{6}", stylesheet(density)):
+            red, _, blue = _rgb(colour)
+            assert blue >= red, f"{colour} is warm in the {density} render"
+
+
 def test_status_colours_cover_all_states():
     for state in STATES:
         assert state in STATUS_COLORS
@@ -139,6 +151,39 @@ def test_every_spine_is_visible_against_a_panel():
     """A 3px bar is a non-text control: WCAG asks 3:1, not 4.5:1."""
     for state, colour in STATUS_COLORS.items():
         assert contrast(colour, C["panel"]) >= 3.0, f"{state}'s spine is invisible"
+
+
+def test_every_status_label_is_readable_on_a_panel():
+    """The same colour is also written as the status word, and that is text.
+
+    A spine can be dim; a label cannot. This is the gate that decides the
+    palette, because the strict brief has no red left to lean on.
+    """
+    for state, colour in STATUS_COLORS.items():
+        assert contrast(colour, C["panel"]) >= 4.5, f"{state} as a label fails AA"
+
+
+def test_the_failed_chip_is_chalk_under_void_text():
+    """Failed inverts: the one chip in the app that flips foreground and fill."""
+    assert contrast(C["bg"], C["failed"]) >= 4.5
+
+
+def test_the_state_language_reads_in_three_groups():
+    """Grey is not moving, blue is moving, chalk is finished.
+
+    The ramp is the only thing that tells seven states apart once the hue is
+    gone, so the groups are asserted rather than left to the token names.
+    """
+    assert contrast(STATUS_COLORS["Queued"], C["panel"]) < contrast(
+        STATUS_COLORS["Paused"], C["panel"]
+    ), "a queued job must not outshine one the user stopped"
+    for state in ("Downloading", "Waiting", "Retrying"):
+        colour = STATUS_COLORS[state]
+        red, green, blue = _rgb(colour)
+        assert blue > green > red, f"{state} left the blue family"
+    assert contrast(STATUS_COLORS["Failed"], C["panel"]) > contrast(
+        STATUS_COLORS["Completed"], C["panel"]
+    ), "the terminal failure is the brightest thing in the list"
 
 
 def test_spines_are_seven_distinct_values():

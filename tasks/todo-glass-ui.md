@@ -112,13 +112,30 @@ deleted two modules — do it with the next commit.
 the actionable states. No new glyph anywhere.
 
 **Acceptance criteria:**
-- [ ] All seven tokens are distinct and every spine is ≥3:1 against `graphite`; the status label text is ≥4.5:1.
-- [ ] `Failed` and `Completed` are identifiable in a greyscale screenshot of the queue.
-- [ ] No hue outside black/white/grey/blue remains in `theme.py`.
+- [x] All seven tokens are distinct and every spine is ≥3:1 against `graphite`; the status label text is ≥4.5:1.
+- [x] `Failed` and `Completed` are identifiable in a greyscale screenshot of the queue.
+- [x] No hue outside black/white/grey/blue remains in `theme.py`.
 
 **Verification:**
-- [ ] A new contrast test using `tests/test_ui_layout.py:40-53`'s `contrast()` fails before the tokens change and passes after.
-- [ ] `pytest tests/test_theme.py tests/test_ui_layout.py -q`, full suite green.
+- [x] A new contrast test using `tests/test_ui_layout.py:40-53`'s `contrast()` fails before the tokens change and passes after.
+- [x] `pytest tests/test_theme.py tests/test_ui_layout.py -q`, full suite green.
+
+**Built as:** RED confirmed — `Waiting as a label fails AA (3.28:1)`, which is
+why the brief's `signal_deep` for that state became the new `accent_mid
+#6FB2F9`; `#3A6BB0` stays fill-only, where its 3.28:1 still clears the 3:1
+non-text bar. Four tests added: spines ≥3:1 on a panel, labels ≥4.5:1 on a
+panel, the Failed chip is chalk with void text, and the three groups read
+(apart) — grey does not move, the three moving states are blue, chalk has
+finished, and `Queued` is dimmer than `Paused`.
+
+`JobCard.refresh()` now sets the label weight from `STATUS_WEIGHTS` and paints
+the one inverted chip. The greyscale criterion is tested as it sounds: a real
+window on the glass sheet, two cards driven through `on_result`, and each
+status label grabbed and averaged — **215.5 vs 41.4** grey, asserted as a gap
+over 60. The no-warm-hue criterion is read off the *rendered* sheets, both
+densities, not just the token dictionary: a literal left in the CSS would
+otherwise reach the screen unmeasured. Full offline suite: 818 passed,
+19 deselected.
 
 **Dependencies:** Task 2 · **Scope:** M (4 files: `theme.py`, `ui/widgets.py`, `ui/main_window.py`, `tests/test_theme.py`)
 

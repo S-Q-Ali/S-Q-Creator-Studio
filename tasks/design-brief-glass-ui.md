@@ -183,13 +183,19 @@ label weight and the word already printed on the card carrying the rest:
 
 | State | Spine | Label |
 |---|---|---|
-| Queued | `smoke` (neutral) | normal |
-| Paused | `slate` (neutral, dimmer) | normal |
-| Waiting | `signal_deep` | normal |
-| Downloading | `signal` | 600 |
+| Queued | `queued` `#7C8794` (neutral) | 600 |
+| Paused | `faint` `#A6B0BC` (neutral, brighter) | 600 |
+| Waiting | `accent_mid` `#6FB2F9` | 700 |
+| Downloading | `signal` | 700 |
 | Retrying | `signal_hi` | 700 |
 | Completed | `chalk` | 700 |
 | Failed | `chalk`, inverted chip | 800 on the chip |
+
+Built as: the draft's dim/dimmer split between `Queued` and `Paused` was
+backwards — dimming the *paused* one read as inactive, so `Queued` is the dim
+of the two and a test pins that ordering. `Waiting` moved from `signal_deep`
+to a new `accent_mid`: `#3A6BB0` clears the 3:1 spine bar but measures 3.28:1
+as a label, and the same state cannot be readable one way and hidden the other.
 
 No glyph is added: `theme_neon.py:256-259` records that emoji fall back to a
 wider face than `QFontMetrics` measures and clip the 285px rail, and the layout
