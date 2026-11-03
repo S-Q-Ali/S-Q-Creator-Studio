@@ -143,8 +143,16 @@ otherwise reach the screen unmeasured. Full offline suite: 818 passed,
 
 Three commits, grouped by file so each is reviewable:
 
-- **5a** — `ui/settings_page.py`: 6 `setStyleSheet` sites and the ~19 hex
+- [x] **5a** — `ui/settings_page.py`: 6 `setStyleSheet` sites and the ~19 hex
   literals at `:538-641` read from tokens; the per-OS storage wording untouched.
+  **Built as:** the four warm literals map onto the queue's vocabulary —
+  `faint` waits on you, `waiting` is the app working, `done` and `failed` are
+  over. Two of the six sites were constant colours in a call site, so they are
+  sheet rules now: the grid's row labels take a new `role="fieldLabel"`, and
+  `key_warning` takes the `error` role it always meant. The identity line's
+  pinned `font-size: 10px` is gone — `role="hint"` renders the caption size
+  anyway, so it now scales with density instead of fighting it. Suite green
+  (818), no hex literal left in the file.
 - **5b** — `ui/widgets.py`, `ui/activity_log.py`, `ui/music_page.py`: 7 sites,
   `music_page.py:364` and `widgets.py:27` included; the `shield_pixmap` idiom
   stays, it is what Task 8 reuses.

@@ -45,6 +45,7 @@ from s_q_ali_media_downloader.engine import (
     default_output_dir,
     impersonation_summary,
 )
+from s_q_ali_media_downloader.theme import C
 
 ORG = "S-Q-Ali"
 
@@ -199,7 +200,7 @@ class SettingsPage(QWidget):
         row_index = 0
         for label, control, hint in rows:
             text = QLabel(label)
-            text.setStyleSheet("color: #9C93AE;")
+            text.setProperty("role", "fieldLabel")
             text.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             grid.addWidget(text, row_index, 0)
             grid.addWidget(control, row_index, 1)
@@ -296,9 +297,8 @@ class SettingsPage(QWidget):
         cookies_lay.addWidget(clear)
 
         self.key_warning = QLabel("")
-        self.key_warning.setProperty("role", "hint")
+        self.key_warning.setProperty("role", "error")
         self.key_warning.setWordWrap(True)
-        self.key_warning.setStyleSheet("color: #FFB020;")
         self.key_warning.setVisible(False)
 
         self.key_storage_note = QLabel("")
@@ -510,7 +510,6 @@ class SettingsPage(QWidget):
                 f"Configured cookies file not found: {cookies_path}\n"
                 "YouTube bot checks will block downloads until you configure a valid file."
             )
-            self.key_warning.setStyleSheet("color: #FFB020;")
             self.key_warning.setVisible(True)
         else:
             self.key_warning.setVisible(False)
@@ -561,12 +560,12 @@ class SettingsPage(QWidget):
             return
         key = self.groq_edit.text().strip()
         if not key:
-            self._show_groq_status("Enter a Groq API key first.", "#FFB020")
+            self._show_groq_status("Enter a Groq API key first.", C["faint"])
             return
 
         self.btn_test_groq.setEnabled(False)
         self.btn_test_groq.setText("Testing ...")
-        self._show_groq_status("Sending one small request to Groq ...", "#9C93AE")
+        self._show_groq_status("Sending one small request to Groq ...", C["waiting"])
 
         worker = GroqKeyTestWorker(key, parent=self)
         worker.ok.connect(self._on_groq_test_ok)
@@ -580,19 +579,19 @@ class SettingsPage(QWidget):
     def _on_groq_key_edited(self) -> None:
         """A result belongs to the key that was tested, not the next one."""
         if not self.groq_status.isHidden():
-            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+            self._show_groq_status("Key changed — test it again.", C["muted"])
 
     def _on_groq_test_ok(self, model: str) -> None:
         if self.groq_edit.text().strip() != self._groq_tested_key:
-            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+            self._show_groq_status("Key changed — test it again.", C["muted"])
             return
-        self._show_groq_status(f"Groq key works · {model}", "#2DD4BF")
+        self._show_groq_status(f"Groq key works · {model}", C["done"])
 
     def _on_groq_test_failed(self, message: str) -> None:
         if self.groq_edit.text().strip() != self._groq_tested_key:
-            self._show_groq_status("Key changed — test it again.", "#9C93AE")
+            self._show_groq_status("Key changed — test it again.", C["muted"])
             return
-        self._show_groq_status(f"Groq key test failed: {message}", "#F2547D")
+        self._show_groq_status(f"Groq key test failed: {message}", C["failed"])
 
     def _on_groq_test_finished(self) -> None:
         self.btn_test_groq.setEnabled(True)
@@ -600,6 +599,8 @@ class SettingsPage(QWidget):
         self._groq_worker = None
 
     def _show_groq_status(self, text: str, color: str) -> None:
+        # The colours are the queue's vocabulary: faint waits on you, waiting
+        # is the app working, done and failed are over.
         self.groq_status.setText(text)
         self.groq_status.setStyleSheet(f"color: {color};")
         self.groq_status.setVisible(True)
@@ -612,12 +613,12 @@ class SettingsPage(QWidget):
             return
         key = self.gemini_edit.text().strip()
         if not key:
-            self._show_gemini_status("Enter a Gemini API key first.", "#FFB020")
+            self._show_gemini_status("Enter a Gemini API key first.", C["faint"])
             return
 
         self.btn_test_gemini.setEnabled(False)
         self.btn_test_gemini.setText("Testing ...")
-        self._show_gemini_status("Sending one small request to Gemini ...", "#9C93AE")
+        self._show_gemini_status("Sending one small request to Gemini ...", C["waiting"])
 
         worker = GeminiKeyTestWorker(key, parent=self)
         worker.ok.connect(self._on_gemini_test_ok)
@@ -630,19 +631,19 @@ class SettingsPage(QWidget):
 
     def _on_gemini_key_edited(self) -> None:
         if not self.gemini_status.isHidden():
-            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+            self._show_gemini_status("Key changed — test it again.", C["muted"])
 
     def _on_gemini_test_ok(self, model: str) -> None:
         if self.gemini_edit.text().strip() != self._gemini_tested_key:
-            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+            self._show_gemini_status("Key changed — test it again.", C["muted"])
             return
-        self._show_gemini_status(f"Gemini key works · {model}", "#2DD4BF")
+        self._show_gemini_status(f"Gemini key works · {model}", C["done"])
 
     def _on_gemini_test_failed(self, message: str) -> None:
         if self.gemini_edit.text().strip() != self._gemini_tested_key:
-            self._show_gemini_status("Key changed — test it again.", "#9C93AE")
+            self._show_gemini_status("Key changed — test it again.", C["muted"])
             return
-        self._show_gemini_status(f"Gemini key test failed: {message}", "#F2547D")
+        self._show_gemini_status(f"Gemini key test failed: {message}", C["failed"])
 
     def _on_gemini_test_finished(self) -> None:
         self.btn_test_gemini.setEnabled(True)
@@ -663,9 +664,7 @@ class SettingsPage(QWidget):
         self.identity.setText(
             ("Browser identity · " if ok else "No browser identity · ") + label
         )
-        self.identity.setStyleSheet(
-            f"color: {'#2DD4BF' if ok else '#F2547D'}; font-size: 10px;"
-        )
+        self.identity.setStyleSheet(f"color: {C['done'] if ok else C['failed']};")
         self.identity.setToolTip(
             "TikTok blocks requests that don't look like a real browser.\n"
             "This is the signature yt-dlp is sending on your behalf."

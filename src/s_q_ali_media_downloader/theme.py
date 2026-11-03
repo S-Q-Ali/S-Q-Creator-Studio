@@ -225,6 +225,10 @@ QLabel[role="hint"] {{
     font-size: {caption}px;
     background: transparent;
 }}
+QLabel[role="fieldLabel"] {{
+    color: {C['faint']};
+    background: transparent;
+}}
 QLabel[role="pageTitle"] {{
     font-size: 14px;
     font-weight: 800;
