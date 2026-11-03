@@ -601,9 +601,7 @@ def apply_density(window: QWidget, compact: bool) -> None:
     tokens = DENSITY[name]
 
     app = QApplication.instance()
-    # Density is a layout change, not a theme change. Re-applying the legacy
-    # stylesheet here would silently wipe the neon theme applied at startup.
-    if app is not None and app.property("s_q_theme") != "neon":
+    if app is not None:
         app.setStyleSheet(stylesheet(name))
 
     _rescale_layouts(window, tokens["scale"])

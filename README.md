@@ -55,7 +55,7 @@ Download the latest release and start downloading videos in seconds:
 - **Search-grounded answers** — Gemini is asked with Google Search turned on, so the proposal comes from a real search result instead of the model's memory. Groq answers when Gemini has no key or fails. TikTok walls its tag listing even for a signed-in cookie file, so the TikTok mode works from creators you paste — `@handles` or profile URLs, one per line or comma-separated — and checks each one on YouTube, Instagram and Facebook.
 - **A browser that does not look like a bot** — `navigator.webdriver` and the one-language `navigator.languages` are the two tells a platform can read without guessing; the app hides both.
 - **Operation log** — every step writes one line: the stage, the engine that did it, the link it touched and how long it took. The search budget is in there too.
-- **Neon theme** — electric cyan on a near-black surface across the whole app, built with PySide6.
+- **Glass theme** — black, white, grey and one blue: translucent panels over a dark base, with status carried by a spine on each card. Built with PySide6.
 - **Fits a small laptop** — the layout has a compact density that switches on below 1500×850, so nothing is clipped on a 1280×720 screen.
 
 > Only download content you own or have permission to download.

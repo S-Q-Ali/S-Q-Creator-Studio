@@ -42,13 +42,28 @@ deleted. `tests/quick_neon_test.py` — a print script pytest collects but which
 asserts nothing (`no tests collected`) — goes with them.
 
 **Acceptance criteria:**
-- [ ] One stylesheet reaches `QApplication`; no module under `src/` mentions `neon`.
-- [ ] `tests/test_agent_tab.py:25-27`'s literal import line still exists in `agent_tab.py`.
-- [ ] Every old neon assertion is either rewritten against the new sheet or removed with a one-line reason in the commit message — none silently dropped.
+- [x] One stylesheet reaches `QApplication`; no module under `src/` mentions `neon`.
+- [x] `tests/test_agent_tab.py:25-27`'s literal import line still exists in `agent_tab.py`.
+- [x] Every old neon assertion is either rewritten against the new sheet or removed with a one-line reason in the commit message — none silently dropped.
 
 **Verification:**
-- [ ] Full offline suite green; `pytest -q` output shows the suite count and no skips added.
-- [ ] Offscreen render of the main window produces a PNG on the glass sheet.
+- [x] Full offline suite green; `pytest -q` output shows the suite count and no skips added.
+- [x] Offscreen render of the main window produces a PNG on the glass sheet.
+
+**Built as:** 800 offline tests green, no skips. `test_neon_theme_qt.py` became
+`test_glass_theme_qt.py` with its density assertion flipped (density now *must*
+re-render the same tokens); its other two assertions are already made against
+the rendered sheet by `test_theme.py` and `test_qss_parses.py`. `test_neon_theme.py`
+and `quick_neon_test.py` asserted nothing at all — both were print scripts, and
+`quick_neon_test.py` matched pytest's default `*_test.py` glob, so it applied
+the neon sheet inside the test session. `render_neon_screenshots.py` was renamed
+with them, and `_neon_glow` became `_glow` on `C["accent"]` because its default
+was the old electric blue literal. README's theme bullet moved with the build,
+since from this commit the two would disagree.
+
+**Still true here:** the render shows the restyle is only half-applied — the
+usage notice and the GitHub chip are still warm, and the queue area is a flat
+void. Those are Tasks 4, 5 and 6, not regressions from this one.
 
 **Dependencies:** Task 1 · **Scope:** M (6 files: `app.py`, `theme.py`, delete `core/theme_neon.py` + `ui/themes.py`, `tests/test_theme.py`, delete/merge 3 test files)
 
@@ -195,7 +210,7 @@ the type honest on the Linux and macOS builds.
 
 ### Task 10: Renders, screenshots, and the honest report
 
-**Description:** `tests/render_neon_screenshots.py` becomes
+**Description:** `tests/render_glass_screenshots.py` becomes
 `tests/render_glass_screenshots.py` and renders every page at 4 sizes × 2
 densities; the four stale `screenshots/*.png` (all Oct 26) are replaced.
 

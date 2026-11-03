@@ -12,6 +12,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from s_q_ali_media_downloader.engine import APP_NAME, app_storage_dir, migrate_legacy_storage_dir
+from s_q_ali_media_downloader.theme import STYLESHEET
 from s_q_ali_media_downloader.ui.main_window import ORG, MainWindow, resource
 
 _SECRET_RE = re.compile(
@@ -82,11 +83,8 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setOrganizationName(ORG)
-    
-    # Apply neon theme by default
-    from s_q_ali_media_downloader.ui.themes import apply_neon_theme
-    apply_neon_theme(app)
-    
+    app.setStyleSheet(STYLESHEET)
+
     migrate_legacy_storage_dir()
     setup_logging()
     sys.excepthook = _excepthook

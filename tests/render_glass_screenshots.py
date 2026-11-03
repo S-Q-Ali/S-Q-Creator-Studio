@@ -1,4 +1,4 @@
-"""Render the real MainWindow with the neon theme and capture proof shots."""
+"""Render the real MainWindow with the glass sheet and capture proof shots."""
 
 import os
 import sys
@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
-os.environ["LOCALAPPDATA"] = tempfile.mkdtemp(prefix="sq-neon-test-")
+os.environ["LOCALAPPDATA"] = tempfile.mkdtemp(prefix="sq-glass-test-")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -14,8 +14,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QApplication
 
+from s_q_ali_media_downloader.theme import STYLESHEET, C
 from s_q_ali_media_downloader.ui.main_window import MainWindow
-from s_q_ali_media_downloader.ui.themes import apply_neon_theme
 
 
 def load_system_fonts():
@@ -53,19 +53,18 @@ def save(window, app, name, out_dir):
             rgb = image.pixelColor(x, y).getRgb()[:3]
             counts[rgb] = counts.get(rgb, 0) + 1
     top = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
-    cyan = sum(n for rgb, n in counts.items() if rgb[2] > 180 and rgb[1] > 150 and rgb[0] < 120)
+    blue = sum(n for rgb, n in counts.items() if rgb[2] > 150 and rgb[2] > rgb[0] + 60)
     print(f"\n{name}: {image.width()}x{image.height()} -> {path}")
     print("  top colors:", ", ".join(f"{rgb}={n}" for rgb, n in top))
-    print(f"  cyan-ish pixels: {cyan}")
+    print(f"  blue pixels: {blue}")
     return image
 
 
 def main():
     app = QApplication([])
     load_system_fonts()
-    apply_neon_theme(app)
+    app.setStyleSheet(STYLESHEET)
     print("stylesheet chars:", len(app.styleSheet()))
-    print("theme property:", app.property("s_q_theme"))
 
     window = MainWindow()
     window.resize(1568, 1097)
@@ -74,24 +73,23 @@ def main():
 
     out = ROOT / "screenshots"
     out.mkdir(exist_ok=True)
-    save(window, app, "neon_portable_queue.png", out)
+    save(window, app, "glass_portable_queue.png", out)
 
     window.btn_nav_agent.setChecked(True)
     window.workspace_stack.setCurrentIndex(1)
-    save(window, app, "neon_portable_agent.png", out)
+    save(window, app, "glass_portable_agent.png", out)
 
     window.btn_nav_settings.setChecked(True)
     window.workspace_stack.setCurrentIndex(2)
-    save(window, app, "neon_portable_settings.png", out)
+    save(window, app, "glass_portable_settings.png", out)
 
-    # The density path used to wipe the theme. It must keep it now.
+    # Density re-renders the same sheet, so the look survives the switch.
     window.settings_page.compact_check.setChecked(True)
     window._apply_density()
     pump(app)
-    print("\nafter density change, theme property:", app.property("s_q_theme"))
-    print("after density change, stylesheet chars:", len(app.styleSheet()))
-    assert app.property("s_q_theme") == "neon"
-    assert "00d4ff" in app.styleSheet()
+    print("\nafter density change, stylesheet chars:", len(app.styleSheet()))
+    assert "font-size: 12px" in app.styleSheet()
+    assert C["accent"] in app.styleSheet()
 
     window.close()
     print("\nOK")

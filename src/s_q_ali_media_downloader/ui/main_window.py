@@ -82,7 +82,7 @@ INLINE_RETRY_WAIT_TEXT = "2-5s"
 MAX_SAVED_QUEUE = 500
 
 
-def _neon_glow(widget: QWidget, color: str = "#00d4ff", blur: int = 26) -> None:
+def _glow(widget: QWidget, color: str = C["accent"], blur: int = 26) -> None:
     """Give a widget a real glow. QSS has no box-shadow, so Qt needs this."""
     glow = QColor(color)
     glow.setAlpha(170)
@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
         add = QPushButton("Add to queue")
         add.setProperty("kind", "primary")
         add.clicked.connect(self.add_links)
-        _neon_glow(add)
+        _glow(add)
         clear_box = QPushButton("Clear box")
         clear_box.clicked.connect(self.links.clear)
         row2.addWidget(add, 1)
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
         self.btn_fetch = QPushButton("Get URLs")
         self.btn_fetch.setProperty("kind", "primary")
         self.btn_fetch.clicked.connect(self.fetch_account)
-        _neon_glow(self.btn_fetch)
+        _glow(self.btn_fetch)
         col.addWidget(self.btn_fetch)
         pair.addLayout(col, 1)
 
@@ -473,7 +473,7 @@ class MainWindow(QMainWindow):
         self.btn_start = QPushButton("Start")
         self.btn_start.setProperty("kind", "primary")
         self.btn_start.clicked.connect(self.start_run)
-        _neon_glow(self.btn_start)
+        _glow(self.btn_start)
         self.btn_pause = QPushButton("Pause")
         self.btn_pause.clicked.connect(self.pause_run)
         self.btn_stop = QPushButton("Stop")

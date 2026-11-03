@@ -169,7 +169,7 @@ Build order: `tokens-unify` → `state-language` ∥ `glass-treatment` →
 
 ## Honest limit
 
-I can render the app offscreen and inspect PNGs (`tests/render_neon_screenshots.py`
+I can render the app offscreen and inspect PNGs (`tests/render_glass_screenshots.py`
 already does this), but alpha compositing over a real desktop, and how the glass
 reads on a physical panel, can only be judged by you running the app. I will not
 report the look as "verified" — only the geometry, contrast and parse-clean
