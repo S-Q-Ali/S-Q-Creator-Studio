@@ -153,22 +153,50 @@ Three commits, grouped by file so each is reviewable:
   pinned `font-size: 10px` is gone — `role="hint"` renders the caption size
   anyway, so it now scales with density instead of fighting it. Suite green
   (818), no hex literal left in the file.
-- **5b** — `ui/widgets.py`, `ui/activity_log.py`, `ui/music_page.py`: 7 sites,
+- [x] **5b** — `ui/widgets.py`, `ui/activity_log.py`, `ui/music_page.py`: 7 sites,
   `music_page.py:364` and `widgets.py:27` included; the `shield_pixmap` idiom
   stays, it is what Task 8 reuses.
-- **5c** — `ui/agent_tab.py`, `ui/main_window.py`, `ui/social_discovery_page.py`:
+  **Built as:** the shield's amber default is the amber token (lit blue now),
+  the music page's pink is `failed`, and the activity log's inline
+  `font-weight: bold` is gone — `role="section"` is the hint role plus 700, so
+  the sheet already had the rule.
+- [x] **5c** — `ui/agent_tab.py`, `ui/main_window.py`, `ui/social_discovery_page.py`:
   the remaining sites, the raw `Qt.gray`/`Qt.green` at
   `social_discovery_page.py:320-326`, and the three `_neon_glow` calls
   (`main_window.py:236`, `:342`, `:476`) reduced to one restrained `signal`
   glow on the primary action — or removed if the glass reads fine without it.
+  **Built as:** the discovery table's `Qt.GlobalColor.green/gray` became the
+  channel table's verdict language (`done` / `amber` for unknown / `failed`),
+  so the two tables that describe the same finding colour it the same way. The
+  four `font-weight` sheets in `agent_tab.py` are one `role="hintStrong"` now;
+  the shield badge's `background: transparent` moved to `#ShieldBadge`; the
+  social buttons' GitHub and LinkedIn fills are tokens, because both are
+  already inside the brief — one near-black, one blue — and a button that says
+  GitHub in an invented hue is a button nobody recognises (both pairs are in
+  `TEXT_SURFACES`, so their chalk labels are measured, not assumed). One glow
+  survives, on Start. `chip_left` stopped borrowing the Retrying blue: a count
+  is not a state.
 
 **Acceptance criteria:**
-- [ ] `grep -rn "setStyleSheet" src/` returns only the theme module and the widgets that genuinely need a per-instance colour, each of which uses a token.
-- [ ] No 6-digit hex literal outside `theme.py`'s token dicts.
-- [ ] Behaviour unchanged: no settings, no queue logic, no download path edited.
+- [x] `grep -rn "setStyleSheet" src/` returns only the theme module and the widgets that genuinely need a per-instance colour, each of which uses a token.
+- [x] No 6-digit hex literal outside `theme.py`'s token dicts.
+- [x] Behaviour unchanged: no settings, no queue logic, no download path edited.
 
 **Verification:**
-- [ ] Full offline suite green after each of 5a/5b/5c; `ruff check src tests` clean.
+- [x] Full offline suite green after each of 5a/5b/5c; `ruff check src tests` clean.
+- [x] A guard test reads every `.py` under `src/` and fails on a quoted hex outside `theme.py`.
+
+**Built as:** 5a/5b/5c. Thirteen `setStyleSheet` calls are left in `src/`; two of
+them are the theme applying itself (`app.py`, `apply_density`). The other
+eleven are the queue card — spine, status chip, placeholder title, error line,
+chip value — the two key-test statuses, the identity line, the music status and
+the two brand buttons: every one a colour that changes per instance, and every
+one a token. The hex rule is now machine-enforced:
+`test_no_colour_literal_outside_the_token_table` walks the package, so the next
+literal added in a page fails rather than going unnoticed.
+
+Suite after 5c: **819 passed, 19 deselected**. One run at the end of the task,
+not one per commit — the per-slice runs were the four files each slice touches.
 
 **Dependencies:** Task 4 · **Scope:** M each (1-3 files per commit)
 

@@ -93,8 +93,8 @@ def _glow(widget: QWidget, color: str = C["accent"], blur: int = 26) -> None:
     widget.setGraphicsEffect(effect)
 
 SOCIALS = [
-    ("GitHub", "GH", "#24292F", "https://github.com/S-Q-Ali"),
-    ("LinkedIn", "in", "#0A66C2", "https://linkedin.com/in/s-qasim-ali"),
+    ("GitHub", "GH", C["github"], "https://github.com/S-Q-Ali"),
+    ("LinkedIn", "in", C["linkedin"], "https://linkedin.com/in/s-qasim-ali"),
 ]
 
 
@@ -233,7 +233,6 @@ class MainWindow(QMainWindow):
         add = QPushButton("Add to queue")
         add.setProperty("kind", "primary")
         add.clicked.connect(self.add_links)
-        _glow(add)
         clear_box = QPushButton("Clear box")
         clear_box.clicked.connect(self.links.clear)
         row2.addWidget(add, 1)
@@ -339,7 +338,6 @@ class MainWindow(QMainWindow):
         self.btn_fetch = QPushButton("Get URLs")
         self.btn_fetch.setProperty("kind", "primary")
         self.btn_fetch.clicked.connect(self.fetch_account)
-        _glow(self.btn_fetch)
         col.addWidget(self.btn_fetch)
         pair.addLayout(col, 1)
 
@@ -452,7 +450,7 @@ class MainWindow(QMainWindow):
         self.chip_done = Chip("completed", C["done"])
         self.chip_wait = Chip("waiting", C["waiting"])
         self.chip_failed = Chip("failed", C["failed"])
-        self.chip_left = Chip("remaining", C["amber"])
+        self.chip_left = Chip("remaining", C["muted"])
         for chip in (
             self.chip_total,
             self.chip_done,
@@ -473,6 +471,8 @@ class MainWindow(QMainWindow):
         self.btn_start = QPushButton("Start")
         self.btn_start.setProperty("kind", "primary")
         self.btn_start.clicked.connect(self.start_run)
+        # The one glow left in the app: with no colour to shout with, the
+        # action that actually runs the queue is the thing allowed to lift.
         _glow(self.btn_start)
         self.btn_pause = QPushButton("Pause")
         self.btn_pause.clicked.connect(self.pause_run)
@@ -575,8 +575,8 @@ class MainWindow(QMainWindow):
         fl.addWidget(self.status_bar, 1)
 
         badge = QLabel()
+        badge.setObjectName("ShieldBadge")
         badge.setPixmap(shield_pixmap())
-        badge.setStyleSheet("background: transparent;")
         fl.addWidget(badge, 0, Qt.AlignVCenter)
         text = QLabel(NOTICE)
         text.setProperty("role", "notice")
@@ -601,7 +601,7 @@ class MainWindow(QMainWindow):
                     border: none;
                     border-radius: 14px;
                     padding: 4px 12px;
-                    color: #FFFFFF;
+                    color: {C['text']};
                     font-size: 11px;
                     font-weight: 700;
                 }}

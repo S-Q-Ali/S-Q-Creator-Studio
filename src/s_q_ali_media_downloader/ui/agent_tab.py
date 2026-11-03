@@ -142,8 +142,7 @@ class AgentTabWidget(QWidget):
         row0 = QHBoxLayout()
         row0.setSpacing(10)
         lbl_mode = QLabel("Discovery Mode:")
-        lbl_mode.setProperty("role", "hint")
-        lbl_mode.setStyleSheet("font-weight: bold;")
+        lbl_mode.setProperty("role", "hintStrong")
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK, MODE_SOCIAL])
         self.mode_combo.setMinimumHeight(34)
@@ -208,8 +207,7 @@ class AgentTabWidget(QWidget):
 
         # Depth
         lbl_depth = QLabel("Depth:")
-        lbl_depth.setProperty("role", "hint")
-        lbl_depth.setStyleSheet("font-weight: bold;")
+        lbl_depth.setProperty("role", "hintStrong")
         self.depth_combo = QComboBox()
         self.depth_combo.addItems(["20 channels", "50 channels", "100 channels"])
         self.depth_combo.setCurrentIndex(1)
@@ -219,8 +217,7 @@ class AgentTabWidget(QWidget):
 
         # Min Subs
         self.lbl_subs = QLabel("Min Subs:")
-        self.lbl_subs.setProperty("role", "hint")
-        self.lbl_subs.setStyleSheet("font-weight: bold;")
+        self.lbl_subs.setProperty("role", "hintStrong")
         self.subs_combo = QComboBox()
         self.subs_combo.addItems(["Any", "5K+", "10K+", "50K+", "100K+"])
         self.subs_combo.setCurrentIndex(0)
@@ -308,8 +305,7 @@ class AgentTabWidget(QWidget):
         self.progress_bar.setVisible(False)
 
         self.lbl_status = QLabel("Ready to search channels and verify social presences.")
-        self.lbl_status.setProperty("role", "hint")
-        self.lbl_status.setStyleSheet("font-weight: 600;")
+        self.lbl_status.setProperty("role", "hintStrong")
 
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.lbl_status)

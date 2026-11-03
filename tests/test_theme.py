@@ -7,6 +7,7 @@ agree.
 """
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -97,6 +98,24 @@ def test_palette_stays_in_black_white_grey_and_blue():
             assert blue >= red, f"{key} is warm, and the palette has no warm neutrals"
         else:
             assert blue > green > red or abs(blue - green) < 8, f"{key} is not a blue"
+
+
+def test_no_colour_literal_outside_the_token_table():
+    """A hex in a page is a hue no contrast test can see.
+
+    The palette is one file: everything else asks ``theme.py`` for a colour,
+    so the brief's four hues and their measured contrasts stay checkable.
+    """
+    package = Path(__file__).resolve().parents[1] / "src" / "s_q_ali_media_downloader"
+    quoted_hex = re.compile(r"[\"']#[0-9A-Fa-f]{3,6}[\"']")
+    offenders = [
+        f"{path.name}:{number}: {line.strip()}"
+        for path in sorted(package.rglob("*.py"))
+        if path.name != "theme.py"
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if quoted_hex.search(line)
+    ]
+    assert not offenders, "colour literals outside theme.py:\n" + "\n".join(offenders)
 
 
 def test_the_rendered_sheet_holds_no_warm_colour():

@@ -88,6 +88,11 @@ C = {
     "failed": _CHALK,
     "queued": "#7C8794",
     "waiting": "#6FB2F9",
+    # The two social buttons keep their networks' colours, because a button
+    # that says GitHub in an invented hue is a button nobody recognises. Both
+    # already sit inside the brief: one is a near-black, one is a blue.
+    "github": "#24292F",
+    "linkedin": "#0A66C2",
 }
 
 # The state language, once red, amber and violet are gone: grey is not moving,
@@ -128,6 +133,8 @@ TEXT_SURFACES = {
     "badge on a control": ("faint", "raised"),
     "signal on a panel": ("accent", "panel"),
     "label on the action fill": ("text", "accent_deep"),
+    "label on the GitHub fill": ("text", "github"),
+    "label on the LinkedIn fill": ("text", "linkedin"),
 }
 
 # --------------------------------------------------------------------------- #
@@ -227,6 +234,12 @@ QLabel[role="hint"] {{
 }}
 QLabel[role="fieldLabel"] {{
     color: {C['faint']};
+    background: transparent;
+}}
+QLabel[role="hintStrong"] {{
+    color: {C['faint']};
+    font-size: {caption}px;
+    font-weight: 700;
     background: transparent;
 }}
 QLabel[role="pageTitle"] {{
@@ -516,6 +529,7 @@ QLabel[role="notice"] {{
     font-weight: 600;
     background: transparent;
 }}
+#ShieldBadge {{ background: transparent; }}
 
 /* ---------- tooltips ---------- */
 QToolTip {{

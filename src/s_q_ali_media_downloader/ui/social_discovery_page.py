@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -39,6 +39,7 @@ from s_q_ali_media_downloader.agent.tools.browser import (
 )
 from s_q_ali_media_downloader.agent.tools.dual_check import SearchBudget
 from s_q_ali_media_downloader.core import exporter
+from s_q_ali_media_downloader.theme import C
 from s_q_ali_media_downloader.ui.settings_page import discovery_browser_is_visible
 
 logger = logging.getLogger(__name__)
@@ -317,13 +318,19 @@ class SocialDiscoveryPage(QWidget):
             outcome = result.outcome(platform)
             if outcome is None:
                 item = QTableWidgetItem("—")
-                item.setForeground(Qt.GlobalColor.gray)
+                item.setForeground(QColor(C["muted"]))
             else:
                 text = VERDICT_TEXT.get(outcome.verdict, outcome.verdict)
                 if outcome.tier:
                     text += f" · {outcome.tier}"
                 item = QTableWidgetItem(text)
-                item.setForeground(Qt.GlobalColor.green if outcome.is_found else Qt.GlobalColor.gray)
+                # The channel table's language: a match, a maybe, an absence.
+                verdict = (
+                    C["done"]
+                    if outcome.is_found
+                    else C["amber"] if outcome.verdict == "unknown" else C["failed"]
+                )
+                item.setForeground(QColor(verdict))
                 tip = outcome.url or outcome.detail
                 if outcome.tier:
                     tip += f"\nconfidence: {outcome.tier}"
