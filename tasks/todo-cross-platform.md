@@ -214,16 +214,36 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase F — the matrix (`ci-matrix`)
 
-- [ ] **F1. Matrix job** — `ci.yml` → ubuntu/macos/windows × 3.12/3.14, PRs
+- [x] **F1. Matrix job** — `ci.yml` → ubuntu/macos/windows × 3.12/3.14, PRs
       trimmed to windows+ubuntu at one Python, full matrix on `master` and tags,
       `QT_QPA_PLATFORM=offscreen`, per-OS ffmpeg + `playwright install chromium`
       only where needed, pip-audit kept. Acceptance: the same tests that pass
       locally pass on all three runners. Files: `.github/workflows/ci.yml` · **M**
+      Done: a `pick` job emits the matrix as JSON — a pull request gets
+      ubuntu-24.04 + windows-latest at 3.14, a push to master gets all three
+      OSes at 3.12 and 3.14 (`fail-fast: false`, so one OS failing shows up
+      rather than cancelling the others). Both payloads and the whole file parse
+      (checked with a throwaway PyYAML run; no actionlint or Docker here). Linux
+      installs `libxkbcommon-x11-0 libegl1 libgl1 libglib2.0-0 libdbus-1-3`,
+      which the offscreen platform needs before the first `QApplication`; the
+      audit runs once per OS at 3.14 because `keyring` only enters the set off
+      Windows; ffmpeg, the Chromium download, the build, the smoke test and the
+      artifact are gated to Windows at 3.14, so master still publishes exactly
+      one portable build.
+      **Still open — the acceptance itself.** Whether the 761 tests pass on the
+      other two runners is what the matrix exists to find out, and that needs a
+      push. Nothing here is claimed in the README until a green run is seen.
 - [ ] **F2. Per-OS build + smoke** — portable build on each OS, launch for 15 s,
       assert alive, clean kill; artifacts uploaded per OS. The runner floors
       come from B1: `ubuntu-24.04` or newer (glibc ≥ 2.34 x86_64, 2.39 arm64)
       and a macOS 13+ runner, or PySide6 6.11 has no wheel to install.
       Files: `.github/workflows/ci.yml`, `.github/workflows/release.yml` · **M**
+      **Blocked by G1, not by F1.** A POSIX build needs `release/build.py`: the
+      only build script today is `release/build.bat`, and its ffmpeg staging
+      probes `bin\ffmpeg.exe` — a name that does not exist on Linux or macOS, so
+      the build fails out on the spot (B2's "the build fails" finding). F2 is
+      therefore the job that runs G1's script on three OSes, and moves here once
+      that script exists.
 
 ## Phase G — one build script (`packaging`, portable-first scope)
 
@@ -258,6 +278,14 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 - [ ] **H2. CHANGELOG + version bump** — the release that first claims three OSes.
       Verify: dated heading before any tag, per the standing rule.
       Files: `CHANGELOG.md`, `__init__.py`, `pyproject.toml` · **XS**
+- [ ] **H3. The declared Python floor** — `pyproject.toml:10` says
+      `requires-python = ">=3.10"`, which is a promise nothing runs on: F1 tests
+      3.12 and 3.14 only, and B1's spike found that the `[agent]` extra cannot
+      even resolve on 3.10 (`browser-use==0.13.14` needs >=3.11). Raise the floor
+      to what CI proves — a metadata change consumers can see, so it belongs with
+      the version bump, not beside a workflow edit.
+      Acceptance: `uv pip compile` resolves the package for every Python the
+      metadata allows. Files: `pyproject.toml` · **XS**
 
 ### Checkpoint: done
 - [ ] Full matrix green twice, three archives published, no orphan processes,
