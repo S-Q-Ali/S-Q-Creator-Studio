@@ -258,6 +258,35 @@ def test_a_build_with_nowhere_to_go_stops(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# Where the launcher is, and where its extras belong
+# --------------------------------------------------------------------------- #
+def test_a_plain_folder_holds_the_app_and_its_extras(tmp_path, monkeypatch):
+    """Windows and Linux: the app, then bin/ and browsers/ beside it."""
+    monkeypatch.setattr(build, "IS_WINDOWS", False)
+    portable = tmp_path / "portable"
+    portable.mkdir()
+    (portable / build.APP_NAME).write_text("")
+
+    launcher, extras = build.bundle_layout(portable)
+
+    assert launcher == portable / build.APP_NAME
+    assert extras == portable
+
+
+def test_an_app_bundle_splits_the_launcher_from_its_extras(tmp_path):
+    """--windowed on macOS: only the executable in Contents/MacOS, everything
+    else in Contents/Resources - and the app looks in both."""
+    contents = tmp_path / "portable" / f"{build.APP_NAME}.app" / "Contents"
+    (contents / "MacOS").mkdir(parents=True)
+    (contents / "MacOS" / build.APP_NAME).write_text("")
+
+    launcher, extras = build.bundle_layout(tmp_path / "portable")
+
+    assert launcher == contents / "MacOS" / build.APP_NAME
+    assert extras == contents / "Resources"
+
+
+# --------------------------------------------------------------------------- #
 # The installer stays Windows-only, and the batch file stays thin
 # --------------------------------------------------------------------------- #
 def test_inno_setup_is_only_looked_for_on_windows(tmp_path, monkeypatch):

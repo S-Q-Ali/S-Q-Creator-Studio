@@ -184,6 +184,24 @@ def portable_dir() -> Path:
     return fresh
 
 
+def bundle_layout(portable: Path) -> tuple[Path, Path]:
+    """The launcher to check and the folder its extras belong next to.
+
+    Windows and Linux get the plain one-directory layout: the app, its
+    ``_internal`` folder, and the ``bin`` and ``browsers`` this script stages.
+    ``--windowed`` on macOS instead builds an ``.app`` bundle, where Apple
+    allows only the executable in ``Contents/MacOS`` and keeps everything else
+    in ``Contents/Resources`` - so the extras follow them there, and the app
+    looks for them there too (``engine.bundle_extra_roots``).
+    """
+    plain = portable / (f"{APP_NAME}.exe" if IS_WINDOWS else APP_NAME)
+    app_bundle = next(iter(sorted(portable.glob("*.app"))), None)
+    if app_bundle is None:
+        return plain, portable
+    contents = app_bundle / "Contents"
+    return contents / "MacOS" / APP_NAME, contents / "Resources"
+
+
 def stage_contents(built: Path, portable: Path) -> None:
     print(f"\n{'=' * 60}\n Copying to {portable}\n{'=' * 60}\n")
     try:
@@ -219,21 +237,21 @@ def find_ffmpeg() -> str | None:
     return None
 
 
-def stage_ffmpeg(portable: Path) -> str | None:
+def stage_ffmpeg(extras: Path) -> str | None:
     """Copy ffmpeg into ``bin`` and say where it came from."""
     source = find_ffmpeg()
     if not source:
         print(
             f"[WARNING] {FFMPEG_NAME} not found.\n"
             f"          The portable build cannot merge video+audio until ffmpeg\n"
-            f"          is copied to {portable / 'bin'} by hand."
+            f"          is copied to {extras / 'bin'} by hand."
         )
         return None
-    (portable / "bin").mkdir(parents=True, exist_ok=True)
-    target = portable / "bin" / FFMPEG_NAME
+    (extras / "bin").mkdir(parents=True, exist_ok=True)
+    target = extras / "bin" / FFMPEG_NAME
     shutil.copy2(source, target)
     target.chmod(target.stat().st_mode | 0o755)
-    print(f"{FFMPEG_NAME} staged into {portable / 'bin'}\n  from {Path(source).resolve()}")
+    print(f"{FFMPEG_NAME} staged into {extras / 'bin'}\n  from {Path(source).resolve()}")
     return source
 
 
@@ -248,8 +266,8 @@ def browser_cache_dir() -> Path | None:
     return _playwright_cache_dir()
 
 
-def stage_browsers(portable: Path) -> None:
-    """Copy the full Chromium build into the portable folder.
+def stage_browsers(extras: Path) -> None:
+    """Copy the full Chromium build next to the app, where the app looks.
 
     The Social Discovery feature drives a real browser and the app ships one,
     so the feature works on a machine with no Chrome and no Edge. The headless
@@ -271,7 +289,7 @@ def stage_browsers(portable: Path) -> None:
         if not version[:1].isdigit():
             continue
         print(f"Shipping browser: {found.name}")
-        shutil.copytree(found, portable / "browsers" / found.name, dirs_exist_ok=True)
+        shutil.copytree(found, extras / "browsers" / found.name, dirs_exist_ok=True)
         shipped += 1
     if not shipped:
         print(
@@ -377,12 +395,10 @@ def main() -> None:
     built = build_with_pyinstaller()
     portable = portable_dir()
     stage_contents(built, portable)
-    ffmpeg_source = stage_ffmpeg(portable)
-    stage_browsers(portable)
+    launcher, extras = bundle_layout(portable)
+    ffmpeg_source = stage_ffmpeg(extras)
+    stage_browsers(extras)
 
-    # Off Windows the launcher carries no extension: PyInstaller names it after
-    # the app, exactly as it does here with one.
-    launcher = portable / (f"{APP_NAME}.exe" if IS_WINDOWS else APP_NAME)
     if not launcher.is_file():
         fail(f"The build left no executable at {launcher}.")
     print(f"Done. {launcher.name} built in {portable}")
