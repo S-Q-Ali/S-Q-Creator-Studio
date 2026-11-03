@@ -1,7 +1,8 @@
 name: Release
 
-# A tag cuts the release: push v2.5.2 and the installer is built, checked
-# and published as a GitHub Release with its own notes.
+# A tag cuts the release: push v2.6.2 and a portable build is made for each
+# of the three platforms, checked, and published as one GitHub Release with
+# its own notes.
 on:
   push:
     tags:
@@ -11,8 +12,26 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: windows-latest
+  build:
+    # One build per platform, from the one script in release/build.py. The
+    # runner images are the floors the wheel spike found: PySide6 6.11 has no
+    # wheel for a glibc older than 2.34 on x86_64, and none for a macOS older
+    # than 13 - see tasks/plan-cross-platform.md, B1.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            key: windows-x64
+            archive: zip
+          - os: ubuntu-24.04
+            key: linux-x64
+            archive: tar.gz
+          - os: macos-14
+            key: macos-arm64
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.key }})
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -23,100 +42,201 @@ jobs:
           python-version: "3.14"
           cache: pip
 
+      - name: Check the tag against the app
+        # The installer and the archive are named for the version the app
+        # itself reports. A tag that disagrees with it publishes a release
+        # that is labelled wrong everywhere except in the tag.
+        run: python -c "import sys; sys.path.insert(0, 'src'); import s_q_ali_media_downloader as a; t = '${{ github.ref_name }}'.removeprefix('v'); print('package', a.__version__, 'tag', t); sys.exit(0 if a.__version__ == t else 1)"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Install Inno Setup and ffmpeg
-        # The installer is compiled with Inno Setup, and ffmpeg has to be
-        # next to the app: without it yt-dlp cannot merge the separate
-        # video and audio streams of a "best available" download.
+      - name: Install the Qt runtime libraries
+        if: runner.os == 'Linux'
+        # The built app imports Qt on start-up, and a runner image does not
+        # carry the GUI stack: the smoke test would fail before the app's own
+        # code runs.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-x11-0 libegl1 libgl1 libglib2.0-0 libdbus-1-3
+
+      - name: Install Inno Setup and ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        # Inno Setup compiles the installer, and ffmpeg has to be next to the
+        # app: without it yt-dlp cannot merge the separate video and audio
+        # streams of a "best available" download.
         shell: pwsh
         run: |
           choco install innosetup ffmpeg --yes --no-progress
           Write-Output "ISCC: $((Get-ChildItem 'C:\Program Files*\Inno Setup 6\ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
           Write-Output "ffmpeg: $((Get-Command ffmpeg -ErrorAction SilentlyContinue).Source)"
 
+      - name: Install ffmpeg
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install ffmpeg
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+
       - name: Install the browser the app ships
-        # The Social Discovery feature drives a real browser; the installer
-        # carries Chromium's headless shell.
+        # Social Discovery drives a real browser and the bundle carries it: the
+        # full Chromium, because the app asks Playwright for channel="chromium".
         run: python -m playwright install chromium
 
-      - name: Build the portable app and the installer
-        shell: cmd
-        run: release\build.bat
+      - name: Build the portable app
+        # The same script a contributor runs; on Linux and macOS it says that
+        # the installer is a Windows step and finishes with the portable folder.
+        run: python release/build.py
 
       - name: Check the build
         shell: pwsh
+        env:
+          ARCHIVE_KIND: ${{ matrix.archive }}
+          BUILD_KEY: ${{ matrix.key }}
         run: |
-          # The build lands in release\portable, or in release\portable-new
-          # when the old one was in use.
-          $portable = @("release\portable", "release\portable-new") |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $portable = @("release/portable", "release/portable-new") |
             Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $portable) { throw "the portable build is missing" }
-          $exe = Get-ChildItem "$portable\*.exe" | Select-Object -First 1
-          if (-not $exe) { throw "the portable build has no executable" }
-          $setup = Get-ChildItem "release\S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1
-          if (-not $setup) { throw "the installer is missing" }
-          if (-not (Test-Path "$portable\browsers")) { throw "the browser was not shipped" }
-          Write-Output "portable: $($exe.Name)  $([math]::Round($exe.Length/1MB,1)) MB"
-          Write-Output "installer: $($setup.Name)  $([math]::Round($setup.Length/1MB,1)) MB"
-          Write-Output "sha256: $((Get-FileHash -Algorithm SHA256 $setup.FullName).Hash)"
+
+          $candidates = @(
+            "$portable/S-Q Creator Studio.app/Contents/MacOS/S-Q Creator Studio",
+            "$portable/S-Q Creator Studio.exe",
+            "$portable/S-Q Creator Studio"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "the portable build has no launcher" }
+          if (-not (Test-Path "$portable/browsers")) { throw "the browser was not shipped" }
+          $ffmpeg = if ($IsWindows) { "$portable/bin/ffmpeg.exe" } else { "$portable/bin/ffmpeg" }
+          if (-not (Test-Path $ffmpeg)) { throw "ffmpeg was not staged" }
+
+          Write-Output "launcher: $exe  $([math]::Round((Get-Item $exe).Length/1MB,1)) MB"
+          Write-Output "portable: $([math]::Round((Get-ChildItem $portable -Recurse -File | Measure-Object Length -Sum).Sum/1MB,1)) MB"
+
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          if ($IsWindows) {
+            $setup = Get-ChildItem "release/S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1
+            if (-not $setup) { throw "the installer is missing" }
+            Write-Output "installer: $($setup.Name)  $([math]::Round($setup.Length/1MB,1)) MB"
+            Copy-Item $setup.FullName dist
+          }
+
+          # One archive per platform. tar keeps the executable bits and the
+          # bundle's symlinks, which a zip of the same folder would not.
+          $name = "S-Q-Creator-Studio-$version-$BUILD_KEY"
+          if ($env:ARCHIVE_KIND -eq "zip") {
+            Compress-Archive -Path "$portable/*" -DestinationPath "dist/$name.zip" -CompressionLevel Optimal
+          } else {
+            tar -czf "dist/$name.tar.gz" -C $portable .
+          }
+          $asset = Get-Item "dist/$name.*" | Select-Object -First 1
+          Write-Output "archive: $($asset.Name)  $([math]::Round($asset.Length/1MB,1)) MB"
+          Write-Output "sha256: $((Get-FileHash -Algorithm SHA256 $asset.FullName).Hash)"
 
       - name: Smoke test the built app
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = "offscreen"
-          $p = Start-Process -FilePath "release\portable\S-Q Creator Studio.exe" -PassThru -WindowStyle Hidden
-          Start-Sleep -Seconds 15
+          $portable = @("release/portable", "release/portable-new") |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          $candidates = @(
+            "$portable/S-Q Creator Studio.app/Contents/MacOS/S-Q Creator Studio",
+            "$portable/S-Q Creator Studio.exe",
+            "$portable/S-Q Creator Studio"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "no launcher to smoke test" }
+          $p = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 30
           if ($p.HasExited) { throw "the built app exited immediately (code $($p.ExitCode))" }
           Stop-Process -Id $p.Id -Force
           Write-Output "the built app stayed alive"
+
+      - name: Upload the release assets
+        # The archive plus, on Windows, the installer - all already in dist/.
+        # One artifact per platform, and the publish job takes them together.
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.key }}
+          path: dist
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Collect the assets
+        # Every platform's artifact merged into one folder, as release-* is the
+        # only naming pattern the build matrix shares.
+        uses: actions/download-artifact@v5
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: assets
 
       - name: Publish the release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $setup = (Get-ChildItem "release\S-Q-Creator-Studio-Setup-*.exe" | Select-Object -First 1).FullName
           $tag = "${{ github.ref_name }}"
           $version = $tag.TrimStart("v")
-          $sha = (Get-FileHash -Algorithm SHA256 $setup).Hash
-          $name = Split-Path -Leaf $setup
+          # Recursive: an artifact uploaded from a folder may keep that folder
+          # inside the download, and the file names are what matter here.
+          $assets = Get-ChildItem assets -Recurse -File | Sort-Object Name
+          if (-not $assets) { throw "no release assets were built" }
 
           # The changelog holds the notes for this version: the section
           # that starts with its heading, up to the next one.
-          $changelog = ""
+          $notes = ""
           if (Test-Path "CHANGELOG.md") {
-              $all = Get-Content "CHANGELOG.md" -Raw
-              $pattern = "(?ms)^## \[$([regex]::Escape($version))\].*?(?=^## \[|\z)"
-              $found = [regex]::Match($all, $pattern)
-              if ($found.Success) {
-                  $changelog = $found.Value.Trim()
-              }
+            $all = Get-Content "CHANGELOG.md" -Raw
+            $found = [regex]::Match($all, "(?ms)^## \[$([regex]::Escape($version))\].*?(?=^## \[|\z)")
+            if ($found.Success) { $notes = $found.Value.Trim() }
           }
 
-          $lines = @(
-            "## S-Q Creator Studio $version",
+          $lines = @("## S-Q Creator Studio $version", "")
+          if ($notes) { $lines += @($notes, "", "---", "") }
+          $lines += @(
+            "Built for three platforms from one build script. Each file below is",
+            "the complete portable build - unpack it into an empty folder and run it.",
+            "",
+            "| Platform | File | How |",
+            "|---|---|---|",
+            "| Windows 10/11 (x86_64) | ``S-Q-Creator-Studio-Setup-$version.exe`` | Installer; keys are sealed with DPAPI |",
+            "| Windows 10/11 (x86_64) | ``S-Q-Creator-Studio-$version-windows-x64.zip`` | Portable folder |",
+            "| Linux (x86_64, glibc &gt;= 2.34) | ``S-Q-Creator-Studio-$version-linux-x64.tar.gz`` | Portable folder; keys go to the session keychain |",
+            "| macOS 13+ (Apple Silicon) | ``S-Q-Creator-Studio-$version-macos-arm64.tar.gz`` | Portable folder; keys go to the login keychain |",
+            "",
+            "Every build carries its own Chromium and ffmpeg, so Social Discovery and",
+            "video-plus-audio downloads work on a machine that has neither.",
+            "",
+            "**What is tested, and what is not.** Each build runs on its own platform's",
+            "CI runner and is launched there. That is not the same as a user's desktop:",
+            "if a window, a font or a download behaves differently once it is on your",
+            "machine, that is a bug - open an issue with the platform and the version.",
+            "The installers are unsigned, so Windows will ask you to confirm it the",
+            "first time, and macOS may refuse an unnotarised app until you approve it",
+            "in System Settings.",
+            "",
+            "SHA-256:",
             ""
           )
-          if ($changelog) {
-              $lines += $changelog
-              $lines += ""
-              $lines += "---"
-              $lines += ""
+          foreach ($asset in $assets) {
+            $sha = (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash
+            $lines += "- ``$($asset.Name)``: ``$sha``"
           }
-          $lines += @(
-            "The installer for this release.",
-            "",
-            "SHA-256 of ``$name``:",
-            "````",
-            $sha,
-            "````",
-            "",
-            "Windows may ask you to confirm the installer the first time - it is an unsigned build.",
-            "Full details in the [changelog](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md)."
-          )
-          $notes = $lines -join [Environment]::NewLine
-          gh release create $tag $setup --title "S-Q Creator Studio $version" --notes $notes
+          $lines += @("", "Full details in the [changelog](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md).")
+
+          # PowerShell hands each element of the array to gh as its own
+          # argument, so every build's archive and the Windows installer are
+          # attached in this one call.
+          gh release create $tag --title "S-Q Creator Studio $version" `
+            --notes ($lines -join [Environment]::NewLine) $assets.FullName
