@@ -39,11 +39,19 @@ arbitrary desktop.
 | Token | Value | Job |
 |---|---|---|
 | `void` | `#06080C` | backdrop base — blue-black, never a flat `#000` panel |
-| `graphite` | `#12161D` | the flattened fill a card resolves to; the contrast reference |
+| `graphite` | `#17191D` | the flattened fill a card resolves to; the contrast reference |
 | `chalk` | `#EDF1F5` | primary text, lit chips, the active-segment fill |
-| `smoke` | `#7C8794` | secondary text and muted structure — 4.9:1 on `graphite` |
+| `smoke` | `#7C8794` | secondary text and muted structure — 4.82:1 on `graphite` |
 | `signal` | `#2F81F7` | the single blue: focus, progress, primary action |
-| `signal_hi` / `signal_deep` | `#8FC1FF` / `#1B4F9C` | hover and pressed, same hue |
+| `signal_hi` / `signal_deep` | `#8FC1FF` / `#3A6BB0` | the lit blue, and the fill that can carry chalk |
+
+Two numbers here are measured, not chosen. The brief's first draft hand-wrote
+`graphite` as `#12161D`; flattening white at 0.07 over the void resolves to
+`#17191D`, and the token is derived from that arithmetic so the two can never
+drift. The draft's `signal_deep` was `#1B4F9C`, which measures 2.28:1 against
+`graphite` — under the 3:1 a spine needs and too dark for a selected fill — so
+it is not in the palette: `#3A6BB0` is the deep blue instead, at 3.28:1 as a
+spine and 4.73:1 under chalk.
 
 Glass alphas live in a **separate** token set, not in `C`, because
 `test_theme.py:38-40` requires every `C` value to be a 7-char hex: fills at

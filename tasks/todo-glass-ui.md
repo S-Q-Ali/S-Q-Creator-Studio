@@ -14,13 +14,21 @@ Nothing is applied yet — the old live sheet still wins. Written test-first: th
 sheet exists and parses before it is judged by eye.
 
 **Acceptance criteria:**
-- [ ] `theme.py` exposes `GLASS` (fills at 0.04/0.07/0.10, hairline 0.14, glow 0.28) as its own dict, so `test_theme.py:38-40`'s "every `C` value is a 7-char hex" rule keeps holding.
-- [ ] The rendered sheet contains no `box-shadow`, `opacity`, `transition` or `backdrop-filter`, and parses with zero Qt warnings.
-- [ ] Every text token is paired with its flattened composite colour in one table both the sheet and the tests read.
+- [x] `theme.py` exposes `GLASS` (fills at 0.04/0.07/0.10, hairline 0.14, glow 0.28) as its own dict, so `test_theme.py:38-40`'s "every `C` value is a 7-char hex" rule keeps holding.
+- [x] The rendered sheet contains no `box-shadow`, `opacity`, `transition` or `backdrop-filter`, and parses with zero Qt warnings.
+- [x] Every text token is paired with its flattened composite colour in one table both the sheet and the tests read.
 
 **Verification:**
-- [ ] `pytest tests/test_theme.py tests/test_qss_parses.py -q` passes, and each new test failed before the change.
-- [ ] `ruff check src tests` clean.
+- [x] `pytest tests/test_theme.py tests/test_qss_parses.py -q` passes, and each new test failed before the change.
+- [x] `ruff check src tests` clean.
+
+**Built as:** the builder kept its existing name `stylesheet(density)` (not
+`render`) and the tokens kept the `C` keys the ~40 call sites already read, so
+this task changed no consumer. Two of the brief's hand-written numbers did not
+survive the arithmetic: the panel composite is `#17191D`, not `#12161D`, and
+`signal_deep` at 2.28:1 cannot be a spine, so it became the action fill
+`accent_deep #3A6BB0` (4.73:1 with chalk) and the pressed/selected blues moved
+onto it.
 
 **Dependencies:** none · **Scope:** S (2 files: `theme.py`, `tests/test_theme.py`)
 
