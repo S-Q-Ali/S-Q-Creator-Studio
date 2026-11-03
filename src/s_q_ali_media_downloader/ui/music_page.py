@@ -35,6 +35,7 @@ from s_q_ali_media_downloader.engine import (
     MusicResolveThread,
     default_output_dir,
 )
+from s_q_ali_media_downloader.theme import C
 
 COLUMNS = ("#", "Track", "Source", "Status", "Progress", "Quality")
 
@@ -361,7 +362,7 @@ class MusicPage(QWidget):
     # -------------------------------------------------------------- feedback
     def _say(self, text, error=False):
         self.status.setText(text)
-        self.status.setStyleSheet("color: #F2547D;" if error else "")
+        self.status.setStyleSheet(f"color: {C['failed']};" if error else "")
 
     def _log(self, text):
         if text:

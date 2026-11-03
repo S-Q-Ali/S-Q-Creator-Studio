@@ -24,7 +24,7 @@ def shorten(text, limit=95):
     return text[: limit - 1] + "…"
 
 
-def shield_pixmap(size=15, colour="#FFB020"):
+def shield_pixmap(size=15, colour=C["amber"]):
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     painter = QPainter(pm)
