@@ -92,7 +92,7 @@ jobs:
         # Windows, so the requirement set the audit sees differs by OS.
         run: python -m pip_audit -r requirements.txt
 
-      - name: Install the browser and ffmpeg the app ships
+      - name: Install ffmpeg and the browser (Windows)
         if: runner.os == 'Windows' && matrix.python == '3.14'
         shell: pwsh
         # The installer bundles both. windows-latest has Inno Setup, but not
@@ -100,38 +100,60 @@ jobs:
         # its [Files] entries without them.
         run: |
           choco install innosetup ffmpeg --yes --no-progress
-          python -m playwright install chromium
           Write-Output "ISCC: $((Get-ChildItem 'C:\Program Files*\Inno Setup 6\ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1).FullName)"
           Write-Output "ffmpeg: $((Get-Command ffmpeg -ErrorAction SilentlyContinue).Source)"
 
-      - name: Build EXE
-        if: runner.os == 'Windows' && matrix.python == '3.14'
-        shell: pwsh
-        run: |
-          # Same build script the release workflow uses - tag builds and CI
-          # builds must produce the same installer.
-          ./release/build.bat
-          Write-Output ("EXE size MB: {0:N1}" -f ((Get-Item "release\portable\S-Q Creator Studio.exe").Length / 1MB))
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux' && matrix.python == '3.14'
+        # "Best available" downloads video and audio as separate streams, and
+        # yt-dlp needs ffmpeg to merge them; the portable folder carries it.
+        run: sudo apt-get install -y --no-install-recommends ffmpeg
 
-      - name: Smoke test the built EXE
-        if: runner.os == 'Windows' && matrix.python == '3.14'
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS' && matrix.python == '3.14'
+        run: brew install ffmpeg
+
+      - name: Install the browser the app ships
+        if: matrix.python == '3.14'
+        # Social Discovery drives a real browser and the bundle carries one,
+        # so the build stages whatever Chromium this runner has downloaded.
+        # The full build, not the headless shell: the app asks Playwright for
+        # channel="chromium".
+        run: python -m playwright install chromium
+
+      - name: Build the portable app
+        if: matrix.python == '3.14'
+        # The same script the release workflow runs, on all three OSes; the
+        # Windows installer is compiled by it only where Inno Setup exists.
+        run: python release/build.py
+
+      - name: Smoke test the built app
+        if: matrix.python == '3.14'
         shell: pwsh
         run: |
-          $exe = "release\portable\S-Q Creator Studio.exe"
-          if (-not (Test-Path $exe)) { throw "EXE not found: $exe" }
-          $proc = Start-Process $exe -PassThru -WindowStyle Hidden
+          # The launcher is wherever this OS's bundle puts it - the same three
+          # answers release/build.py gives.
+          $candidates = @(
+            "release/portable/S-Q Creator Studio.app/Contents/MacOS/S-Q Creator Studio",
+            "release/portable/S-Q Creator Studio.exe",
+            "release/portable/S-Q Creator Studio"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { throw "the portable build has no launcher" }
+          $proc = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
           Start-Sleep -Seconds 30
           if ($proc.HasExited) { throw "App exited early with code $($proc.ExitCode)" }
           Stop-Process -Id $proc.Id -Force
-          Write-Output "App stayed alive for 30 seconds"
+          Write-Output "$exe stayed alive for 30 seconds"
 
       - name: Upload portable build
-        if: runner.os == 'Windows' && matrix.python == '3.14'
+        if: matrix.python == '3.14'
         uses: actions/upload-artifact@v7
         with:
-          name: portable-build
-          # release\portable is the complete build: the PyInstaller output
-          # plus the shipped browser and bin\ffmpeg.exe. build\out alone is
-          # only the app and would not run Social Discovery or merge video.
-          path: release\portable
+          name: portable-build-${{ runner.os }}
+          # release/portable is the complete build: the PyInstaller output
+          # plus the shipped browser and the ffmpeg in its bin folder.
+          # build/out alone is only the app and would not run Social
+          # Discovery or merge video.
+          path: release/portable
           if-no-files-found: error
