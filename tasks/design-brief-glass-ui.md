@@ -1,7 +1,9 @@
 # Design Brief: Glass UI (black · white · grey · blue)
 
-**Status:** design plan only — awaiting approval of the token system, the state
-language decision, and the module table. No stylesheet is edited yet.
+**Status:** approved 2026-11-03 — the token system, the strict-palette state
+language, and the single-module decision were each confirmed by the user. The
+task list is `tasks/todo-glass-ui.md`, the plan is `tasks/plan-glass-ui.md`. No
+stylesheet is edited until that plan is executed in order.
 
 **Brief.** Restyle the whole PySide6 app from "neon cyan on near-black" to
 glassmorphic, using only black, white, grey and blue. Today's look is
@@ -52,9 +54,10 @@ as depth, not as decoration.
 ## Type
 
 Fonts are the platform fault line as much as the design one: `core/theme_neon.py:79`
-hardcodes `"Segoe UI"`, which does not exist on macOS or Linux, and
-`tests/conftest.py:143` loads `%WINDIR%\Fonts` so the layout tests measure
-Windows metrics. The stack becomes an ordered fallback (system UI on each OS),
+hardcodes `"Segoe UI"`, which does not exist on macOS or Linux. The tests are
+already safe — `tests/conftest.py:13-44` loads the font folder of whichever OS
+runs them, from Phase E — so it is the app that names a Windows face, not the
+harness. The stack becomes an ordered fallback (system UI on each OS),
 the scale keeps the existing `DENSITY` numbers in `theme.py:49-76`
 (13/19/10 comfortable, 12/17/9 compact), and personality comes from **weight
 and the wordmark**, not a new face: `#Wordmark` is drawn once with `QPainter`
@@ -131,6 +134,19 @@ palettes already disagree. Recommended: converge on one token module
 rendered app. The alternative is restyling `theme_neon.py` and leaving dead CSS
 plus a lying test suite in place.
 
+Re-checked against the code today, and it is worse than "a lying test suite":
+`tests/test_ui_layout.py:207-223` regexes `stylesheet("comfortable")` for the
+checked tab's colours and demands 4.5:1, and `tests/test_qss_parses.py:12,28`
+hands `STYLESHEET` to Qt's parser — both read the sheet `app.py:87-88` replaced.
+So the app's readability and its QSS validity are asserted against CSS nobody
+renders, while the rendered sheet is checked by `test_neon_theme_qt.py` only for
+three literals and a warning-free parse. Converging is not a tidiness call: it
+is what makes the contrast gate mean something again.
+
+`ui/stylesheets/` is an empty folder and `themes/*.html` are the two design
+concept mockups from Oct 25 — no Python reads either. They are cleanup candidates
+in the same pass, not part of the styling.
+
 ## Module map (this initiative)
 
 | Module id | Responsibility | Depends on |
@@ -151,9 +167,28 @@ reads on a physical panel, can only be judged by you running the app. I will not
 report the look as "verified" — only the geometry, contrast and parse-clean
 stylesheet will be.
 
-## Open decision (blocking)
+## State language (decided: strict palette)
 
-- **State colours.** Strict four-colour palette means Failed/Waiting/Retrying
-  must be told apart by luminance + glyph + wording instead of pink/purple/amber.
-  Cleaner and more distinctive; slightly less instant to scan. The alternative
-  is a functional exception — keep a red for failures — which breaks the brief.
+The seven statuses in `theme.py:33-41` — today teal, pink, purple and amber —
+are re-expressed as luminance tiers of one blue family plus neutrals, with
+label weight and the word already printed on the card carrying the rest:
+
+| State | Spine | Label |
+|---|---|---|
+| Queued | `smoke` (neutral) | normal |
+| Paused | `slate` (neutral, dimmer) | normal |
+| Waiting | `signal_deep` | normal |
+| Downloading | `signal` | 600 |
+| Retrying | `signal_hi` | 700 |
+| Completed | `chalk` | 700 |
+| Failed | `chalk`, inverted chip | 800 on the chip |
+
+No glyph is added: `theme_neon.py:256-259` records that emoji fall back to a
+wider face than `QFontMetrics` measures and clip the 285px rail, and the layout
+tests fail on clipped text. Each spine must clear 3:1 against `graphite`
+(WCAG 1.4.11) and each label 4.5:1, checked on the flattened composite.
+
+The rejected alternative — keeping a red for failures — would have read faster
+but broke the four-colour brief, so it stays out. If a greyscale screenshot of
+the queue cannot tell `Failed` from `Completed`, this decision is wrong and the
+chip gets stronger rather than the palette getting wider.
