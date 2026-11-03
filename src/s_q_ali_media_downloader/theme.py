@@ -378,7 +378,10 @@ QPushButton[kind="tab"]:checked {{
     background: {C['accent_deep']};
     border: 1px solid {C['accent']};
     color: {C['text']};
-    font-weight: 700;
+    /* No weight change here: sizeHint() is measured with the calm font, so
+       bolding only the active tab paints wider text into a narrower box and
+       the label loses its last letter. The fill, border and text already say
+       which tab is active. */
 }}
 
 /* ---------- workspace ---------- */
@@ -584,7 +587,6 @@ QTabBar::tab:selected {{
     background: {C['accent_deep']};
     color: {C['text']};
     border-color: {C['accent']};
-    font-weight: 700;
 }}
 """
 

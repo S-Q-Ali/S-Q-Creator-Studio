@@ -275,6 +275,29 @@ def test_compact_measures_the_same_sheet_down():
     assert "padding: 5px 8px" in _rule(css, "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox")
 
 
+PSEUDO_STATES = (":checked", ":hover", ":pressed", ":focus", ":selected", ":disabled")
+
+
+@pytest.mark.parametrize("density", ("comfortable", "compact"))
+def test_no_pseudo_state_rule_repaints_the_font(density):
+    """Type size and weight belong where sizeHint() can see them.
+
+    Qt measures a button with its base font, then paints it with whatever the
+    state rule asks for. A tab that bolds only while it is active writes
+    wider text into a box sized for the calm one and loses its last letter -
+    while every layout test stays green, because they measure the calm font
+    too. The active tab already has a fill, a border and chalk text.
+    """
+    css = stylesheet(density)
+    offenders = [
+        " ".join(selector.split())
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+        if any(state in selector for state in PSEUDO_STATES)
+        and re.search(r"font-(weight|size)", body)
+    ]
+    assert not offenders, f"sized with the calm font, painted with the state's: {offenders}"
+
+
 def test_stylesheet_references_accent():
     assert C["accent"] in STYLESHEET
 
