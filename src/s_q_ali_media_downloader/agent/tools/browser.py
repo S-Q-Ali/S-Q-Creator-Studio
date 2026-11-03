@@ -148,14 +148,17 @@ def bundled_browsers_dir() -> Path | None:
     mode. Playwright looks for browsers in its own cache, so the
     environment variable has to point at the shipped copy before Playwright
     starts.
+
+    The folder sits with the executable on Windows and Linux and in the
+    bundle's resources folder on macOS, which is the same question
+    ``engine.bundle_extra_roots`` already answers for ffmpeg.
     """
-    candidates: list[Path] = []
-    if getattr(sys, "frozen", False):
-        candidates.append(Path(sys.executable).resolve().parent / BROWSER_DIR_NAME)
-        meipass = getattr(sys, "_MEIPASS", None)
-        if meipass:
-            candidates.append(Path(meipass) / BROWSER_DIR_NAME)
-    for candidate in candidates:
+    from s_q_ali_media_downloader.engine import bundle_extra_roots
+
+    if not getattr(sys, "frozen", False):
+        return None
+    for root in bundle_extra_roots():
+        candidate = Path(root) / BROWSER_DIR_NAME
         if candidate.is_dir():
             return candidate
     return None

@@ -106,6 +106,18 @@ def test_the_browser_folder_is_looked_for_next_to_the_exe(tmp_path, monkeypatch)
     assert br.bundled_browsers_dir() == tmp_path / "browsers"
 
 
+def test_an_app_bundle_finds_its_browser_in_the_resources_folder(tmp_path, monkeypatch):
+    """--windowed on macOS builds an .app, and only the executable may sit in
+    Contents/MacOS - the Chromium the release stages is in Contents/Resources."""
+    contents = tmp_path / "S-Q Creator Studio.app" / "Contents"
+    (contents / "Resources" / "browsers").mkdir(parents=True)
+    monkeypatch.setattr(br.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(br.sys, "executable", str(contents / "MacOS" / "S-Q Creator Studio"))
+    monkeypatch.delattr(br.sys, "_MEIPASS", raising=False)
+
+    assert br.bundled_browsers_dir() == contents / "Resources" / "browsers"
+
+
 def test_the_shipped_browser_is_pointed_at(monkeypatch, tmp_path):
     """Playwright looks for browsers in its own cache; the app has to point
     it at the copy it ships."""

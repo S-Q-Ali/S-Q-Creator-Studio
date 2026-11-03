@@ -719,6 +719,27 @@ def human_size(num):
     return "—"
 
 
+def bundle_extra_roots():
+    """The folders a bundle may carry its own ffmpeg and browser in.
+
+    Windows and Linux keep everything next to the executable, so that one
+    folder answers for both. A macOS ``.app`` — what ``--windowed`` builds
+    there — splits it: ``Contents/MacOS`` holds only the executable, and every
+    other file has to live in ``Contents/Resources``, so the extras staged with
+    the app are a sibling of the launcher's folder, not its neighbour.
+    """
+    import sys
+
+    launcher = sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
+    roots = [os.path.dirname(os.path.abspath(launcher))]
+    if os.path.basename(roots[0]) == "MacOS":
+        roots.append(os.path.join(os.path.dirname(roots[0]), "Resources"))
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        roots.append(meipass)
+    return roots
+
+
 def find_ffmpeg():
     import shutil
     import sys
@@ -726,13 +747,7 @@ def find_ffmpeg():
     # The bundle carries the binary this OS runs: ffmpeg.exe on Windows,
     # a plain ffmpeg on Linux and macOS.
     binary = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
-    roots = [os.path.dirname(os.path.abspath(sys.argv[0]))]
-    if getattr(sys, "frozen", False):
-        roots.append(os.path.dirname(sys.executable))
-        roots.append(getattr(sys, "_MEIPASS", ""))
-    for root in roots:
-        if not root:
-            continue
+    for root in bundle_extra_roots():
         for candidate in (
             os.path.join(root, binary),
             os.path.join(root, "bin", binary),
