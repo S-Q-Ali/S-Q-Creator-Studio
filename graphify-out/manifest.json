@@ -132,9 +132,9 @@
     "semantic_hash": ""
   },
   "tests/conftest.py": {
-    "mtime": 1793221494.9401786,
-    "seen": 1793221945.972528,
-    "ast_hash": "4d71fd5ccc561eb663b83b8e2d2e410c",
+    "mtime": 1793660926.8501513,
+    "seen": 1793665698.4231062,
+    "ast_hash": "0b3f3b2e8096912799e4059e1ec8f1f1",
     "semantic_hash": ""
   },
   "tests/test_agent_schema.py": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793659347.2515826,
-    "seen": 1793660408.1264246,
-    "ast_hash": "511b54b8782930fa0b1a057f5a60644e",
+    "mtime": 1793665345.3363266,
+    "seen": 1793665698.4236383,
+    "ast_hash": "4e5279f6b7ec321ca248d4b0a6033a5c",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-cross-platform.md": {
-    "mtime": 1793659304.3455245,
-    "seen": 1793660408.126496,
-    "ast_hash": "c5ac17fddc7cd2276705e5a5fb7f6564",
+    "mtime": 1793664832.3559942,
+    "seen": 1793665698.4237385,
+    "ast_hash": "55dcc2e5670b2d0920283935d6ad76af",
     "semantic_hash": ""
   },
   "tests/test_core_storage_secrets.py": {
@@ -2259,6 +2259,12 @@
     "mtime": 1793659190.5141897,
     "seen": 1793660408.12599,
     "ast_hash": "150cf2139e4371b70cf29b905b674e14",
+    "semantic_hash": ""
+  },
+  "tests/test_suite_portability.py": {
+    "mtime": 1793663265.865178,
+    "seen": 1793665698.4231908,
+    "ast_hash": "df88b60205117e745c344854772fc8f2",
     "semantic_hash": ""
   }
 }
