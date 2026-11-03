@@ -88,6 +88,28 @@ def test_failed_and_completed_are_told_apart_without_colour(qapp, isolated_appda
     window.close()
 
 
+def test_a_finished_bar_is_chalk_not_blue(qapp, isolated_appdata):
+    """Blue means moving, chalk means finished.
+
+    The bar is the widest thing in a row, and a full blue one under
+    COMPLETED read as a download still running even though every label in
+    the row said it had stopped.
+    """
+    window = MainWindow()
+    done = Job("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    running = Job("https://www.tiktok.com/@creator/video/1234567890")
+    window._add_job(done)
+    window._add_job(running)
+    window.on_result(done.uid, "Completed", "12 MB", "")
+    window.on_started(running.uid, None)
+    window.on_progress(running.uid, 42.0, "7.7 MB", "1.2 MB/s")
+
+    assert C["done"] in window.cards[done.uid].bar.styleSheet()
+    assert "chunk" not in window.cards[running.uid].bar.styleSheet()
+
+    window.close()
+
+
 def test_close_with_no_workers_accepts(qapp, isolated_appdata):
     window = MainWindow()
     event = QCloseEvent()

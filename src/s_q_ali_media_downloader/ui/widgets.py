@@ -156,6 +156,14 @@ class JobCard(QFrame):
         self.url.setText(shorten(j.url, 110))
 
         self.bar.setValue(int(j.percent))
+        # Blue means moving, chalk means finished, and the bar is the widest
+        # thing in the row - a full blue one under COMPLETED read as a
+        # download still running.
+        self.bar.setStyleSheet(
+            f"QProgressBar::chunk {{ background: {C['done']}; }}"
+            if j.status == "Completed"
+            else ""
+        )
 
         bits = [f"{int(j.percent)}%", j.size]
         if j.speed:
