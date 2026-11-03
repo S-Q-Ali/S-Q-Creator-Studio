@@ -233,7 +233,7 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       **Still open — the acceptance itself.** Whether the 761 tests pass on the
       other two runners is what the matrix exists to find out, and that needs a
       push. Nothing here is claimed in the README until a green run is seen.
-- [ ] **F2. Per-OS build + smoke** — portable build on each OS, launch for 15 s,
+- [x] **F2. Per-OS build + smoke** — portable build on each OS, launch for 15 s,
       assert alive, clean kill; artifacts uploaded per OS. The runner floors
       come from B1: `ubuntu-24.04` or newer (glibc ≥ 2.34 x86_64, 2.39 arm64)
       and a macOS 13+ runner, or PySide6 6.11 has no wheel to install.
@@ -242,8 +242,32 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       `release/build.py`: the only build script was `release/build.bat`, and its
       ffmpeg staging probed `bin\ffmpeg.exe` — a name that does not exist on
       Linux or macOS, so the build failed out on the spot (B2's "the build fails"
-      finding). G1 landed and is verified on Windows (G2), so F2 is now the job
-      that runs that script on three OSes — which needs a push to be seen.
+      finding). G1 landed and is verified on Windows (G2), so F2 now runs that
+      script on three OSes.
+      Done in `ci.yml`: the build, the smoke test and the artifact upload moved
+      out of the Windows-only branch. Each OS installs its own ffmpeg (choco /
+      apt / brew) and `playwright install chromium` at 3.14, then
+      `python release/build.py` runs, then the app is launched for 30 s against
+      the three launcher layouts (`.app/Contents/MacOS`, `.exe`, plain binary),
+      asserted still alive, and killed. The artifact is uploaded as
+      `portable-build-${{ runner.os }}`. The whole file parses (throwaway PyYAML
+      run, 14 steps in `test`); ruff and the offline suite are unchanged and
+      still green (780 passed), because F2 is CI configuration, not app code.
+      **Still open — the acceptance.** That the POSIX builds and launches work is
+      what this step exists to find out, and it needs a push to be seen.
+- [x] **F2b. The macOS `.app` split found while writing F2** — `--windowed` on
+      macOS builds `Name.app`, where `Contents/MacOS` may hold *only* the
+      executable: everything else belongs in `Contents/Resources`. Staging
+      ffmpeg and Chromium beside the launcher would have shipped them into a
+      folder Qt/PyInstaller ignores, so Social Discovery and video+audio merges
+      would break on macOS alone. Fixed on both sides, each with a test:
+      `bundle_layout()` in `release/build.py` returns the launcher and the folder
+      its extras belong in; `engine.bundle_extra_roots()` (shared with
+      `agent/tools/browser.py`) resolves the same two roots at runtime.
+      Verified on Windows only — the `.app` layout is untested by a real macOS
+      build until F2's acceptance runs. Files: `release/build.py`,
+      `src/s_q_ali_media_downloader/engine.py`,
+      `src/s_q_ali_media_downloader/agent/tools/browser.py`, three test files · **M**
 
 ## Phase G — one build script (`packaging`, portable-first scope)
 
@@ -283,9 +307,27 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       Verdict: no unexplained delta. The PATH-resolved DLLs are a property of
       the machine, not of the script — recorded here because it is how a future
       artifact diff gets explained. Files: none · **S**
-- [ ] **G3. `release.yml` three archives** — tag builds and uploads a portable
+- [x] **G3. `release.yml` three archives** — tag builds and uploads a portable
       archive per OS, notes state the platform support honestly.
       Files: `.github/workflows/release.yml` · **M**
+      Done: the single Windows job became a three-OS matrix (the same floors F1
+      picked: `windows-latest`, `ubuntu-24.04`, `macos-14`, all at 3.14,
+      `fail-fast: false`), each cell running `python release/build.py`, then a
+      "Check the build" step that asserts the launcher, `browsers/` and
+      `bin/ffmpeg` exist, prints sizes and a SHA-256, copies the Windows
+      installer into `dist/` and writes one archive per platform there —
+      `Compress-Archive` for Windows, `tar -czf` for the two POSIX builds
+      because tar keeps the executable bits and the bundle's symlinks. The
+      30-second launch test from F2 runs before the upload. `publish` downloads
+      all three with one `pattern: release-*` + `merge-multiple: true` step and
+      attaches every file with a single `gh release create`, after a tag check
+      that fails the build when the tag disagrees with `__version__`.
+      The notes carry the honest wording: a per-platform table with the glibc
+      and macOS floors, "Every build carries its own Chromium and ffmpeg", a
+      "**What is tested, and what is not.**" paragraph naming the runner-vs-
+      desktop gap and the unsigned/unnotarised state, and the SHA-256 of every
+      asset. **Acceptance, as with F1 and F2: needs a push and a tag to be seen**
+      — a release this job has never actually published is not a claim.
 - [ ] **G4. File the deferred scope as issues** — native `.AppImage`/`.deb`/`.dmg`,
       signing + notarisation, each with the reason it was cut. Cross-linked to
       this plan. Files: GitHub issues · **XS** — not filed: writing to the public

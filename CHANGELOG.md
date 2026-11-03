@@ -71,6 +71,13 @@ All notable changes are documented here. The format follows
   "Google Chrome for Testing" bundle. Chromium is also started without its own
   sandbox when the app runs as root, which is the only way it will launch in a CI
   container or a headless box.
+- **A macOS bundle keeps its extras where macOS looks for them.** `--windowed`
+  builds a `.app` there, and inside it only the executable may sit in
+  `Contents/MacOS` — everything else belongs in `Contents/Resources`. ffmpeg and
+  Chromium were staged beside the launcher, the folder Windows and Linux use, so
+  a macOS build would have started and then found no ffmpeg and no browser: every
+  merged download and Social Discovery broken, on one platform only. The build
+  stages them into `Contents/Resources` and the app resolves both from there.
 - **Contributors: a test run keeps to itself and stops its own workers.** The
   suite points the app's data folder at a temporary one for the whole run, so
   opening a window in a test no longer writes a queue, a downloads folder, a
@@ -91,6 +98,14 @@ All notable changes are documented here. The format follows
   `--collect-all` and `--hidden-import` set, and the rebuilt app still runs — the
   only additions were two OpenSSL DLLs the build machine's PATH offered, which
   PyInstaller picks up wherever the build happens to run.
+- **Contributors: CI and a tag now build on all three platforms.** The test
+  workflow runs the suite on Linux, macOS and Windows at Python 3.12 and 3.14,
+  and on each one builds the portable app and launches it for 30 seconds before
+  uploading the artifact. A tag runs the same build as a three-way matrix and
+  publishes one archive per platform in a single release, with the SHA-256 of
+  each file and the installer kept Windows-only because Inno Setup is a Windows
+  program. Neither has run yet — the first results arrive when this lands on the
+  remote, and until they are green the app still ships as a Windows product.
 
 ## [2.10.0] — 2026-11-02
 
