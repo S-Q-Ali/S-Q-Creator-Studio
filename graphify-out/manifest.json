@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793156331.2048664,
-    "seen": 1793156377.0297735,
-    "ast_hash": "1404ecda20c6e417148859a518826e37",
+    "mtime": 1793666432.1617951,
+    "seen": 1793698287.7245774,
+    "ast_hash": "b3022941b3d9b9b71e982c5e174e810a",
     "semantic_hash": ""
   },
   ".opencode/references/accessibility-checklist.md": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793665345.3363266,
-    "seen": 1793665698.4236383,
-    "ast_hash": "4e5279f6b7ec321ca248d4b0a6033a5c",
+    "mtime": 1793698072.3355498,
+    "seen": 1793698287.7249236,
+    "ast_hash": "7df3906c5d08e16c6c505a45bd1ef949",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1866,9 +1866,9 @@
     "semantic_hash": ""
   },
   "release/README.md": {
-    "mtime": 1793109785.701628,
-    "seen": 1793110737.135477,
-    "ast_hash": "f3b223a1d8be155350d0269e2b6b7df8",
+    "mtime": 1793698047.9631214,
+    "seen": 1793698287.7249682,
+    "ast_hash": "8dc3964483c5802d03bf8995f2f4e8d3",
     "semantic_hash": ""
   },
   "screenshots/compact.png": {
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-cross-platform.md": {
-    "mtime": 1793664832.3559942,
-    "seen": 1793665698.4237385,
-    "ast_hash": "55dcc2e5670b2d0920283935d6ad76af",
+    "mtime": 1793698105.9924388,
+    "seen": 1793698287.725014,
+    "ast_hash": "6dfec0fd229340e280b800c81a15a87a",
     "semantic_hash": ""
   },
   "tests/test_core_storage_secrets.py": {
@@ -2265,6 +2265,18 @@
     "mtime": 1793663265.865178,
     "seen": 1793665698.4231908,
     "ast_hash": "df88b60205117e745c344854772fc8f2",
+    "semantic_hash": ""
+  },
+  "release/build.py": {
+    "mtime": 1793696052.9634006,
+    "seen": 1793698287.724394,
+    "ast_hash": "c9dd8b8339afda61af156f9de4f10cc2",
+    "semantic_hash": ""
+  },
+  "tests/test_release_build_script.py": {
+    "mtime": 1793696047.6900628,
+    "seen": 1793698287.7245371,
+    "ast_hash": "e8897eab2147bc899a8ea7ce54fdce1b",
     "semantic_hash": ""
   }
 }
