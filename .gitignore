@@ -25,6 +25,8 @@ unins000.exe
 release/*
 !release/installer.iss
 !release/README.md
+!release/build.bat
+!release/build.py
 
 # Legacy activation tooling (contains old product-key secret) — keep local
 legacy/
