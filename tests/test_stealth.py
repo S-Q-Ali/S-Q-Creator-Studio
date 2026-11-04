@@ -8,6 +8,9 @@ machine has none.
 
 from __future__ import annotations
 
+import os
+import sys
+
 import pytest
 
 from s_q_ali_media_downloader.agent.tools import browser as br
@@ -95,6 +98,18 @@ def test_the_session_starts_with_the_hardened_flags(tmp_path, monkeypatch):
         session.close()
 
 
+def _has_a_display() -> bool:
+    """Whether a window can actually be opened here.
+
+    A Linux runner has no X server, and Chrome exits before Playwright can
+    read anything from it. The tell this test looks for is set at launch, so
+    headless shows the same thing.
+    """
+    if sys.platform in ("win32", "darwin"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
 def test_a_page_cannot_tell_the_browser_is_automated(tmp_path, _browser):
     """The whole point: a page must not see the automation tell."""
     from playwright import sync_api
@@ -104,7 +119,9 @@ def test_a_page_cannot_tell_the_browser_is_automated(tmp_path, _browser):
 
     with sync_api.sync_playwright() as pw:
         browser = pw.chromium.launch(
-            channel="chrome", headless=False, args=list(stealth.STEALTH_ARGS)
+            channel="chrome",
+            headless=not _has_a_display(),
+            args=list(stealth.STEALTH_ARGS),
         )
         try:
             context = browser.new_context()
