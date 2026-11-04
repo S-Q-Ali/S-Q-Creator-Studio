@@ -139,11 +139,23 @@ def test_accent_is_the_signal_blue():
     assert C["accent"] == "#2F81F7"
 
 
-def test_glass_is_three_elevations_and_two_edges():
+def test_glass_is_three_elevations_and_one_edge():
     assert GLASS["low"] < GLASS["mid"] < GLASS["high"]
     assert GLASS["high"] <= 0.10, "above this a panel stops reading as glass"
     assert GLASS["hairline"] > GLASS["high"], "the lit top edge must beat the fill"
-    assert GLASS["glow"] > GLASS["hairline"]
+
+
+def test_every_glass_alpha_is_painted():
+    """An elevation nothing draws with is a number no test can defend.
+
+    ``glow`` was one: it described a focus halo Qt cannot paint, survived
+    three refactors unnoticed, and went out the day the ring turned out to
+    be a colour rather than a shadow.
+    """
+    source = Path(__file__).resolve().parents[1] / "src" / "s_q_ali_media_downloader" / "theme.py"
+    after_the_table = source.read_text(encoding="utf-8").split("GLASS = {", 1)[1]
+    unused = [key for key in GLASS if f'GLASS["{key}"]' not in after_the_table]
+    assert not unused, f"nothing is drawn with: {unused}"
 
 
 def test_rgba_emits_what_qss_paints():
@@ -308,6 +320,117 @@ def test_no_pseudo_state_rule_repaints_the_font(density):
         and re.search(r"font-(weight|size)", body)
     ]
     assert not offenders, f"sized with the calm font, painted with the state's: {offenders}"
+
+
+# Every control a keyboard can reach, named by the rule that has to say it is
+# focused. A kind-qualified button needs its *own* focus rule: Qt resolves
+# ``QPushButton[kind="tab"]`` and ``QPushButton:focus`` at the same
+# specificity, so the later one - the tab's calm state - wins and the ring
+# never paints.
+FOCUS_RING = {
+    "the plain button": "QPushButton:focus",
+    "the primary button": 'QPushButton[kind="primary"]:focus',
+    "the danger button": 'QPushButton[kind="danger"]:focus',
+    "the ghost button": 'QPushButton[kind="ghost"]:focus',
+    "the workspace tab": 'QPushButton[kind="tab"]:focus',
+    "the link field": "QLineEdit:focus",
+    "the log": "QPlainTextEdit:focus",
+    "the rich text": "QTextEdit:focus",
+    "the dropdown": "QComboBox:focus",
+    "the checkbox": "QCheckBox::indicator:focus",
+    "the embedded tab": "QTabBar::tab:focus",
+}
+
+
+def _rules(css: str) -> list[tuple[str, str, int]]:
+    """``(selector, body, offset)`` for every selector in the sheet.
+
+    Comments go first: Qt ignores them, and a comment that names a selector is
+    not a rule that paints one.
+    """
+    sheet = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    found = []
+    for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", sheet):
+        for selector in match.group(1).split(","):
+            found.append((selector.strip(), match.group(2), match.start()))
+    return found
+
+
+def _head(selector: str) -> str:
+    """The selector without its pseudo-state - what two rules compete over.
+
+    ``::indicator`` stays: it is a sub-control, not a state, and a rule for
+    the box and a rule for its label are not rivals.
+    """
+    return re.sub(r"(?<!:):[a-z-]+", "", selector)
+
+
+def _focus_rules(css: str) -> dict[str, str]:
+    """Every selector in the sheet that fires on focus, mapped to its body."""
+    return {selector: body for selector, body, _ in _rules(css) if ":focus" in selector}
+
+
+def test_every_focusable_control_has_a_focus_rule():
+    missing = [name for name, sel in FOCUS_RING.items() if sel not in _focus_rules(STYLESHEET)]
+    assert not missing, "no ring for: " + ", ".join(
+        f"{name} ({FOCUS_RING[name]})" for name in missing
+    )
+
+
+def test_the_ring_is_declared_after_the_states_it_competes_with():
+    """Qt gives a tie to the rule that comes last, not the one that fits.
+
+    ``QCheckBox::indicator:checked`` and ``QCheckBox::indicator:focus`` are the
+    same specificity. With the ring declared above it, a checked box that the
+    keyboard lands on paints exactly what it painted a moment ago, and every
+    line of the stylesheet still looks correct.
+    """
+    rules = _rules(STYLESHEET)
+    offenders = []
+    for name, focus in FOCUS_RING.items():
+        ring_at = min(offset for selector, _, offset in rules if selector == focus)
+        for selector, body, offset in rules:
+            if ":focus" in selector or ":disabled" in selector:
+                continue  # a disabled control can never hold focus
+            if _head(selector) == _head(focus) and "border" in body and offset > ring_at:
+                offenders.append(f"{name}: {selector} outlives its own ring")
+    assert not offenders, "\n".join(offenders)
+
+
+def test_a_focus_rule_paints_the_ring_colour():
+    wrong = {
+        selector: body
+        for selector, body in _focus_rules(STYLESHEET).items()
+        if C["accent_hi"] not in body
+    }
+    assert not wrong, f"focus rules with no ring colour: {sorted(wrong)}"
+
+
+def test_a_focus_rule_changes_colour_never_geometry():
+    """The ring is a border colour, not a wider border.
+
+    Same trap as the bolded tab: a 2px ring on focus pushes the content one
+    pixel in on every side, and a control that grows on focus moves the row
+    around it. Qt gives no box-shadow, so the colour is the whole ring.
+    """
+    offenders = {}
+    for selector, body in _focus_rules(STYLESHEET).items():
+        if re.search(r"padding|margin|font-(size|weight)|min-|max-|width", body):
+            offenders[selector] = body
+        for border in re.findall(r"border(?:-(?:top|bottom|left|right))?\s*:\s*([^;]+)", body):
+            if re.search(r"\b([2-9]|[1-9]\d)px", border):
+                offenders.setdefault(selector, body)
+    assert not offenders, f"focus shifts geometry: {sorted(offenders)}"
+
+
+@pytest.mark.parametrize("surface", ("panel", "raised", "raised_hi", "bg"))
+def test_the_ring_is_visible_on_the_surface_around_it(surface):
+    """WCAG 1.4.11: 3:1 for an indicator, not the 4.5:1 for text.
+
+    The ring is judged against what the control sits on - the panel or the
+    backdrop. The fill inside it is the control, not its background.
+    """
+    assert contrast(C["accent_hi"], C[surface]) >= 3.0
 
 
 def test_stylesheet_references_accent():

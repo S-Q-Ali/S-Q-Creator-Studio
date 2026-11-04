@@ -298,3 +298,62 @@ def test_agent_urls_reach_the_download_queue(qapp, isolated_appdata):
     assert window.jobs[0].url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     window.close()
 
+
+
+# --------------------------------------------------------------------------- #
+# Keyboard focus
+# --------------------------------------------------------------------------- #
+def _differing_pixels(before, after):
+    return sum(
+        1
+        for y in range(min(before.height(), after.height()))
+        for x in range(min(before.width(), after.width()))
+        if before.pixelColor(x, y) != after.pixelColor(x, y)
+    )
+
+
+def test_keyboard_focus_paints_on_every_control_kind(qapp, isolated_appdata):
+    """A ``:focus`` rule is a claim; the pixels are the proof.
+
+    Qt settles a tie between two rules of equal specificity by taking the one
+    that comes last, so a stylesheet can declare a ring for every control and
+    paint none of them - which is what the workspace tabs and the checked
+    checkbox did. Each kind here is focused for real and compared against its
+    own calm pixels.
+    """
+    window = MainWindow()
+    window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+    window.setStyleSheet(STYLESHEET)
+    window.resize(1440, 900)
+    window.show()
+    # An offscreen window is never activated by the desktop, and Qt only
+    # hands out focus inside an active window: without this every control
+    # reports hasFocus() False and the test proves nothing. The modern
+    # equivalents - activateWindow() and windowHandle().requestActivate() -
+    # are both no-ops on the offscreen platform.
+    qapp.setActiveWindow(window)
+    qapp.processEvents()
+
+    buttons = window.findChildren(QPushButton)
+    controls = {
+        "primary": window.btn_start,
+        "plain": next(b for b in buttons if b.property("kind") is None and b.isEnabled()),
+        "workspace tab": window.btn_nav_queue,
+        "ghost": next(b for b in buttons if b.property("kind") == "ghost"),
+        "danger": next(b for b in buttons if b.property("kind") == "danger"),
+        "the log": window.links,
+        "a checked box": window.chk_shorts,
+    }
+
+    blind = []
+    for name, control in controls.items():
+        calm = control.grab().toImage()
+        control.setFocus()
+        qapp.processEvents()
+        if _differing_pixels(calm, control.grab().toImage()) < 20:
+            blind.append(name)
+        control.clearFocus()
+        qapp.processEvents()
+
+    assert not blind, f"focus paints nothing on: {blind}"
+    window.close()

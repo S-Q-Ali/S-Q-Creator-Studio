@@ -22,14 +22,13 @@ from PySide6.QtWidgets import QApplication, QLayout, QWidget
 # --------------------------------------------------------------------------- #
 # Glass
 # --------------------------------------------------------------------------- #
-# Three elevations and two edges. Everything above 0.10 stops reading as a
+# Three elevations and one lit edge. Everything above 0.10 stops reading as a
 # panel and starts reading as a sheet of frosted plastic.
 GLASS = {
     "low": 0.04,  # recessed wells: scrollbars, tracks
     "mid": 0.07,  # the panel - cards, chips, the rail
     "high": 0.10,  # the raised layer - buttons, inputs
     "hairline": 0.14,  # the lit top edge, and the hover step above raised
-    "glow": 0.28,  # focus ring halo, the only place the blue is spent on light
 }
 
 
@@ -377,9 +376,14 @@ QPushButton[kind="primary"]:hover {{
 }}
 QPushButton[kind="primary"]:pressed {{ background: {C['accent_deep']}; }}
 QPushButton[kind="primary"]:disabled {{ background: {well}; border-color: {C['border']}; color: {C['muted']}; }}
+/* Each kind repeats the ring because ``QPushButton[kind="primary"]`` and
+   ``QPushButton:focus`` tie on specificity: the later, calmer rule wins and
+   the focused button looks untouched. Hover is told apart by its fill. */
+QPushButton[kind="primary"]:focus {{ border-color: {C['accent_hi']}; }}
 
 QPushButton[kind="danger"] {{ color: {C['failed']}; border-color: {C['border']}; }}
 QPushButton[kind="danger"]:hover {{ border-color: {C['accent_hi']}; background: {C['raised_hi']}; }}
+QPushButton[kind="danger"]:focus {{ border-color: {C['accent_hi']}; }}
 
 QPushButton[kind="ghost"] {{
     background: transparent;
@@ -417,6 +421,7 @@ QPushButton[kind="tab"]:checked {{
        the label loses its last letter. The fill, border and text already say
        which tab is active. */
 }}
+QPushButton[kind="tab"]:focus {{ border-color: {C['accent_hi']}; }}
 
 /* ---------- workspace ---------- */
 #WorkHeader, #NavBar {{
@@ -524,9 +529,15 @@ QCheckBox::indicator {{
 QCheckBox::indicator:hover {{ border-color: {C['accent_hi']}; }}
 QCheckBox::indicator:checked {{
     background: {C['accent']};
-    border-color: {C['accent_hi']};
+    /* The calm edge is the fill, not the ring colour: a checked box that
+       already wears accent_hi shows no change at all when focus asks for
+       accent_hi, and a keyboard user tabbing past it loses the cursor. */
+    border-color: {C['accent']};
 }}
-QCheckBox:focus::indicator {{ border-color: {C['accent_hi']}; }}
+/* The state goes after the sub-control: QCheckBox:focus::indicator parses,
+   and paints nothing. It also has to sit below :checked, which ties on
+   specificity and would otherwise keep a focused box looking untouched. */
+QCheckBox::indicator:focus {{ border-color: {C['accent_hi']}; }}
 
 /* The queue's empty area is the one place the backdrop is guaranteed to  */
 /* read, so the scroll area and its host let it through.                   */
@@ -624,6 +635,7 @@ QTabBar::tab:selected {{
     color: {C['text']};
     border-color: {C['accent']};
 }}
+QTabBar::tab:focus {{ border-color: {C['accent_hi']}; }}
 """
 
 

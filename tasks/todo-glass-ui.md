@@ -279,14 +279,46 @@ tooltips, message boxes and the log's read surface stay opaque. `#MusicPage`,
 which has no rule in either current sheet, gets one.
 
 **Acceptance criteria:**
-- [ ] `theme_neon.py:76-81`'s `background-color` on the bare `QWidget` selector is replaced by an explicit container background, so the sheet no longer cascades onto every widget.
-- [ ] Keyboard focus is visible on every interactive control in a screenshot, and `test_ui_layout.py:197` ("no stylesheet cascades onto the workspace tabs") still holds.
-- [ ] The checked tab's readability test moves to the flattened composite and still demands 4.5:1.
+- [x] `theme_neon.py:76-81`'s `background-color` on the bare `QWidget` selector is replaced by an explicit container background, so the sheet no longer cascades onto every widget. *(done in Task 6 — the backdrop is invisible behind it)*
+- [x] Keyboard focus is visible on every interactive control, and `test_ui_layout.py:197` ("no stylesheet cascades onto the workspace tabs") still holds.
+- [x] The checked tab's readability test moves to the flattened composite and still demands 4.5:1.
 
 **Verification:**
-- [ ] `pytest tests/test_qss_parses.py tests/test_ui_layout.py tests/test_gui.py -q`; full suite green; PNGs at all four sizes reviewed.
+- [x] `pytest tests/test_qss_parses.py tests/test_ui_layout.py tests/test_gui.py -q`; full suite green.
+- [ ] PNGs at all four sizes reviewed — folded into Task 10's render pass.
 
 **Dependencies:** Task 6 · **Scope:** M (3 files: `theme.py`, `tests/test_ui_layout.py`, `tests/test_qss_parses.py`)
+
+**What the focus work found.** The brief's premise — "the current sheets have
+no focus rule at all" — was wrong: `QPushButton:focus`, `QLineEdit:focus` and
+`QCheckBox:focus::indicator` all existed. Every one of them was being thrown
+away, and two different mechanisms were responsible:
+
+- Qt settles an equal-specificity tie by document order, so
+  `QPushButton[kind="tab"]` (later) beat `QPushButton:focus` (earlier) and the
+  workspace tabs, the primary buttons and the danger button had no ring. The
+  kind rules now repeat the ring themselves.
+- `QCheckBox:focus::indicator` parses and paints nothing; the state belongs
+  after the sub-control (`QCheckBox::indicator:focus`). Once it fired, a
+  *checked* box still showed no change, because `:indicator:checked` ties with
+  it and sets the same accent_hi border — so the calm checked border is now
+  the fill's own blue and accent_hi is reserved for focus.
+
+Because a sheet-level test cannot see any of that, the guard is a pixel test:
+`test_keyboard_focus_paints_on_every_control_kind` focuses seven real controls
+in a real window and demands that each one repaints. Offscreen windows are
+never activated by the desktop, so it calls the deprecated
+`QApplication.setActiveWindow()` — `activateWindow()` and
+`windowHandle().requestActivate()` are both no-ops there.
+
+`GLASS["glow"]` (0.28) went out with it: it described a focus *halo*, Qt has no
+`box-shadow`, and nothing had drawn with it since it was invented. A new test
+refuses any glass alpha no surface uses.
+
+Criterion 3 needed no test move: with the panels opaque, the hex the checked-tab
+test reads out of the sheet *is* the flattened composite, and it clears 4.5:1.
+
+Suite after 7: **839 passed, 19 deselected**.
 
 ### Task 8: The wordmark, drawn
 
