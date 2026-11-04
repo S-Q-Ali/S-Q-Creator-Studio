@@ -209,8 +209,20 @@ def test_spines_are_seven_distinct_values():
     assert len(set(STATUS_COLORS.values())) == len(STATUS_COLORS)
 
 
-def test_sheet_painted_glass_where_glass_belongs():
-    assert rgba("#FFFFFF", GLASS["mid"]) in STYLESHEET
+def test_the_sheet_paints_the_flattened_solid_not_the_alpha():
+    """Glass is the elevation and the hairline, not the see-through.
+
+    The alphas in GLASS still derive the tokens, but a painted panel is the
+    solid its alpha resolves to over the backdrop. The backdrop is a
+    gradient, so a translucent card would be a different colour at the top of
+    the window than at the bottom, and no contrast number in this file would
+    describe the surface the text is actually on.
+    """
+    for selector in ("#Rail", "#Card", "#Chip", "#StatusBar", "QPushButton"):
+        body = _rule(STYLESHEET, selector)
+        assert C["panel"] in body or C["raised"] in body, f"{selector} lost its solid fill"
+        assert rgba("#FFFFFF", GLASS["mid"]) not in body
+        assert rgba("#FFFFFF", GLASS["high"]) not in body
 
 
 def test_sheet_keeps_the_reading_surfaces_opaque():

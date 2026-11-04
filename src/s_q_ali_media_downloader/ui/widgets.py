@@ -1,7 +1,14 @@
-"""Reusable widgets: queue cards, chips and small drawing helpers."""
+"""Reusable widgets: the painted backdrop, queue cards, chips and helpers."""
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import (
+    QColor,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QPixmap,
+    QRadialGradient,
+)
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -14,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from s_q_ali_media_downloader.engine import is_youtube_url
-from s_q_ali_media_downloader.theme import STATUS_COLORS, STATUS_WEIGHTS, C
+from s_q_ali_media_downloader.theme import BACKDROP, STATUS_COLORS, STATUS_WEIGHTS, C
 
 
 def shorten(text, limit=95):
@@ -42,6 +49,45 @@ def shield_pixmap(size=15, colour=C["amber"]):
     painter.drawPath(path)
     painter.end()
     return pm
+
+
+class Backdrop(QWidget):
+    """The app's one paintEvent: the depth every panel sits on.
+
+    Qt has no blur-behind, so the glass is composited against a backdrop the
+    app owns - void at the top, graphite at the bottom, and two pools where
+    that range reaches its ceiling early. Panels are opaque, so this shows
+    through only where a container is transparent, and the ceiling is the
+    panel token, so no text is ever read against a surface the sheet has not
+    measured. One gradient per paint, no timer, no effect on a container.
+    """
+
+    def paintEvent(self, event):
+        rect = self.rect()
+        painter = QPainter(self)
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        base = QLinearGradient(0, rect.top(), 0, rect.bottom())
+        base.setColorAt(0.0, QColor(BACKDROP["top"]))
+        base.setColorAt(1.0, QColor(BACKDROP["bottom"]))
+        painter.fillRect(rect, base)
+
+        height = max(rect.height(), 1)
+        for spec in BACKDROP["pools"].values():
+            centre = QPointF(
+                rect.left() + spec["at"][0] * rect.width(),
+                rect.top() + spec["at"][1] * height,
+            )
+            radius = spec["radius"] * height
+            peak = QColor(BACKDROP[spec["colour"]])
+            fade = QColor(peak)
+            fade.setAlpha(0)
+            pool = QRadialGradient(centre, radius)
+            pool.setColorAt(0.0, peak)
+            pool.setColorAt(1.0, fade)
+            painter.setBrush(pool)
+            painter.drawEllipse(centre, radius, radius)
+        painter.end()
 
 
 class Job:

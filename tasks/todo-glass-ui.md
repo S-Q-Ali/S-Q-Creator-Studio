@@ -232,14 +232,42 @@ behind the rail. It is the app's first and only `paintEvent`, and the depth
 source every translucent panel composites against.
 
 **Acceptance criteria:**
-- [ ] The backdrop paints in `resizeEvent`-free code: one gradient object per paint, no effect on a container, no timer.
-- [ ] An offscreen PNG shows the panels reading as surfaces above the backdrop, not as flat rectangles.
-- [ ] `test_ui_layout.py`'s structure assertions (`:226-236` stack, rail) still pass.
+- [x] The backdrop paints in `resizeEvent`-free code: one gradient object per paint, no effect on a container, no timer.
+- [x] An offscreen PNG shows the panels reading as surfaces above the backdrop, not as flat rectangles.
+- [x] `test_ui_layout.py`'s structure assertions (`:226-236` stack, rail) still pass.
 
 **Verification:**
-- [ ] `pytest tests/test_gui.py tests/test_ui_layout.py -q` green, and a reviewed PNG.
+- [x] `pytest tests/test_gui.py tests/test_ui_layout.py -q` green, and a reviewed PNG.
 
 **Dependencies:** Task 2 · **Scope:** M (3 files: `ui/widgets.py` or `theme.py`, `ui/main_window.py`, one test file)
+
+**What shipped, and what the brief got wrong.** The brief described the
+backdrop as "the depth source every translucent panel composites against".
+Measured, that sentence is self-defeating: `muted` on a 0.07-white panel over a
+graphite-lifted backdrop resolves to `#333A42` and falls to 3.15:1, and the
+blue spine falls to 3.07:1 — every TEXT_SURFACES number in `theme.py` would
+have become a claim about a surface nobody was actually painting. The decision
+taken was *opaque panels, lit backdrop*: the sheet fills `#Rail`, `#Card`,
+`#Chip`, `#StatusBar` and `QPushButton` with `C["panel"]` / `C["raised"]` (the
+solids the alphas resolve to), and `BACKDROP["bottom"]` is set to `C["panel"]`
+so the worst case for a label on bare backdrop equals the case for the same
+label on a card. Glass survives as elevation, hairline and the two pools — not
+as see-through.
+
+The blanket `QWidget { background: … }` had to go first (it is Task 7's first
+criterion, absorbed here because the backdrop is invisible behind it), and four
+container rules went `transparent` so the gradient reaches the header band, the
+margins and the empty area under a short queue.
+
+The pools were placed by arithmetic and corrected by pixels: a pool is a
+colour, not additive light, so the signal pool at 30% height painted a *hole*
+(centre 19.6 against a mirrored backdrop of 23.4). Both now sit in the top
+third, where the gradient is still darker than their peaks, and
+`test_each_pool_sits_where_the_backdrop_is_darker_than_it` refuses the next
+pool that outruns its own ceiling.
+
+Suite after 6: **829 passed, 19 deselected**; the four pages plus the 1280px
+compact queue were re-rendered and read as surfaces on a lit backdrop.
 
 ### Task 7: Panels, hairlines, focus
 

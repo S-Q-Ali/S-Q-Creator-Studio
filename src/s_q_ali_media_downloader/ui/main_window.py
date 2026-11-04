@@ -72,7 +72,7 @@ from s_q_ali_media_downloader.theme import STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.music_page import MusicPage
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
-from s_q_ali_media_downloader.ui.widgets import Chip, Job, JobCard, shield_pixmap
+from s_q_ali_media_downloader.ui.widgets import Backdrop, Chip, Job, JobCard, shield_pixmap
 
 ORG = "S-Q-Ali"
 VERSION = __version__
@@ -138,7 +138,9 @@ class MainWindow(QMainWindow):
         # Memory management: limit jobs to 1000 entries, auto-purge old completed jobs.
         self._MAX_JOBS = 1000
 
-        root = QWidget()
+        # The one painted surface: everything below the rail and the cards is
+        # this, and the panels sit on it opaque.
+        root = Backdrop()
         self.setCentralWidget(root)
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)

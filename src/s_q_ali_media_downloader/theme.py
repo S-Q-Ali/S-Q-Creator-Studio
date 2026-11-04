@@ -138,6 +138,36 @@ TEXT_SURFACES = {
 }
 
 # --------------------------------------------------------------------------- #
+# Backdrop
+# --------------------------------------------------------------------------- #
+# The one painted surface, and the range every panel sits on. Its lit end is
+# the panel token on purpose: the containers are transparent down to it, so a
+# label on the bare backdrop at the bottom of the window has exactly the
+# contrast the same label has on a card. The pools are places where that range
+# reaches its ceiling early, not extra light - none of them may be brighter
+# than a panel, or every number in TEXT_SURFACES would be a lie about the
+# bottom half of the window.
+BACKDROP = {
+    "top": _VOID,
+    "bottom": C["panel"],
+    "pool_cool": flatten(_VOID, _LIGHT, 0.055),
+    "pool_signal": flatten(_VOID, C["accent"], 0.12),
+    # Position as a fraction of the window, radius as a fraction of its
+    # height. The rail and the cards are opaque, so the backdrop only reads
+    # where a container lets it through: the header band, the margins, and
+    # the empty area under a short queue.
+    #
+    # A pool is a colour, not extra light: it can only lift the surface it
+    # sits on, so it belongs where the gradient is still darker than its own
+    # peak. Both pools are in the top third because the gradient's ceiling is
+    # at the bottom - a pool down there would be a hole in the backdrop.
+    "pools": {
+        "cool": {"at": (0.72, 0.12), "radius": 0.50, "colour": "pool_cool"},
+        "signal": {"at": (0.40, 0.30), "radius": 0.42, "colour": "pool_signal"},
+    },
+}
+
+# --------------------------------------------------------------------------- #
 # Density
 # --------------------------------------------------------------------------- #
 # ``scale`` shrinks the spacing inside the layouts. ``rail`` is the width of
@@ -184,15 +214,19 @@ def stylesheet(density: str = "comfortable") -> str:
     caption = t["caption"]
     mono = "'Consolas', 'Cascadia Mono', 'DejaVu Sans Mono', monospace"
     well = rgba(_LIGHT, GLASS["low"])
-    panel = rgba(_LIGHT, GLASS["mid"])
-    raised = rgba(_LIGHT, GLASS["high"])
+    # The fills are the flattened solids, not the alphas. A translucent card
+    # over a gradient is a card whose colour depends on where it happens to
+    # sit, and every number in TEXT_SURFACES is measured against one fixed
+    # surface. The glass is the elevation and the hairline, not the
+    # see-through.
+    panel = C["panel"]
+    raised = C["raised"]
     edge = rgba(_LIGHT, GLASS["hairline"])
     return f"""
 QWidget {{
     color: {C['text']};
     font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif;
     font-size: {body}px;
-    background: {C['bg']};
 }}
 QMainWindow, QDialog {{ background: {C['bg']}; }}
 QLabel {{ background: transparent; }}
@@ -386,7 +420,7 @@ QPushButton[kind="tab"]:checked {{
 
 /* ---------- workspace ---------- */
 #WorkHeader, #NavBar {{
-    background: {C['bg']};
+    background: transparent;
     border-bottom: 1px solid {C['border']};
 }}
 #Chip {{
@@ -494,8 +528,10 @@ QCheckBox::indicator:checked {{
 }}
 QCheckBox:focus::indicator {{ border-color: {C['accent_hi']}; }}
 
-QScrollArea {{ border: none; background: {C['bg']}; }}
-#QueueHost {{ background: {C['bg']}; }}
+/* The queue's empty area is the one place the backdrop is guaranteed to  */
+/* read, so the scroll area and its host let it through.                   */
+QScrollArea {{ border: none; background: transparent; }}
+#QueueHost {{ background: transparent; }}
 QScrollBar:vertical {{
     background: transparent; width: 10px; margin: 2px;
 }}
@@ -543,7 +579,7 @@ QToolTip {{
 }}
 
 /* ---------- settings, music ---------- */
-#SettingsPage, #SettingsHost, #MusicPage {{ background: {C['bg']}; }}
+#SettingsPage, #SettingsHost, #MusicPage {{ background: transparent; }}
 
 /* ---------- tables ---------- */
 QTableWidget {{
