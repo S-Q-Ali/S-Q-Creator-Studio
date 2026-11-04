@@ -127,7 +127,13 @@ jobs:
 
           # One archive per platform. tar keeps the executable bits and the
           # bundle's symlinks, which a zip of the same folder would not.
-          $name = "S-Q-Creator-Studio-$version-$BUILD_KEY"
+          # PowerShell reads an environment variable only as $env:NAME - a
+          # bare $NAME is a different, always-empty variable. That mistake
+          # named every archive the same and left the Linux build overwritten
+          # by the macOS one when the artifacts were merged.
+          $key = $env:BUILD_KEY
+          if (-not $key) { throw "BUILD_KEY is empty - the archive would be unnamed" }
+          $name = "S-Q-Creator-Studio-$version-$key"
           if ($env:ARCHIVE_KIND -eq "zip") {
             Compress-Archive -Path "$portable/*" -DestinationPath "dist/$name.zip" -CompressionLevel Optimal
           } else {
@@ -196,6 +202,21 @@ jobs:
           # inside the download, and the file names are what matter here.
           $assets = Get-ChildItem assets -Recurse -File | Sort-Object Name
           if (-not $assets) { throw "no release assets were built" }
+
+          # Every platform's file has to be here, by name. Two builds that
+          # produce the same file name would overwrite each other when the
+          # artifacts are merged, and the release would look complete while
+          # one platform is missing.
+          $expected = @(
+            "S-Q-Creator-Studio-Setup-$version.exe",
+            "S-Q-Creator-Studio-$version-windows-x64.zip",
+            "S-Q-Creator-Studio-$version-linux-x64.tar.gz",
+            "S-Q-Creator-Studio-$version-macos-arm64.tar.gz"
+          )
+          $names = @($assets.Name)
+          foreach ($want in $expected) {
+            if ($names -notcontains $want) { throw "the release is missing $want" }
+          }
 
           # The changelog holds the notes for this version: the section
           # that starts with its heading, up to the next one.
