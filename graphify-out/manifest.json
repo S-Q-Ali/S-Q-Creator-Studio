@@ -6,15 +6,15 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1793799245.1390054,
-    "seen": 1793799484.7964554,
-    "ast_hash": "27242f9a1e00cc9eb70f676e4623c419",
+    "mtime": 1793801714.6511607,
+    "seen": 1793802035.6726756,
+    "ast_hash": "1d75ae95caaab196759c6bd4a11adedc",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
-    "mtime": 1793798558.8996902,
-    "seen": 1793799484.7964606,
-    "ast_hash": "11b7e51b57172807414f25151f643555",
+    "mtime": 1793801714.563275,
+    "seen": 1793802035.6726892,
+    "ast_hash": "9aa99cca8768209c567db36ba0975cb2",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__main__.py": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1793698457.7496836,
-    "seen": 1793707944.4248862,
-    "ast_hash": "182cc4aaa1885d2f49144a6f0d7fdf79",
+    "mtime": 1793801296.164062,
+    "seen": 1793802035.673056,
+    "ast_hash": "ebd259f4be91b28855d5d12ca035015a",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -120,15 +120,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793758969.4937332,
-    "seen": 1793759396.6889434,
-    "ast_hash": "55ee2aebc8adb4e21c6e7691315ddae3",
+    "mtime": 1793801450.2846997,
+    "seen": 1793802035.6730826,
+    "ast_hash": "3981f0185877fbfc495fd0b23a688496",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
-    "mtime": 1793758999.4727674,
-    "seen": 1793759396.6889513,
-    "ast_hash": "7d03fc6bd8d226a497cf63fb48ce8967",
+    "mtime": 1793801440.2355354,
+    "seen": 1793802035.673103,
+    "ast_hash": "b2625aac0e1a2dd4cd58fa60b032e6f7",
     "semantic_hash": ""
   },
   "tests/conftest.py": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793798818.8283637,
-    "seen": 1793799484.7971706,
-    "ast_hash": "b1afc81d7d749040c6130d857de02626",
+    "mtime": 1793801706.5505712,
+    "seen": 1793802035.6745658,
+    "ast_hash": "9bbca02109ad3c2cacdc78f0258cd6b8",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793798865.7595148,
-    "seen": 1793799484.7971776,
-    "ast_hash": "9ab2c84aaf9cd8919342e091282b6129",
+    "mtime": 1793801691.7759812,
+    "seen": 1793802035.6745806,
+    "ast_hash": "d36af6f67178f66d106aa2199d9d7efe",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1572,9 +1572,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/settings_page.py": {
-    "mtime": 1793710698.7000926,
-    "seen": 1793712476.8851662,
-    "ast_hash": "ff312d6f082106f716c5d6faa298c44f",
+    "mtime": 1793801333.3317678,
+    "seen": 1793802035.673093,
+    "ast_hash": "c0ac502fb018806a033d4c0a6f6e5365",
     "semantic_hash": ""
   },
   "tests/test_core_exporter.py": {
@@ -1614,9 +1614,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1793794213.6167178,
-    "seen": 1793799484.7967598,
-    "ast_hash": "2c08f5ae9773e2c7665e16a4fe87c287",
+    "mtime": 1793800901.0745225,
+    "seen": 1793802035.6734474,
+    "ast_hash": "37a4c91419161bd608e404e3a9fdee26",
     "semantic_hash": ""
   },
   ".opencode/command/ponytail-audit.md": {
@@ -2283,6 +2283,36 @@
     "mtime": 1793761404.6750584,
     "seen": 1793762136.9409485,
     "ast_hash": "6a3f8a794ca4d4473a276824d4760024",
+    "semantic_hash": ""
+  },
+  "tests/test_download_quality.py": {
+    "mtime": 1793801394.3435097,
+    "seen": 1793802035.673177,
+    "ast_hash": "58cfa8a8ccb2e81a4f491206cfaba428",
+    "semantic_hash": ""
+  },
+  "tests/test_release_workflow.py": {
+    "mtime": 1793800885.4099126,
+    "seen": 1793802035.6733115,
+    "ast_hash": "d42cd9f4dcc30dae1d19579a55e6eff5",
+    "semantic_hash": ""
+  },
+  "tasks/plan-download-quality.md": {
+    "mtime": 1793801106.015208,
+    "seen": 1793802035.6746652,
+    "ast_hash": "281a94887a3e7e3ca8b05b735e746e0c",
+    "semantic_hash": ""
+  },
+  "tasks/spec-download-quality.md": {
+    "mtime": 1793801093.1187944,
+    "seen": 1793802035.6747992,
+    "ast_hash": "c34643a5fce821a0d091c35ae2b329b4",
+    "semantic_hash": ""
+  },
+  "tasks/todo-download-quality.md": {
+    "mtime": 1793801116.263401,
+    "seen": 1793802035.674873,
+    "ast_hash": "50de5de08b4ac078923e303f757e6ac6",
     "semantic_hash": ""
   }
 }
