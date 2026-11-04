@@ -3,6 +3,26 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.13.0] — 2026-11-05
+
+### Added
+
+- **A build for Intel Macs.** The release shipped only the Apple Silicon
+  build, and Rosetta 2 translates x86 to arm and not the other way round, so
+  an Intel Mac had nothing to download. There is now an Intel build
+  (`macos-x64`), built and smoke-tested on an Intel runner, and the offline
+  suite runs there at Python 3.12 and 3.14.
+- **A disk image for each Mac.** `macos-arm64.dmg` and `macos-x64.dmg` join
+  the portable archives. Open the image and drag the app onto the
+  `Applications` shortcut — the way software arrives on a Mac. The `.tar.gz`
+  files stay published, so existing download links keep working.
+
+### Changed
+
+- **The macOS version claim is checked, not assumed.** The app says macOS 13+,
+  and the build now measures the Mach-O version of every binary in the bundle
+  and fails the release if one needs a newer macOS than the claim.
+
 ## [2.12.0] — 2026-11-04
 
 ### Added

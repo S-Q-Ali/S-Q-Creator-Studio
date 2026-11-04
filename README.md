@@ -75,16 +75,20 @@ the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases):
 | Windows 10/11 (x86_64) | `S-Q-Creator-Studio-*-windows-x64.zip` | Portable folder |
 | Linux x86_64 | `S-Q-Creator-Studio-*-linux-x64.tar.gz` | Portable folder |
 | macOS 13+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.tar.gz` | Portable `.app` |
+| macOS 13+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.dmg` | Disk image — drag into Applications |
+| macOS 13+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.tar.gz` | Portable `.app` |
+| macOS 13+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.dmg` | Disk image — drag into Applications |
 
 **What CI proves, and what it does not.** Each archive is built on its own
 platform's runner, and there the offline suite passes and the frozen app is
 launched and stays up — at Python 3.12 and 3.14, on `windows-latest`,
-Ubuntu 24.04 and macOS 14. The Linux build needs glibc 2.34 or newer, which is
-what the bundled PySide6 wheels support; other distributions, older macOS
-releases and Intel Macs are unbuilt and untested. Nothing here is signed or
-notarised, so Windows will warn on the installer's first run and macOS will
-refuse the app until you approve it in System Settings → Privacy & Security.
-The `live` tests, which hit TikTok and YouTube servers, never run in CI.
+Ubuntu 24.04, macOS 14 (Apple Silicon) and macOS 15 Intel. The Linux build
+needs glibc 2.34 or newer, which is what the bundled PySide6 wheels support;
+other distributions and older macOS releases are unbuilt and untested. Nothing
+here is signed or notarised, so Windows will warn on the installer's first run
+and macOS will refuse the app until you approve it in System Settings →
+Privacy & Security. The `live` tests, which hit TikTok and YouTube servers,
+never run in CI.
 
 ### Windows: installer (recommended)
 
@@ -108,6 +112,17 @@ carry their own Chromium and ffmpeg, so Social Discovery and merged downloads
 work on a machine that has neither installed. Your API keys go to the machine's
 own keychain: the login keychain on macOS, the secret service the desktop offers
 on Linux (GNOME Keyring or KWallet).
+
+On a Mac, the `.dmg` is the easier way in: open it and drag
+`S-Q Creator Studio` onto the `Applications` shortcut, then launch it from
+Applications. The `.tar.gz` is the same app for anyone who prefers to unpack it
+by hand. Both are unsigned until the signing work lands, so macOS asks you to
+approve the app once — right-click it and choose **Open**, or allow it in
+System Settings → Privacy & Security.
+
+The two Mac files are separate builds: `macos-arm64` is for Apple Silicon and
+`macos-x64` is for Intel. Rosetta 2 runs Intel software on Apple Silicon, but
+not the other way round, so an Intel Mac needs the `x64` build.
 
 ## Build from source
 
