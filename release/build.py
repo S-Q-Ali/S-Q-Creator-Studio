@@ -62,7 +62,17 @@ HIDDEN_IMPORTS = (
 )
 
 IS_WINDOWS = sys.platform == "win32"
+IS_MACOS = sys.platform == "darwin"
 FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
+
+#: The oldest macOS the app claims to run on. PySide6 6.11 ships a
+#: macosx_13_0_universal2 wheel, so 13 is what the bundle can promise - and
+#: the build measures what it actually got instead of trusting this.
+MACOS_FLOOR = "13.0"
+
+#: The Mach-O magics: 32-bit, 64-bit, and the fat header a universal2
+#: wheel carries.
+MACHO_MAGICS = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe")
 
 
 def fail(message: str, *hints: str) -> None:
@@ -200,6 +210,129 @@ def bundle_layout(portable: Path) -> tuple[Path, Path]:
         return plain, portable
     contents = app_bundle / "Contents"
     return contents / "MacOS" / APP_NAME, contents / "Resources"
+
+
+def version_key(value: str) -> tuple[int, int]:
+    """``"13.0"`` as a number a comparison can use."""
+    parts = value.split(".")
+    try:
+        return int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+    except ValueError:
+        return 0, 0
+
+
+def is_mach_o(path: Path) -> bool:
+    """Whether the file is a Mach-O binary, or a fat one holding two."""
+    try:
+        with path.open("rb") as handle:
+            return handle.read(4) in MACHO_MAGICS
+    except OSError:
+        return False
+
+
+def macho_minos(output: str) -> list[str]:
+    """The macOS versions an ``otool -l`` listing declares."""
+    found = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("minos "):
+            found.append(stripped.split()[1])
+    return found
+
+
+def macos_floor(build_folder: Path) -> tuple[str, Path]:
+    """The oldest macOS the build can run on, and the file that decides it.
+
+    A Mach-O binary carries the macOS it was built for in its load commands,
+    and macOS refuses to load one that is newer than itself - so the floor is
+    the highest of them. A universal2 file reports one version per slice, and
+    both count. The whole build folder is scanned, not just the app bundle:
+    the bundled Chromium is a binary too, and it is the one a macOS 13 user is
+    most likely to fail on.
+    """
+    highest = "0.0"
+    offender = build_folder
+    for path in sorted(build_folder.rglob("*")):
+        if path.is_symlink() or not path.is_file() or not is_mach_o(path):
+            continue
+        try:
+            done = subprocess.run(
+                ["otool", "-l", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        for found in macho_minos(done.stdout):
+            if version_key(found) > version_key(highest):
+                highest, offender = found, path
+    return highest, offender
+
+
+def check_macos_floor(build_folder: Path) -> None:
+    """Fail the build when it needs a newer macOS than we claim."""
+    floor, offender = macos_floor(build_folder)
+    print(f"\n{'=' * 60}\n The build's macOS floor: {floor}\n{'=' * 60}")
+    print(f"  decided by: {offender}")
+    if version_key(floor) > version_key(MACOS_FLOOR):
+        fail(
+            f"The build needs macOS {floor}, not {MACOS_FLOOR}.",
+            f"{offender} declares {floor}.",
+            f"The README says macOS {MACOS_FLOOR} - either the claim or the build has to change.",
+        )
+
+
+def macos_arch() -> str:
+    """The Mac architecture, in the name the release gives it."""
+    import platform
+
+    return "arm64" if platform.machine() == "arm64" else "x64"
+
+
+def build_dmg(app_bundle: Path, out: Path) -> None:
+    """A disk image with the app and an Applications shortcut to drag it into.
+
+    ``ditto`` copies a ``.app`` without flattening the symlinks inside its
+    frameworks, which ``Copy-Item`` would; ``hdiutil`` is macOS's own tool.
+    """
+    root = RELEASE / "dmg-root"
+    if root.exists():
+        shutil.rmtree(root, ignore_errors=True)
+    root.mkdir(parents=True, exist_ok=True)
+    try:
+        # The Applications shortcut has to be in the folder before the image
+        # is made - hdiutil reads the folder as it is when it runs.
+        (root / "Applications").symlink_to("/Applications")
+        for command in (
+            ["ditto", str(app_bundle), str(root / app_bundle.name)],
+            [
+                "hdiutil",
+                "create",
+                "-volname",
+                APP_NAME,
+                "-srcfolder",
+                str(root),
+                "-ov",
+                "-format",
+                "UDZO",
+                str(out),
+            ],
+        ):
+            done = subprocess.run(command, capture_output=True, text=True, check=False)
+            if done.returncode != 0:
+                fail(
+                    f"Could not build the disk image ({command[0]} failed).",
+                    done.stderr.strip()[:400],
+                )
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def dmg_path(version: str) -> Path:
+    """Where the disk image for this machine is written."""
+    return RELEASE / f"S-Q-Creator-Studio-{version}-macos-{macos_arch()}.dmg"
 
 
 def stage_contents(built: Path, portable: Path) -> None:
@@ -403,6 +536,16 @@ def main() -> None:
         fail(f"The build left no executable at {launcher}.")
     print(f"Done. {launcher.name} built in {portable}")
 
+    disk_image = None
+    if IS_MACOS:
+        app_bundle = next(iter(sorted(portable.glob("*.app"))), None)
+        if app_bundle is None:
+            fail(f"The build left no app bundle in {portable}.")
+        check_macos_floor(portable)
+        disk_image = dmg_path(version)
+        build_dmg(app_bundle, disk_image)
+        print(f"Disk image: {disk_image}")
+
     build_installer(version, portable.name, ffmpeg_source)
 
     installer = RELEASE / f"S-Q-Creator-Studio-Setup-{version}.exe"
@@ -410,6 +553,7 @@ def main() -> None:
         f"\n{'=' * 60}\n BUILD COMPLETE\n{'=' * 60}\n"
         f" Version:   {version}\n"
         f" Portable:  {launcher}\n"
+        f" Disk image: {disk_image}\n"
         f" Installer: {installer} (if built)\n"
         f"{'=' * 60}"
     )

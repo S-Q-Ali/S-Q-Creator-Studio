@@ -17,6 +17,12 @@ jobs:
     # runner images are the floors the wheel spike found: PySide6 6.11 has no
     # wheel for a glibc older than 2.34 on x86_64, and none for a macOS older
     # than 13 - see tasks/plan-cross-platform.md, B1.
+    #
+    # The two Mac cells are two architectures, not two versions: an Apple
+    # Silicon build does not run on an Intel Mac, and Rosetta 2 translates x86
+    # to arm and not the other way round. macos-15-intel is GitHub's last
+    # x86_64 macOS image - it retires in Fall 2027, and an Intel build after
+    # that needs a self-hosted runner.
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +35,9 @@ jobs:
             archive: tar.gz
           - os: macos-14
             key: macos-arm64
+            archive: tar.gz
+          - os: macos-15-intel
+            key: macos-x64
             archive: tar.gz
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.key }})
@@ -135,11 +144,25 @@ jobs:
           if (-not $key) { throw "BUILD_KEY is empty - the archive would be unnamed" }
           $name = "S-Q-Creator-Studio-$version-$key"
           if ($env:ARCHIVE_KIND -eq "zip") {
-            Compress-Archive -Path "$portable/*" -DestinationPath "dist/$name.zip" -CompressionLevel Optimal
+            $archive = "dist/$name.zip"
+            Compress-Archive -Path "$portable/*" -DestinationPath $archive -CompressionLevel Optimal
           } else {
-            tar -czf "dist/$name.tar.gz" -C $portable .
+            $archive = "dist/$name.tar.gz"
+            tar -czf $archive -C $portable .
           }
-          $asset = Get-Item "dist/$name.*" | Select-Object -First 1
+          # The Mac builds also come as a disk image, which the build script
+          # writes next to the portable folder. It is named after the machine
+          # that built it; here it takes the matrix's name, so the file that
+          # is published and the file the publish step insists on are the same
+          # name by construction.
+          if ($IsMacOS) {
+            $dmg = Get-ChildItem "release/S-Q-Creator-Studio-$version-macos-*.dmg" |
+              Select-Object -First 1
+            if (-not $dmg) { throw "the build left no disk image" }
+            Copy-Item $dmg.FullName "dist/$name.dmg"
+            Write-Output "disk image: $name.dmg  $([math]::Round($dmg.Length/1MB,1)) MB"
+          }
+          $asset = Get-Item $archive
           Write-Output "archive: $($asset.Name)  $([math]::Round($asset.Length/1MB,1)) MB"
           Write-Output "sha256: $((Get-FileHash -Algorithm SHA256 $asset.FullName).Hash)"
 
@@ -211,7 +234,10 @@ jobs:
             "S-Q-Creator-Studio-Setup-$version.exe",
             "S-Q-Creator-Studio-$version-windows-x64.zip",
             "S-Q-Creator-Studio-$version-linux-x64.tar.gz",
-            "S-Q-Creator-Studio-$version-macos-arm64.tar.gz"
+            "S-Q-Creator-Studio-$version-macos-arm64.tar.gz",
+            "S-Q-Creator-Studio-$version-macos-arm64.dmg",
+            "S-Q-Creator-Studio-$version-macos-x64.tar.gz",
+            "S-Q-Creator-Studio-$version-macos-x64.dmg"
           )
           $names = @($assets.Name)
           foreach ($want in $expected) {
@@ -230,15 +256,18 @@ jobs:
           $lines = @("## S-Q Creator Studio $version", "")
           if ($notes) { $lines += @($notes, "", "---", "") }
           $lines += @(
-            "Built for three platforms from one build script. Each file below is",
-            "the complete portable build - unpack it into an empty folder and run it.",
+            "Built for four platforms from one build script. Each file below is",
+            "the complete build - unpack it into an empty folder and run it.",
             "",
             "| Platform | File | How |",
             "|---|---|---|",
             "| Windows 10/11 (x86_64) | ``S-Q-Creator-Studio-Setup-$version.exe`` | Installer; keys are sealed with DPAPI |",
             "| Windows 10/11 (x86_64) | ``S-Q-Creator-Studio-$version-windows-x64.zip`` | Portable folder |",
             "| Linux (x86_64, glibc &gt;= 2.34) | ``S-Q-Creator-Studio-$version-linux-x64.tar.gz`` | Portable folder; keys go to the session keychain |",
+            "| macOS 13+ (Apple Silicon) | ``S-Q-Creator-Studio-$version-macos-arm64.dmg`` | Disk image; drag the app into Applications |",
             "| macOS 13+ (Apple Silicon) | ``S-Q-Creator-Studio-$version-macos-arm64.tar.gz`` | Portable folder; keys go to the login keychain |",
+            "| macOS 13+ (Intel) | ``S-Q-Creator-Studio-$version-macos-x64.dmg`` | Disk image; drag the app into Applications |",
+            "| macOS 13+ (Intel) | ``S-Q-Creator-Studio-$version-macos-x64.tar.gz`` | Portable folder; keys go to the login keychain |",
             "",
             "Every build carries its own Chromium and ffmpeg, so Social Discovery and",
             "video-plus-audio downloads work on a machine that has neither.",

@@ -8,6 +8,8 @@ workflow, which runs it on all three OSes.
 
 import importlib.util
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -284,6 +286,103 @@ def test_an_app_bundle_splits_the_launcher_from_its_extras(tmp_path):
 
     assert launcher == contents / "MacOS" / build.APP_NAME
     assert extras == contents / "Resources"
+
+
+# --------------------------------------------------------------------------- #
+# The Mac: the floor it runs on, and the disk image
+# --------------------------------------------------------------------------- #
+def test_the_claimed_macos_floor_is_thirteen():
+    # PySide6 6.11 ships a macosx_13_0_universal2 wheel, so 13 is what the
+    # bundle can promise. The build measures what it got - a claim that
+    # nothing checks is a claim that drifts.
+    assert build.MACOS_FLOOR == "13.0"
+
+
+def test_the_versions_a_macho_file_declares_are_read_out_of_otool():
+    listing = """
+Load command 0
+      cmd LC_BUILD_VERSION
+  cmdsize 32
+  platform 1
+      minos 13.0
+      sdk 15.0
+      ntools 1
+"""
+    assert build.macho_minos(listing) == ["13.0"]
+
+
+def test_a_bundle_that_needs_a_newer_macos_fails_the_build(monkeypatch, tmp_path):
+    monkeypatch.setattr(build, "macos_floor", lambda app: ("14.0", tmp_path / "x"))
+
+    with pytest.raises(SystemExit):
+        build.check_macos_floor(tmp_path)
+
+
+def test_a_bundle_that_stays_within_the_claim_passes(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(build, "macos_floor", lambda app: ("13.0", tmp_path / "x"))
+
+    build.check_macos_floor(tmp_path)
+
+    assert "13.0" in capsys.readouterr().out
+
+
+def test_the_disk_image_is_built_with_macos_own_tools(monkeypatch, tmp_path):
+    """ditto copies a .app without flattening the symlinks inside it, and
+    hdiutil makes the image - both are macOS's own, so nothing has to be
+    installed to ship one."""
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+    monkeypatch.setattr(build, "RELEASE", tmp_path)
+    app = tmp_path / f"{build.APP_NAME}.app"
+    app.mkdir()
+    out = tmp_path / "out.dmg"
+
+    build.build_dmg(app, out)
+
+    assert commands[0][0] == "ditto"
+    assert commands[1][0] == "hdiutil"
+    assert "UDZO" in commands[1]
+
+
+def test_the_disk_image_carries_a_way_to_drag_the_app_into_applications(monkeypatch, tmp_path):
+    """The shortcut has to be in the folder before the image is made -
+    hdiutil reads the folder as it is when it runs."""
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        if command[0] == "ditto":
+            source, destination = command[1], command[2]
+            shutil.copytree(source, destination)
+        if command[0] == "hdiutil":
+            root = Path(command[command.index("-srcfolder") + 1])
+            seen["shortcut"] = (root / "Applications").is_symlink()
+            seen["app"] = (root / f"{build.APP_NAME}.app").exists()
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+    monkeypatch.setattr(build, "RELEASE", tmp_path)
+    app = tmp_path / f"{build.APP_NAME}.app"
+    app.mkdir()
+
+    build.build_dmg(app, tmp_path / "out.dmg")
+
+    assert seen["shortcut"], "the image had no Applications shortcut to drag into"
+    assert seen["app"], "the image had no app in it"
+
+
+def test_the_disk_image_is_named_after_the_machine_that_built_it(monkeypatch):
+    monkeypatch.setattr(build, "macos_arch", lambda: "arm64")
+
+    assert build.dmg_path("2.13.0").name == "S-Q-Creator-Studio-2.13.0-macos-arm64.dmg"
+
+    monkeypatch.setattr(build, "macos_arch", lambda: "x64")
+
+    assert build.dmg_path("2.13.0").name == "S-Q-Creator-Studio-2.13.0-macos-x64.dmg"
 
 
 # --------------------------------------------------------------------------- #
