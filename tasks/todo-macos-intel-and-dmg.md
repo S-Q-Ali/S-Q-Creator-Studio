@@ -56,7 +56,8 @@ staged `.app`; the publish guard expects all seven files.
 - [x] The matrix has `macos-14 → macos-arm64` and `macos-15-intel →
       macos-x64`, both archiving as `tar.gz`.
 - [x] The build script reads the built bundle's Mach-O `minos` and fails when
-      a binary needs a newer macOS than `MACOS_FLOOR` (13.0).
+      a binary needs a newer macOS than `MACOS_FLOOR` (15.0 — measured on the
+      Mac runners, not taken from the wheel's tag).
 - [x] The disk image step creates `dist/S-Q-Creator-Studio-$version-macos-*.dmg`
       from the staged `.app`, with an `Applications` symlink inside, and it
       runs only on macOS.

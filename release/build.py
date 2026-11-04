@@ -65,10 +65,10 @@ IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
 FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
 
-#: The oldest macOS the app claims to run on. PySide6 6.11 ships a
-#: macosx_13_0_universal2 wheel, so 13 is what the bundle can promise - and
+#: The oldest macOS the app claims to run on. PySide6 6.11's wheel is
+#: tagged macosx_13_0, but the Qt binaries inside it declare macOS 15 - and
 #: the build measures what it actually got instead of trusting this.
-MACOS_FLOOR = "13.0"
+MACOS_FLOOR = "15.0"
 
 #: The Mach-O magics: 32-bit, 64-bit, and the fat header a universal2
 #: wheel carries.
@@ -256,8 +256,8 @@ def macos_floor(build_folder: Path) -> tuple[str, Path]:
     and macOS refuses to load one that is newer than itself - so the floor is
     the highest of them. A universal2 file reports one version per slice, and
     both count. The whole build folder is scanned, not just the app bundle:
-    the bundled Chromium is a binary too, and it is the one a macOS 13 user is
-    most likely to fail on.
+    the bundled Chromium is a binary too, and it is the one a user on an
+    older Mac is most likely to fail on.
     """
     highest = "0.0"
     offender = build_folder

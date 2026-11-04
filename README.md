@@ -74,10 +74,10 @@ the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases):
 | Windows 10/11 (x86_64) | `S-Q-Creator-Studio-Setup-*.exe` | Installer, no admin rights needed |
 | Windows 10/11 (x86_64) | `S-Q-Creator-Studio-*-windows-x64.zip` | Portable folder |
 | Linux x86_64 | `S-Q-Creator-Studio-*-linux-x64.tar.gz` | Portable folder |
-| macOS 13+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.tar.gz` | Portable `.app` |
-| macOS 13+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.dmg` | Disk image — drag into Applications |
-| macOS 13+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.tar.gz` | Portable `.app` |
-| macOS 13+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.dmg` | Disk image — drag into Applications |
+| macOS 15+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.tar.gz` | Portable `.app` |
+| macOS 15+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.dmg` | Disk image — drag into Applications |
+| macOS 15+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.tar.gz` | Portable `.app` |
+| macOS 15+ (Intel) | `S-Q-Creator-Studio-*-macos-x64.dmg` | Disk image — drag into Applications |
 
 **What CI proves, and what it does not.** Each archive is built on its own
 platform's runner, and there the offline suite passes and the frozen app is
@@ -122,7 +122,9 @@ System Settings → Privacy & Security.
 
 The two Mac files are separate builds: `macos-arm64` is for Apple Silicon and
 `macos-x64` is for Intel. Rosetta 2 runs Intel software on Apple Silicon, but
-not the other way round, so an Intel Mac needs the `x64` build.
+not the other way round, so an Intel Mac needs the `x64` build. Both need
+macOS 15: the Qt libraries the app ships declare that as their minimum, and
+macOS refuses to load a library built for a newer release.
 
 ## Build from source
 

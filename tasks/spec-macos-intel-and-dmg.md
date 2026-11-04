@@ -95,13 +95,14 @@ folder as it stands at that moment.
 - **The built app** — the release workflow's smoke test launches the frozen
   app on each runner and fails if it exits early. It runs on the Intel cell
   too.
-- **The macOS floor is measured, not declared** — the app claims macOS 13+.
-  PySide6 6.11 ships a `macosx_13_0_universal2` wheel, so 13 is what the
-  bundle can promise. PyInstaller neither reads `MACOSX_DEPLOYMENT_TARGET` nor
-  writes `LSMinimumSystemVersion`, so a declared target would be fiction.
-  `release/build.py` instead reads the built bundle's Mach-O `minos` load
-  commands with `otool -l` and fails the build if any binary needs a newer
-  macOS than the claim.
+- **The macOS floor is measured, not declared.** PyInstaller neither reads
+  `MACOSX_DEPLOYMENT_TARGET` nor writes `LSMinimumSystemVersion`, so a
+  declared target would be fiction. `release/build.py` instead reads the
+  built bundle's Mach-O `minos` load commands with `otool -l` and fails the
+  build if any binary needs a newer macOS than the claim. The measurement on
+  the Mac runners found 15.0 — PySide6 6.11's wheel is tagged
+  `macosx_13_0_universal2`, but the Qt binaries inside it declare macOS 15 —
+  so the claim is macOS 15 and the README says so too.
 
 ## Boundaries
 
@@ -122,8 +123,8 @@ folder as it stands at that moment.
       `S-Q-Creator-Studio-2.13.0-macos-x64.dmg`.
 - [ ] The publish step refuses to release when any of the seven files is
       missing.
-- [ ] The built `.app` reports a Mach-O `minos` of at most 13.0 on both Mac
-      runners, so "macOS 13+" is true — and the build fails if it does not.
+- [ ] The built `.app` reports a Mach-O `minos` of at most 15.0 on both Mac
+      runners, so "macOS 15+" is true — and the build fails if it does not.
 - [ ] The README lists every published file, and the sentence about Intel
       Macs being untested is gone.
 

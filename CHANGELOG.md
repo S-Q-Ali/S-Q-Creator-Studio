@@ -19,9 +19,12 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
-- **The macOS version claim is checked, not assumed.** The app says macOS 13+,
-  and the build now measures the Mach-O version of every binary in the bundle
-  and fails the release if one needs a newer macOS than the claim.
+- **The macOS version claim is checked, not assumed.** The build now measures
+  the Mach-O version of every binary in the bundle and fails the release if
+  one needs a newer macOS than the claim. The measurement found the app needs
+  **macOS 15** — PySide6 6.11's wheel is tagged `macosx_13_0`, but the Qt
+  binaries inside it declare macOS 15 — so the claim moved from macOS 13 to
+  macOS 15, in this file and in the README, together.
 
 ### Fixed
 

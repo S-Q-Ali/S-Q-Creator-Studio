@@ -14,8 +14,10 @@ makes the publish step demand all seven files.
   retires in Fall 2027 — so this buys time rather than solving the platform
   forever. Recorded here so the end is not a surprise.
 - **The macOS floor is measured from the built bundle, not declared.** The
-  README claims macOS 13+, and the PySide6 6.11 wheel sets that limit
-  (`macosx_13_0_universal2`). But PyInstaller 6.22 reads neither
+  README claimed macOS 13+, taken from the PySide6 6.11 wheel's tag
+  (`macosx_13_0_universal2`) — but the Qt binaries inside that wheel declare
+  macOS 15, and macOS refuses to load them on anything older. The build
+  measures it, so the claim is macOS 15 now. PyInstaller 6.22 reads neither
   `MACOSX_DEPLOYMENT_TARGET` nor writes `LSMinimumSystemVersion`, so a
   deployment target would be a value nothing honours. `release/build.py`
   therefore reads every Mach-O `minos` load command in the bundle with

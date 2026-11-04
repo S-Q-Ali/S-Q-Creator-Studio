@@ -291,11 +291,11 @@ def test_an_app_bundle_splits_the_launcher_from_its_extras(tmp_path):
 # --------------------------------------------------------------------------- #
 # The Mac: the floor it runs on, and the disk image
 # --------------------------------------------------------------------------- #
-def test_the_claimed_macos_floor_is_thirteen():
-    # PySide6 6.11 ships a macosx_13_0_universal2 wheel, so 13 is what the
-    # bundle can promise. The build measures what it got - a claim that
-    # nothing checks is a claim that drifts.
-    assert build.MACOS_FLOOR == "13.0"
+def test_the_claimed_macos_floor_is_fifteen():
+    # PySide6 6.11's wheel is tagged macosx_13_0, but the Qt binaries inside
+    # it declare macOS 15 - and macOS refuses to load anything built for a
+    # newer release. The build measures what it got; this is that number.
+    assert build.MACOS_FLOOR == "15.0"
 
 
 def test_the_versions_a_macho_file_declares_are_read_out_of_otool():
@@ -304,26 +304,26 @@ Load command 0
       cmd LC_BUILD_VERSION
   cmdsize 32
   platform 1
-      minos 13.0
+      minos 15.0
       sdk 15.0
       ntools 1
 """
-    assert build.macho_minos(listing) == ["13.0"]
+    assert build.macho_minos(listing) == ["15.0"]
 
 
 def test_a_bundle_that_needs_a_newer_macos_fails_the_build(monkeypatch, tmp_path):
-    monkeypatch.setattr(build, "macos_floor", lambda app: ("14.0", tmp_path / "x"))
+    monkeypatch.setattr(build, "macos_floor", lambda app: ("16.0", tmp_path / "x"))
 
     with pytest.raises(SystemExit):
         build.check_macos_floor(tmp_path)
 
 
 def test_a_bundle_that_stays_within_the_claim_passes(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr(build, "macos_floor", lambda app: ("13.0", tmp_path / "x"))
+    monkeypatch.setattr(build, "macos_floor", lambda app: ("15.0", tmp_path / "x"))
 
     build.check_macos_floor(tmp_path)
 
-    assert "13.0" in capsys.readouterr().out
+    assert "15.0" in capsys.readouterr().out
 
 
 def test_the_disk_image_is_built_with_macos_own_tools(monkeypatch, tmp_path):
