@@ -3,7 +3,7 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [2.11.0] — 2026-11-04
 
 ### Added
 
@@ -42,6 +42,11 @@ All notable changes are documented here. The format follows
 - **The README shows the current build.** Six renders, one per workspace page
   plus the compact layout, written by `tests/render_glass_screenshots.py` —
   which keeps this machine's download folder out of them.
+- **The declared Python floor is 3.12, up from 3.10.** Nothing ever ran on 3.10:
+  the agent extra cannot resolve below 3.11 (`browser-use` needs it), and the CI
+  matrix starts at 3.12. Installing the app on 3.10 or 3.11 is now refused by the
+  metadata instead of promised by it; 3.12 and 3.14 are what CI tests, and 3.13
+  is allowed but untested.
 
 ### Fixed
 
@@ -50,17 +55,15 @@ All notable changes are documented here. The format follows
   whole Settings page could not load off Windows.
 - A key that was saved unencrypted on a machine without a keychain is moved into
   the keychain automatically the first time it is read on a machine that has one.
-
-- **The docs no longer promise platforms the app does not deliver.** The README
-  showed a `Windows | Linux | macOS` badge and said the source runs on Linux and
-  macOS too; CI has only ever run Windows and no Linux or macOS artifact has ever
-  been built. Both now say Windows is the only tested and packaged platform, and
-  the work is tracked in issue #13.
+- **The docs claim the platforms the app delivers, and stop where CI's evidence
+  stops.** The README and SECURITY.md name the three OSes and the two Python
+  versions the matrix runs, the four files a release carries, the glibc and macOS
+  floors the bundled Qt wheels need, and the fact that the builds are unsigned —
+  and they no longer imply that a CI runner proves what a desktop keychain does.
 - **The secret store's promise is scoped to the platform that keeps it.** The
-  README and SECURITY.md no longer imply one universal encryption. They name
-  DPAPI on Windows, the machine's keychain on Linux and macOS, and the
-  unencrypted fallback when neither is reachable — and say that the keychain
-  path is unit-tested but has not run on real Linux or macOS hardware yet.
+  README and SECURITY.md name DPAPI on Windows (user scope, so tied to your
+  account rather than the machine), the machine's keychain on Linux and macOS,
+  and the `plain:`-marked fallback where no secret store answers.
 - **The build-from-source instructions no longer build a broken app.** A
   hand-written `pyinstaller` command misses the `--collect-all` flags the real
   build carries, which produces an app that starts and then cannot import
@@ -127,8 +130,21 @@ All notable changes are documented here. The format follows
   uploading the artifact. A tag runs the same build as a three-way matrix and
   publishes one archive per platform in a single release, with the SHA-256 of
   each file and the installer kept Windows-only because Inno Setup is a Windows
-  program. Neither has run yet — the first results arrive when this lands on the
-  remote, and until they are green the app still ships as a Windows product.
+  program. Both have now run: every cell of the six-cell matrix passes the
+  offline suite (841-842 tests), and on each OS the frozen app builds and stays
+  alive through its 30-second smoke test. That run is what the README's platform
+  claims rest on.
+- **Contributors: two tests stopped assuming the runner is Windows.** The secret
+  store's backend tests asked a Linux or macOS machine to answer as if it were
+  Windows, and one of them read the runner's own keychain into the answer; the
+  browser-stealth test opened a window on a Linux runner that has no display.
+  Each now names the condition it is about, so the suite asks the same question
+  on every OS.
+- **A wide platform font no longer clips the left rail.** The rail was exactly as
+  wide as its density token, which the Windows font fits inside — on Linux the
+  same rows needed more, and "Account based" and "Add to queue" lost their last
+  letters. The token is the floor now: the rail grows to whatever its content
+  needs and Windows keeps the width it had.
 
 ## [2.10.0] — 2026-11-02
 
