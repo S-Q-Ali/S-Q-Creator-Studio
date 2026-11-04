@@ -187,7 +187,7 @@ class AgentTabWidget(QWidget):
         # could not be made smaller than that and everything else was
         # squeezed and clipped. Each group now has its own row, and the
         # whole thing starts closed.
-        self.btn_options = QPushButton("⚙ Options")
+        self.btn_options = QPushButton("▸ Options")
         self.btn_options.setProperty("kind", "ghost")
         self.btn_options.setCheckable(True)
         self.btn_options.setToolTip(
@@ -393,7 +393,7 @@ class AgentTabWidget(QWidget):
     def _on_options_toggled(self, open: bool):
         """Show or hide the advanced options."""
         self.options_panel.setVisible(open)
-        self.btn_options.setText("▾ Options" if open else "⚙ Options")
+        self.btn_options.setText("▾ Options" if open else "▸ Options")
 
     def _on_mode_changed(self, mode: str):
         if mode == MODE_SOCIAL:
