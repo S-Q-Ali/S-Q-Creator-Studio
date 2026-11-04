@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
-    "mtime": 1793712007.912394,
-    "seen": 1793712476.885089,
-    "ast_hash": "eb290d1040dc24d36534af5609cb00e6",
+    "mtime": 1793713720.8305318,
+    "seen": 1793757373.6335776,
+    "ast_hash": "107694adbf69fc784246e97e70591aa4",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/__init__.py": {
@@ -120,15 +120,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793711861.961637,
-    "seen": 1793712476.8851502,
-    "ast_hash": "60ce5470a03844c408cb75a359e33638",
+    "mtime": 1793713658.7378056,
+    "seen": 1793757373.633592,
+    "ast_hash": "b8dd1f80ca95d73bf7e18749a1a0027e",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
-    "mtime": 1793711009.690018,
-    "seen": 1793712476.8851817,
-    "ast_hash": "7f598508d0a9032bb75c3d7878bad28f",
+    "mtime": 1793714236.100491,
+    "seen": 1793757373.6336038,
+    "ast_hash": "583527c8b38fc99b276c8f328ce5bfbb",
     "semantic_hash": ""
   },
   "tests/conftest.py": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "tests/test_gui.py": {
-    "mtime": 1793709252.687863,
-    "seen": 1793710478.9931915,
-    "ast_hash": "2e5d8d07fd9547ed94d0d030a6a77fbf",
+    "mtime": 1793713007.6252124,
+    "seen": 1793757373.6336732,
+    "ast_hash": "fe0058f332b60803a9b3ca660c2079e5",
     "semantic_hash": ""
   },
   "tests/test_link_parser.py": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "tests/test_theme.py": {
-    "mtime": 1793711879.0163143,
-    "seen": 1793712476.8857803,
-    "ast_hash": "2d8d6c1df642b986698776beb7677b5f",
+    "mtime": 1793713829.1507635,
+    "seen": 1793757373.6337864,
+    "ast_hash": "ceb69ebc00d97fee5e24a9f7ebcf4ebc",
     "semantic_hash": ""
   },
   "tests/test_tiktok_pipeline.py": {
@@ -2250,9 +2250,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-glass-ui.md": {
-    "mtime": 1793712388.4374661,
-    "seen": 1793712476.8884697,
-    "ast_hash": "9fdf5ecd97c6bd2d1a3f3c02da5409d4",
+    "mtime": 1793757315.4579291,
+    "seen": 1793757373.6345403,
+    "ast_hash": "643afa4b01e4dcb3ec9fcf91bc5111b6",
     "semantic_hash": ""
   },
   "tests/render_glass_screenshots.py": {
@@ -2265,6 +2265,12 @@
     "mtime": 1793708405.1119866,
     "seen": 1793708669.3691611,
     "ast_hash": "76d609988681d62221540117368ff5f7",
+    "semantic_hash": ""
+  },
+  "tests/test_backdrop.py": {
+    "mtime": 1793713749.2676995,
+    "seen": 1793757373.633632,
+    "ast_hash": "dc960d41b4b9dfb46fbb86696f73a356",
     "semantic_hash": ""
   }
 }
