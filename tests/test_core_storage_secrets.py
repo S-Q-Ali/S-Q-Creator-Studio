@@ -193,6 +193,10 @@ def test_ordinary_settings_are_stored_as_they_are_given():
 # which backend this machine gets
 # --------------------------------------------------------------------------- #
 def test_windows_keeps_using_dpapi(monkeypatch):
+    """DPAPI wins on Windows even where a keychain is reachable too. The
+    branch is chosen from the platform, so the platform is what this test has
+    to pin - otherwise a Linux or macOS runner is being asked to be Windows."""
+    monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setattr(db, "_keyring_available", lambda: True)
     assert db._detect_secret_backend() == "dpapi"
 
@@ -220,6 +224,10 @@ def test_the_store_can_be_imported_without_windows_ctypes(monkeypatch):
     sys.meta_path.insert(0, blocker)
     try:
         module = importlib.reload(db)
+        # This test is about the import surviving, not about the runner's
+        # secret store: a CI machine with a live keychain would answer
+        # "keyring" here, so the branch under test is pinned.
+        monkeypatch.setattr(module, "_keyring_available", lambda: False)
         assert module._detect_secret_backend() == "plain"
     finally:
         sys.meta_path.remove(blocker)
