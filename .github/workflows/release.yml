@@ -150,7 +150,11 @@ jobs:
           )
           $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $exe) { throw "no launcher to smoke test" }
-          $p = Start-Process -FilePath $exe -PassThru -WindowStyle Hidden
+          # -WindowStyle exists only in the Windows edition of PowerShell; on
+          # Linux and macOS it fails the call before the app can even start.
+          $launch = @{ FilePath = $exe; PassThru = $true }
+          if ($IsWindows) { $launch.WindowStyle = 'Hidden' }
+          $p = Start-Process @launch
           Start-Sleep -Seconds 30
           if ($p.HasExited) { throw "the built app exited immediately (code $($p.ExitCode))" }
           Stop-Process -Id $p.Id -Force
