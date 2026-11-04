@@ -51,7 +51,7 @@ Download the latest release and start downloading videos in seconds:
 - **Queue management** — add, select, remove, retry, empty. Saved between sessions.
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.
-- **Quality presets** — Best available → 2160p/1440p/1080p/720p/480p, plus **Audio only** (MP3 via bundled ffmpeg).
+- **Quality presets** — **Best up to 4K** by default (the best the source really offers, capped at 2160p), then 1440p/1080p/720p/480p, **Best available** (no cap), plus **Audio only** (MP3 via bundled ffmpeg). A 4K stream is VP9 or AV1, so it is muxed into an **MKV** — an MP4 that carries them is refused by half the players — and the queue card names the resolution and codec that came down.
 - **Account based** — paste a public TikTok profile and pull its newest video URLs for review. The same button takes an Instagram profile or a Facebook page.
 - **Browser impersonation** — TikTok requests are signed with a real Chrome identity so rate-limit failures are far less likely.
 - **AI Channel Finder & Social Inspector** — one tab with three modes: **YouTube → Socials**, **TikTok → YouTube / Facebook / Instagram**, and **Social Discovery**, which takes a channel URL, a handle or a name and finds the creator's other accounts. Uses a keyless yt-dlp search by default; an optional YouTube Data API key lifts quota walls.
@@ -226,7 +226,7 @@ A: Try these:
 - Verify output directory is writable
 
 **Q: Which quality options are available?**
-A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio only** (MP3).
+A: **Best up to 4K** (the default — the best the source offers, up to 2160p) → 1440p → 1080p → 720p → 480p, plus **Best available** (no cap) and **Audio only** (MP3). A video that has no 4K stream comes down at the best it does have; the card says which one that was.
 
 ---
 

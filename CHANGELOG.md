@@ -3,6 +3,41 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.12.0] — 2026-11-04
+
+### Added
+
+- **A download comes down at the best the source really offers, up to 4K.** The
+  default used to be 1080p — a cap nobody chose — so a 4K video arrived as
+  1080p. The default is now **Best up to 4K**: the highest resolution the
+  source has, capped at 2160p, with **Best available** (no cap) still one
+  dropdown away for the 8K streams. A video that has no 4K stream comes down at
+  the best it does have. Measured on YouTube through the client the app already
+  uses, a 4K video offers 2160p in AV1 and VP9, and the app now takes it.
+- **The queue card says what came down** — `2160p · VP9`, next to the size, so
+  "4K ho gaya" is visible instead of a guess.
+
+### Changed
+
+- **The container follows the codec.** A 4K stream is VP9 or AV1, and an MP4
+  that carries them is refused by half the players, so those downloads are muxed
+  into an **MKV**; H.264 and HEVC stay in an **MP4** as before. The container is
+  decided from the codec the download actually picked.
+- **A quality you chose survives an upgrade.** The settings used to write
+  1080p over the dropdown on every settings-version bump, so a chosen quality
+  was replaced by the old default. A quality is now marked as yours when you
+  pick it, and only a quality you never chose follows the default.
+
+### Fixed
+
+- **The release named its archives without the platform.** PowerShell reads an
+  environment variable as `$env:NAME`, not as a bare `$NAME` — so every archive
+  was named `S-Q-Creator-Studio-2.11.0-.tar.gz`, and the Linux build was
+  overwritten by the macOS one when the artifacts were merged. The v2.11.0
+  release therefore has no Linux archive. Each archive now carries its platform
+  again, and the publish step refuses to release when one of the three is
+  missing.
+
 ## [2.11.0] — 2026-11-04
 
 ### Added

@@ -123,7 +123,7 @@ Layout — a single column of grouped cards, one card per concern:
 │                                                          │
 │ DOWNLOADS                                               │
 │   Save to            [E:\Videos\...]      [Browse][Open]  │
-│   Quality            [Best available ▾]                   │
+│   Quality            [Best up to 4K ▾]                   │
 │   Pace               [Normal · 4-9s ▾]                    │
 │   Workers            [2 · parallel ▾]                     │
 │   End passes         [2 passes ▾]                        │
