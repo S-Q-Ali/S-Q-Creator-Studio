@@ -415,13 +415,49 @@ Suite after 9: **846 passed, 19 deselected**.
 densities; the four stale `screenshots/*.png` (all Oct 26) are replaced.
 
 **Acceptance criteria:**
-- [ ] Fresh PNGs for Download, Music, Social Discovery, Agent and Settings.
-- [ ] The report states geometry, contrast and parse-cleanliness only — never "looks right".
+- [x] Fresh PNGs for Download, Music, Social Discovery, Agent and Settings.
+- [x] The report states geometry, contrast and parse-cleanliness only — never "looks right".
 
 **Verification:**
-- [ ] `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe tests/render_glass_screenshots.py` writes the files, and the user is asked to run the app for the judgement that cannot be automated.
+- [x] `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe tests/render_glass_screenshots.py` writes the files, and the user is asked to run the app for the judgement that cannot be automated.
 
 **Dependencies:** Tasks 4-9 · **Scope:** S (2 files + 4 PNGs)
+
+**Outcome:** The script renders 2 densities × 4 sizes × 5 pages = 40 review PNGs
+into a scratch directory and writes the six the README shows — `interface`,
+`music`, `agent`, `social-discovery`, `settings`, `compact` — into
+`screenshots/`. The report prints only measurements: 193 font families loaded,
+sheet 11 820 chars in 93 rule bodies, body text on a panel 15.51:1, checked tab
+4.73:1, and per shot the window size, the share of blue pixels (0.9 %-2.9 %) and
+the four dominant colours (all greys, `#17191D` first). It never says a screen
+looks right.
+
+Three defects the review caught, all fixed here:
+
+- **The download folder was this machine's.** Redirecting `APPDATA`,
+  `LOCALAPPDATA` and `HOME` does not cover the preferences on Windows, which
+  live in the registry: the first render printed the real path, and the Music
+  page printed the storage default. The script now sets `SQ_SETTINGS_FILE` the
+  way `conftest.py` does and writes a neutral folder into both fields.
+- **The combo caret was a sliver, not an arrow.** `theme.py` drew the
+  indicator with `border-left/right: transparent` — Qt has no CSS border
+  triangle, so it painted a filled 4×5 box. Both `QComboBox::drop-down` and
+  `QComboBox::down-arrow` are gone and Qt draws its own caret again;
+  `test_the_combo_arrow_is_left_to_qt` keeps it that way.
+- **`⚙ Options` was tofu.** Loading the whole font folder instead of six files
+  is what made this visible: plain U+2699 has no face on this machine, while
+  the tab bar's `⚙️` (with the emoji selector) does. The button now reads
+  `▸ Options` / `▾ Options`, and `☰` in the nav bar renders.
+
+The seeded queue rows carry titles, and the failed row is a TikTok link: the
+card badge only distinguishes YouTube from everything else, so an Instagram
+link in a shipped screenshot would have been labelled `TIKTOK`.
+
+Suite after 10: **847 passed, 19 deselected**. The six PNGs still need the
+user's own eyes — the render proves geometry and colour, not taste.
+
+### Checkpoint: glass treatment
+- [x] Every screen on the glass sheet; opaque where function demands it; contrast asserted on composites; PNGs reviewed.
 
 ### Task 11: Docs that match the build
 

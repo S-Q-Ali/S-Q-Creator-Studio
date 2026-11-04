@@ -27,13 +27,17 @@ Download the latest release and start downloading videos in seconds:
 
 ## 📸 Screenshots
 
-| Main Interface | Settings |
-|----------------|----------|
-| ![Main Interface](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/interface.png) | ![Settings](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/settings.png) |
+| Main Interface | Music |
+|----------------|-------|
+| ![Main Interface](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/interface.png) | ![Music](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/music.png) |
 
-| Social Discovery | Compact Mode |
-|------------------|--------------|
-| ![Social Discovery](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/social-discovery.png) | ![Compact Mode](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/compact.png) |
+| AI Channel Finder | Social Discovery |
+|-------------------|------------------|
+| ![AI Channel Finder](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/agent.png) | ![Social Discovery](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/social-discovery.png) |
+
+| Settings | Compact Mode |
+|----------|--------------|
+| ![Settings](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/settings.png) | ![Compact Mode](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/compact.png) |
 
 ---
 
