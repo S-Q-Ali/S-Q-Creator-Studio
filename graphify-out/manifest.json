@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793827571.7186449,
-    "seen": 1793827897.8217292,
-    "ast_hash": "f4fe9f90cad7b6bb330003588ecf8981",
+    "mtime": 1793832111.9406312,
+    "seen": 1793832533.382803,
+    "ast_hash": "74f749b433cd24852084d1fa28c96629",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793827433.3955345,
-    "seen": 1793827897.8217356,
-    "ast_hash": "615621fde109d5d2ba20a788e3239070",
+    "mtime": 1793832109.2967215,
+    "seen": 1793832533.3828373,
+    "ast_hash": "fd657e1a986390316d8e723c20513ee9",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1614,9 +1614,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1793826932.4204886,
-    "seen": 1793827897.8213382,
-    "ast_hash": "2d3ab2d5179e3b6f0f2e3753521d5347",
+    "mtime": 1793832114.5472183,
+    "seen": 1793832533.3805256,
+    "ast_hash": "1ea8263821f2158f6c4082733e9ac6c4",
     "semantic_hash": ""
   },
   ".opencode/command/ponytail-audit.md": {
@@ -2232,15 +2232,15 @@
     "semantic_hash": ""
   },
   "release/build.py": {
-    "mtime": 1793826940.305511,
-    "seen": 1793827897.821111,
-    "ast_hash": "10a356e174257c29729a439b72440754",
+    "mtime": 1793832097.417834,
+    "seen": 1793832533.3795435,
+    "ast_hash": "02c362530577b7fc9234f38064b82e8b",
     "semantic_hash": ""
   },
   "tests/test_release_build_script.py": {
-    "mtime": 1793827034.4880097,
-    "seen": 1793827897.8212843,
-    "ast_hash": "94ac3963140928c1234db7860bfed77d",
+    "mtime": 1793832117.8595667,
+    "seen": 1793832533.380228,
+    "ast_hash": "265c51b68d66a49e09a15c7a752f8996",
     "semantic_hash": ""
   },
   "tasks/plan-glass-ui.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "tests/test_release_workflow.py": {
-    "mtime": 1793826977.7274015,
-    "seen": 1793827897.821287,
-    "ast_hash": "6de7ce1186ab113a6ac0faa405007536",
+    "mtime": 1793829490.3863049,
+    "seen": 1793832533.3802366,
+    "ast_hash": "ed48a34813a48c839a278d281793cdbf",
     "semantic_hash": ""
   },
   "tasks/plan-download-quality.md": {
@@ -2316,21 +2316,21 @@
     "semantic_hash": ""
   },
   "tasks/plan-macos-intel-and-dmg.md": {
-    "mtime": 1793827386.0477064,
-    "seen": 1793827897.8217828,
-    "ast_hash": "55f26d59e1ed86eb038998c7dee609f5",
+    "mtime": 1793832123.8845427,
+    "seen": 1793832533.3830802,
+    "ast_hash": "421ec260a359886347d2612189c13fac",
     "semantic_hash": ""
   },
   "tasks/spec-macos-intel-and-dmg.md": {
-    "mtime": 1793827359.061573,
-    "seen": 1793827897.8218203,
-    "ast_hash": "3bc65b0f1ef16d3b0d01d0dea509a46e",
+    "mtime": 1793832123.8469527,
+    "seen": 1793832533.383272,
+    "ast_hash": "e0dfd3581af13ece75658ec3e827607f",
     "semantic_hash": ""
   },
   "tasks/todo-macos-intel-and-dmg.md": {
-    "mtime": 1793827380.8562663,
-    "seen": 1793827897.8218431,
-    "ast_hash": "41d23a0e54efff3f8583131b11d1abab",
+    "mtime": 1793832128.6776018,
+    "seen": 1793832533.383434,
+    "ast_hash": "69871adc21654a2bf3c65a5ad2fd9aea",
     "semantic_hash": ""
   }
 }
