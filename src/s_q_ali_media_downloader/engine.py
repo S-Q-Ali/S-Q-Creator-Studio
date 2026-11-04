@@ -86,14 +86,78 @@ RETRY_PASSES = {
 DEFAULT_PASSES = "1 pass"
 
 QUALITY_OPTIONS = {
+    # The first entry is what a fresh install downloads at: the best the
+    # source offers, up to 4K. "Best available" is the no-cap choice, for
+    # the 8K streams that exist.
+    "Best up to 4K": "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best",
     "Best available": "bestvideo+bestaudio/best",
-    "4K · 2160p": "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best",
     "2K · 1440p": "bestvideo[height<=1440]+bestaudio/best[height<=1440]/best",
     "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
     "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
     "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
     "Audio only": "bestaudio/best",
 }
+DEFAULT_QUALITY = "Best up to 4K"
+
+#: The video codecs that do not belong in an MP4. YouTube's 4K streams are
+#: VP9 and AV1, and a file that carries them under an .mp4 name is refused by
+#: half the players out there.
+MKV_CODECS = ("vp8", "vp9", "vp09", "av01", "av1")
+
+#: What each codec is called on the card.
+CODEC_LABELS = {
+    "avc1": "H.264",
+    "avc3": "H.264",
+    "h264": "H.264",
+    "vp8": "VP8",
+    "vp9": "VP9",
+    "vp09": "VP9",
+    "av01": "AV1",
+    "av1": "AV1",
+    "hev1": "HEVC",
+    "hvc1": "HEVC",
+}
+
+
+def merge_container_for(vcodec):
+    """The container a codec belongs in: MKV for VP9/AV1, MP4 for the rest.
+
+    yt-dlp merges whatever `merge_output_format` allows into, and it falls
+    back to that extension even when the codecs do not fit - so a 4K VP9
+    stream muxed with Opus audio would land in an MP4 that many players
+    refuse to open.
+    """
+    codec = (vcodec or "").split(".")[0].lower()
+    return "mkv" if codec.startswith(MKV_CODECS) else "mp4"
+
+
+def codec_aware_format_selector(spec, get_ydl):
+    """A yt-dlp format callable that picks the container from the codec.
+
+    `merge_output_format` is one fixed preference list, and MKV is
+    compatible with every codec, so no format string can say "MKV for
+    VP9/AV1, MP4 otherwise". The callable selects once to learn the video
+    codec, sets the container that codec needs, and selects again - so
+    yt-dlp's own merge code builds the file with the right one.
+    """
+
+    def selector(ctx):
+        ydl = get_ydl()
+        chosen = list(ydl.build_format_selector(spec)(ctx))
+        if not chosen:
+            return []
+        ydl.params["merge_output_format"] = merge_container_for(chosen[0].get("vcodec"))
+        return list(ydl.build_format_selector(spec)(ctx))
+
+    return selector
+
+
+def quality_label(height, vcodec):
+    """What the card shows about the stream: `2160p · VP9`."""
+    if not height or not vcodec or vcodec == "none":
+        return ""
+    codec = str(vcodec).split(".")[0].lower()
+    return f"{int(height)}p · {CODEC_LABELS.get(codec, codec.upper())}"
 
 MUSIC_FORMATS = {
     "FLAC · lossless container": "flac",
@@ -892,6 +956,7 @@ class DownloadThread(QThread):
 
     job_started = Signal(int, str)
     job_meta = Signal(int, str, str)
+    job_quality = Signal(int, str)
     job_progress = Signal(int, float, str, str)
     job_retrying = Signal(int, int, int)
     job_result = Signal(int, str, str, str)
@@ -975,14 +1040,20 @@ class DownloadThread(QThread):
         return opts
 
     def _hook_factory(self, uid, seen, platform="TikTok"):
+        reported = set()
+
         def hook(d):
             self._gate()
+            meta = d.get("info_dict") or {}
             if not seen:
-                meta = d.get("info_dict") or {}
                 caption = meta.get("description") or meta.get("title")
                 if caption:
                     seen.add(True)
                     self.job_meta.emit(uid, sanitize_filename(caption), platform)
+            label = quality_label(meta.get("height"), meta.get("vcodec"))
+            if label and label not in reported:
+                reported.add(label)
+                self.job_quality.emit(uid, label)
             if d.get("status") == "downloading":
                 total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
                 got = d.get("downloaded_bytes") or 0
@@ -1003,9 +1074,11 @@ class DownloadThread(QThread):
         os.makedirs(self.output_dir, exist_ok=True)
         platform = platform_of(url) or "TikTok"
         opts = self._base_opts(platform)
+        spec = QUALITY_OPTIONS[self.quality]
+        holder = {}
         opts.update(
             {
-                "format": QUALITY_OPTIONS[self.quality],
+                "format": spec,
                 "outtmpl": os.path.join(
                     self.output_dir, f"{TEMP_PREFIX}%(id)s-{uid}.%(ext)s"
                 ),
@@ -1026,8 +1099,14 @@ class DownloadThread(QThread):
                     "preferredquality": "192",
                 }
             ]
+        else:
+            # The container follows the codec, and only the download knows
+            # which codec it picked - so the selection is a callable that
+            # decides the container once it knows.
+            opts["format"] = codec_aware_format_selector(spec, lambda: holder["ydl"])
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
+                holder["ydl"] = ydl
                 info = ydl.extract_info(url, download=True)
                 if info is None:
                     raise RuntimeError("No video found at this link")

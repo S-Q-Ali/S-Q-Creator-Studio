@@ -1149,6 +1149,7 @@ class MainWindow(QMainWindow):
         )
         self.thread.job_started.connect(self.on_started)
         self.thread.job_meta.connect(self.on_meta)
+        self.thread.job_quality.connect(self.on_quality)
         self.thread.job_progress.connect(self.on_progress)
         self.thread.job_retrying.connect(self.on_retrying)
         self.thread.job_result.connect(self.on_result)
@@ -1224,6 +1225,13 @@ class MainWindow(QMainWindow):
         if not job:
             return
         job.title = title
+        self.cards[uid].refresh()
+
+    def on_quality(self, uid, label):
+        job = self._job(uid)
+        if not job:
+            return
+        job.quality = label
         self.cards[uid].refresh()
 
     def on_progress(self, uid, percent, size, speed):

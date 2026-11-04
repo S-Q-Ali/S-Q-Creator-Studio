@@ -157,6 +157,7 @@ class Job:
         self.percent = 0.0
         self.size = "—"
         self.speed = ""
+        self.quality = ""
         self.error = ""
         self.note = ""
 
@@ -266,7 +267,7 @@ class JobCard(QFrame):
             else ""
         )
 
-        bits = [f"{int(j.percent)}%", j.size]
+        bits = [f"{int(j.percent)}%", j.quality, j.size]
         if j.speed:
             bits.append(j.speed)
         self.meta.setText("   ".join(b for b in bits if b))

@@ -38,6 +38,7 @@ from s_q_ali_media_downloader.engine import (
     DEFAULT_DELAY,
     DEFAULT_PARALLEL,
     DEFAULT_PASSES,
+    DEFAULT_QUALITY,
     DELAY_PRESETS,
     PARALLEL_OPTIONS,
     QUALITY_OPTIONS,
@@ -444,7 +445,10 @@ class SettingsPage(QWidget):
         self.settings_page_loaded = False
 
         if self.settings.value("settings_version") != SETTINGS_VERSION:
-            self.settings.setValue("quality", "1080p")
+            # The quality is deliberately not written here. A stored value
+            # the user chose has to survive the bump, and a stored value
+            # that was only the old default must not hold them on it - the
+            # `quality_set` marker is what tells the two apart.
             self.settings.setValue("pace", DEFAULT_DELAY)
             self.settings.setValue("passes", DEFAULT_PASSES)
             self.settings.setValue("parallel", DEFAULT_PARALLEL)
@@ -453,7 +457,12 @@ class SettingsPage(QWidget):
         self.folder_edit.setText(self.settings.value("output_dir") or default_output_dir())
 
         quality = self.settings.value("quality")
-        self.quality.setCurrentText(quality if quality in QUALITY_OPTIONS else "1080p")
+        # The registry keeps the string "true", an ini file keeps a boolean.
+        chosen = str(self.settings.value("quality_set", "")).lower() == "true"
+        if chosen and quality in QUALITY_OPTIONS:
+            self.quality.setCurrentText(quality)
+        else:
+            self.quality.setCurrentText(DEFAULT_QUALITY)
 
         pace = self.settings.value("pace")
         self.pace.setCurrentText(pace if pace in DELAY_PRESETS else DEFAULT_DELAY)
@@ -525,6 +534,12 @@ class SettingsPage(QWidget):
         """Write the download preferences back."""
         self.settings.setValue("output_dir", self.folder_edit.text().strip())
         self.settings.setValue("quality", self.quality.currentText())
+        # Only a quality the user picked is marked as theirs, so the default
+        # keeps following the default when it moves.
+        self.settings.setValue(
+            "quality_set",
+            "true" if self.quality.currentText() != DEFAULT_QUALITY else "false",
+        )
         self.settings.setValue("pace", self.pace.currentText())
         self.settings.setValue("passes", self.passes.currentText())
         self.settings.setValue("parallel", self.parallel.currentText())
