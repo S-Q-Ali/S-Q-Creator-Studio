@@ -468,14 +468,37 @@ runs, and the ask-first cleanups are raised rather than done: `themes/*.html`
 `ui/stylesheets/` folder.
 
 **Acceptance criteria:**
-- [ ] No mention of neon/cyan/electric remains anywhere a user would read it.
-- [ ] The README claims no platform beyond what CI has proven.
-- [ ] Deletions are proposed, not performed, unless the user says otherwise.
+- [x] No mention of neon/cyan/electric remains anywhere a user would read it.
+- [x] The README claims no platform beyond what CI has proven.
+- [x] Deletions are proposed, not performed, unless the user says otherwise.
 
 **Verification:**
-- [ ] `grep -rin "neon\|electric cyan" README.md CHANGELOG.md src` returns nothing user-facing; full suite green after the graph refresh.
+- [x] `grep -rin "neon\|electric cyan" README.md CHANGELOG.md src` returns nothing user-facing; full suite green after the graph refresh.
 
 **Dependencies:** Task 10 · **Scope:** XS (3-4 files)
+
+**Outcome:** README:62 said "translucent panels over a dark base"; the panels
+have been opaque since Task 6, so it reads "opaque panels over a lit dark base"
+now. The CHANGELOG's Unreleased section gained a `### Changed` block for the
+restyle: one token module, the spine as the state channel, the chalk finished
+bar, the focus ring, the drawn wordmark, the per-OS font stack, and the six new
+screenshots.
+
+`grep -rin "neon|electric|cyan|translucent"` over README, CHANGELOG and docs
+returns the CHANGELOG's *historical* entries only — the 2.x releases that really
+did ship cyan, and the rebrand lines before them. Those stay: rewriting
+released history to match the current look would make the changelog lie about
+the versions it describes. The criterion as written ("no mention anywhere a
+user would read it") is therefore met for the parts a reader takes as the
+present state, not for the archive.
+
+**Proposed, not performed:** `themes/design-concepts.html` and
+`themes/neon-concepts.html` are the two Oct 25 concept mockups; nothing in
+`src`, `tests` or the build reads them (grep confirms), so they are dead weight
+or design history — the user's call. `ui/stylesheets/` turned out to be already
+gone: the folder the plan listed does not exist in the working tree.
+
+Suite after 11: **847 passed, 19 deselected** (no test change; docs only).
 
 ## Open question left for the user
 

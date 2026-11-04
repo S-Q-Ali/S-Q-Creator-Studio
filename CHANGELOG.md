@@ -20,6 +20,29 @@ All notable changes are documented here. The format follows
   macOS run left in the home directory is moved into place on the next start,
   so the keys already entered are not lost.
 
+### Changed
+
+- **The interface is on one glass sheet.** Black, white, grey and one blue:
+  every colour the app paints comes from a single token module, and the pages
+  that carried their own hardcoded colours — the queue cards, Music, Social
+  Discovery, Settings — read from it now. Panels are opaque and the light comes
+  from the backdrop behind them, because text over a translucent panel is text
+  that has to be read twice.
+- **A download's state is not one colour.** Each queue card has a spine on its
+  left edge that says where the job is (queued, moving, retrying, waiting,
+  paused, completed, failed), a finished bar is chalk instead of the blue that
+  means still running, and a failed row carries its error in a loud chip. The
+  pairs are measured, not eyeballed: body text on a panel is 15.5:1 and the
+  selected tab 4.7:1.
+- **Keyboard focus is visible on every control.** Tabbing paints a blue ring
+  that changes colour and never size, so nothing shifts as you move about.
+- **The wordmark is drawn rather than typed,** at the size the current density
+  asks for, and the font stack names the system face on Windows, macOS and
+  Linux instead of assuming Segoe UI everywhere.
+- **The README shows the current build.** Six renders, one per workspace page
+  plus the compact layout, written by `tests/render_glass_screenshots.py` —
+  which keeps this machine's download folder out of them.
+
 ### Fixed
 
 - **The settings store no longer needs Windows to import.** It read
