@@ -4,23 +4,30 @@ Thanks for helping out! This project is small but open to everyone. Here's how t
 
 ## Setup
 
+Needs Python 3.12 or newer — the versions CI runs are 3.12 and 3.14.
+
 ```powershell
 git clone https://github.com/S-Q-Ali/S-Q-Creator-Studio.git
 cd S-Q-Creator-Studio
 python -m venv .venv
-.\.venv\Scripts\activate
+.\.venv\Scripts\activate      # Linux and macOS: source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
 ## Running checks
 
 ```powershell
-pytest                # 390+ tests incl. full offscreen GUI smoke suite
-ruff check src tests  # lint
+pytest -m "not live"        # the offline suite, incl. the offscreen GUI smoke tests
+ruff check src tests        # lint
 ```
 
-Everything must pass before a PR is merged. CI runs lint, tests, and a
-`pip-audit` dependency scan on Windows.
+Everything must pass before a PR is merged. Every push to `master` runs the full
+matrix — lint and the offline suite on Windows, Ubuntu 24.04 and macOS 14, at
+Python 3.12 and 3.14 — and on each OS's 3.14 cell also runs a `pip-audit`
+dependency scan, builds the portable app and launches it. A pull request gets the
+faster version: Ubuntu and Windows at 3.14. The `live` tests hit the video
+platforms' servers, so they never run in CI; run them yourself with `pytest -m
+live`.
 
 ## How the agent works here
 

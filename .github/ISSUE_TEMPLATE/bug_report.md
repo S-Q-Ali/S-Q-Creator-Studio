@@ -23,7 +23,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Environment:**
-- OS: [e.g., Windows 10, Windows 11]
+- OS: [e.g., Windows 11, Ubuntu 24.04, macOS 15]
 - App Version: [e.g., 2.6.0]
 - Python Version: [e.g., 3.11, if running from source]
 

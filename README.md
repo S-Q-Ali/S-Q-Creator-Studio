@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/actions)
 [![Python](https://img.shields.io/badge/python-3.14%20tested-blue.svg)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows-orange.svg)](https://github.com/S-Q-Ali/S-Q-Creator-Studio/issues/13)
+[![Platform](https://img.shields.io/badge/platform-Windows_Linux_macOS-blue.svg)](#install)
 
 Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pull the **audio** behind any YouTube, YouTube Music, SoundCloud or Spotify link, and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
 
@@ -16,8 +16,8 @@ Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pu
 
 Download the latest release and start downloading videos in seconds:
 
-1. Download the newest `S-Q-Creator-Studio-Setup-*.exe` from [Releases](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
-2. Install (no admin rights needed)
+1. Download the build for your platform — Windows, Linux or macOS — from [Releases](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases)
+2. Install or unpack it (the Windows installer needs no admin rights)
 3. Paste TikTok, YouTube, Facebook or Instagram links
 4. Click Start
 
@@ -66,9 +66,27 @@ Download the latest release and start downloading videos in seconds:
 
 ## Install
 
-The installer and the portable build are Windows-only. The app is written portably and is expected to start on Linux and macOS from source, but neither platform is tested, packaged or supported today — there is no CI job and no artifact for them. Issue #13 tracks the work to make that claim true.
+Every release ships a build for each desktop platform it tests. Get yours from
+the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases):
 
-### Installer (recommended)
+| Platform | File | |
+|---|---|---|
+| Windows 10/11 (x86_64) | `S-Q-Creator-Studio-Setup-*.exe` | Installer, no admin rights needed |
+| Windows 10/11 (x86_64) | `S-Q-Creator-Studio-*-windows-x64.zip` | Portable folder |
+| Linux x86_64 | `S-Q-Creator-Studio-*-linux-x64.tar.gz` | Portable folder |
+| macOS 13+ (Apple Silicon) | `S-Q-Creator-Studio-*-macos-arm64.tar.gz` | Portable `.app` |
+
+**What CI proves, and what it does not.** Each archive is built on its own
+platform's runner, and there the offline suite passes and the frozen app is
+launched and stays up — at Python 3.12 and 3.14, on `windows-latest`,
+Ubuntu 24.04 and macOS 14. The Linux build needs glibc 2.34 or newer, which is
+what the bundled PySide6 wheels support; other distributions, older macOS
+releases and Intel Macs are unbuilt and untested. Nothing here is signed or
+notarised, so Windows will warn on the installer's first run and macOS will
+refuse the app until you approve it in System Settings → Privacy & Security.
+The `live` tests, which hit TikTok and YouTube servers, never run in CI.
+
+### Windows: installer (recommended)
 
 Download the newest `S-Q-Creator-Studio-Setup-*.exe` from the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases).
 
@@ -77,20 +95,31 @@ Download the newest `S-Q-Creator-Studio-Setup-*.exe` from the [latest release](h
 - Bundles the full Chromium build, so Social Discovery works even where no browser is installed.
 - Installs Start-menu and (optional) desktop shortcuts, plus an uninstaller.
 
-### Portable
+The portable Windows build is the same app in a zip — unzip and run
+`S-Q Creator Studio.exe`. It needs the `_internal` folder to stay next to it.
+System ffmpeg is used if present on `PATH`.
 
-The release also ships a portable folder — just unzip and run `S-Q Creator Studio.exe`. It needs the `_internal` folder to stay next to it. System ffmpeg is used if present on `PATH`.
+### Linux and macOS
+
+Unpack the archive into an empty folder and run what is inside it:
+`S-Q Creator Studio` on Linux, `S-Q Creator Studio.app` on macOS. The files next
+to the launcher belong there — the app reads them on start-up. Both archives
+carry their own Chromium and ffmpeg, so Social Discovery and merged downloads
+work on a machine that has neither installed. Your API keys go to the machine's
+own keychain: the login keychain on macOS, the secret service the desktop offers
+on Linux (GNOME Keyring or KWallet).
 
 ## Build from source
 
-Requires Python 3.10+; 3.14 is the version CI runs the suite and the release build on.
+Requires Python 3.12 or newer — the versions CI runs the offline suite on are
+3.12 and 3.14, and each release is built on 3.14.
 
 ```powershell
 git clone https://github.com/S-Q-Ali/S-Q-Creator-Studio.git
 cd S-Q-Creator-Studio
 
 python -m venv .venv
-.\.venv\Scripts\activate
+.\.venv\Scripts\activate      # Linux and macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
 # Social Discovery drives a real browser. Chrome or Edge is used when the
@@ -108,19 +137,23 @@ pip install -r requirements-dev.txt
 pytest -m "not live"        # the live tests hit the network; run them with `pytest -m live`
 ruff check src tests
 
-# build the Windows EXE + installer — this is what CI runs
-release\build.bat     # PyInstaller onedir, then Inno Setup; it also stages
-                      # ffmpeg and the bundled Chromium next to the app
+# build the portable app for the OS you are on — this is what CI runs
+python release/build.py   # PyInstaller onedir; on Windows it then compiles
+                          # the installer with Inno Setup. It also stages
+                          # ffmpeg and the bundled Chromium next to the app
 ```
 
-The packaging flags PyInstaller actually needs live in `release/build.bat`
+The packaging flags PyInstaller actually needs live in `release/build.py`
 (`--collect-all` for `yt_dlp`, `curl_cffi`, `playwright`, `instaloader`,
 `mutagen`, `SpotipyFree`, `spotapi`, `browser_use` and friends). Building with a
 hand-rolled `pyinstaller` command tends to produce an app that starts and then
 fails to import one of those at runtime, so prefer the script.
 
-There is no Linux or macOS build script yet — the Windows one uses cmd, winget
-and Inno Setup throughout.
+One script builds all three platforms: the data-path separator, the ffmpeg file
+name, the browser cache folder, the launcher name and the keyring collection
+follow the OS doing the build. `release\build.bat` is the Windows entry point
+that starts it, and the installer step is skipped off Windows because Inno Setup
+is a Windows program.
 
 ## How downloads work
 
@@ -143,7 +176,9 @@ Everything is in the **Settings** tab of the app.
 | **Save to / Quality / Pace / Workers / End passes** | Where the videos land and how hard the app works. |
 | **Compact layout** | Follows the window by default: below 1500×850 the interface tightens itself so nothing is clipped on a small laptop. Tick the box to choose it yourself. |
 
-On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account — and no key is ever written to a URL or to the log. Off Windows the store asks the machine's own keychain (the login keychain, GNOME Keyring, KWallet) through `keyring` and keeps only the item's name in the database. A system with no keychain available marks those rows `plain:` and says so on the Settings page instead of pretending the key is safe. The keychain path is covered by unit tests but has not yet been run on a real Linux or macOS machine, and Windows remains the only supported platform (issue #13).
+On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account, not to the machine — and no key is ever written to a URL or to the log. Off Windows the store asks the machine's own keychain (the login keychain, GNOME Keyring, KWallet) through `keyring` and keeps only the item's name in the database. Where no secret store answers, the row is marked `plain:` and the Settings page says so instead of pretending the key is safe.
+
+What has actually run where: the store resolves its backend on Linux and macOS in CI, which builds and launches the app there — but a CI runner is not a desktop. The sealed round-trip through a real user keychain is covered by tests against a stand-in keychain, and it is your machine that runs it against a live one first. A keychain that refuses the app is a bug: open an issue with the OS and the desktop. DPAPI and the keychains are both tied to your login; they defend a stolen disk, not someone already sitting in your account.
 
 ## Tech stack
 
@@ -186,8 +221,8 @@ A: These videos cannot be downloaded. They're marked as **Waiting** but won't re
 **Q: App won't start or crashes?**
 A: Try these:
 - Reinstall the app
-- Check Python 3.10+ installed (if running from source)
-- Ensure ffmpeg.exe is accessible (check PATH)
+- Check Python 3.12+ installed (if running from source)
+- Ensure ffmpeg is accessible (check `PATH`) — every build ships its own beside the app
 - Verify output directory is writable
 
 **Q: Which quality options are available?**
@@ -209,6 +244,9 @@ A: Best available → 2160p → 1440p → 1080p → 720p → 480p, plus **Audio 
 - [ ] Batch download optimization
 
 ### Future
+- [ ] Master-key sealing for API keys — a 256-bit key derived from a password you
+      type, instead of DPAPI or the OS keychain, so the secrets stop depending on
+      your login and there is no `plain:` fallback on a machine with no keychain
 - [ ] AI-powered video recommendations
 - [ ] Multi-language UI (i18n)
 - [ ] Browser extension for quick add
