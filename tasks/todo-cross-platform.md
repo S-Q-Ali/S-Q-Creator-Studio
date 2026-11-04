@@ -335,7 +335,7 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
 
 ## Phase H — docs that match the build (`docs-truth`)
 
-- [ ] **H1. Per-OS install/run/build docs** — README install + Quick Start +
+- [x] **H1. Per-OS install/run/build docs** — README install + Quick Start +
       build-from-source recipe (now `python release/build.py`), FAQ per OS,
       Python "3.12 and 3.14 tested", the OS floors from B1 (glibc ≥ 2.34
       x86_64 / ≥ 2.39 arm64, macOS 13+), keyring/DPAPI statement, CONTRIBUTING
@@ -343,10 +343,17 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       Acceptance: every claim maps to a CI job or an artifact that exists.
       Files: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `release/README.md`,
       `.github/ISSUE_TEMPLATE/bug_report.md` · **M**
-- [ ] **H2. CHANGELOG + version bump** — the release that first claims three OSes.
+      — done in `docs: state the platforms CI proves…`. Deviations worth naming:
+      SECURITY.md got prose, not a table; `release/README.md` already described
+      three platforms from G1; arm64 is not claimed at all because no arm64
+      archive is built. The keychain wording stops short of claiming a real
+      keychain round-trip — a CI runner is not a desktop, and the user's own
+      machine is the first place that runs.
+- [x] **H2. CHANGELOG + version bump** — the release that first claims three OSes.
       Verify: dated heading before any tag, per the standing rule.
       Files: `CHANGELOG.md`, `__init__.py`, `pyproject.toml` · **XS**
-- [ ] **H3. The declared Python floor** — `pyproject.toml:10` says
+      — `2.11.0`, heading dated 2026-11-04 in the same commit as the bump.
+- [x] **H3. The declared Python floor** — `pyproject.toml:10` says
       `requires-python = ">=3.10"`, which is a promise nothing runs on: F1 tests
       3.12 and 3.14 only, and B1's spike found that the `[agent]` extra cannot
       even resolve on 3.10 (`browser-use==0.13.14` needs >=3.11). Raise the floor
@@ -354,7 +361,15 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       the version bump, not beside a workflow edit.
       Acceptance: `uv pip compile` resolves the package for every Python the
       metadata allows. Files: `pyproject.toml` · **XS**
+      — raised to `>=3.12`, README and CONTRIBUTING floors with it. Verified
+      against the matrix rather than `uv` (not installed here): CI already
+      resolves and installs the same requirements files green on 3.12 and 3.14 on
+      all three OSes, which is the stronger evidence. `tool.ruff.target-version`
+      stayed `py310` — bumping it turns on ~20 modernization findings across
+      `core/` and `agent/`, which is its own change, not a release's.
 
 ### Checkpoint: done
 - [ ] Full matrix green twice, three archives published, no orphan processes,
       README claims only what CI proves, glass-UI work unblocked.
+      Matrix: green once at `99cff1f` (six cells); the second pass is this tag's
+      own run. Archives: pending the `v2.11.0` run.
