@@ -104,10 +104,10 @@ with their names. Then update issue #14, whose macOS half this closes: the
 Linux native packages (`.AppImage`, `.deb`) stay open.
 
 **Acceptance criteria:**
-- [ ] `v2.13.0` is published with all seven assets, correctly named.
-- [ ] The macOS runner that built the Intel archive is an Intel runner.
+- [x] `v2.13.0` is published with all seven assets, correctly named.
+- [x] The macOS runner that built the Intel archive is an Intel runner.
 - [ ] Issue #14 says the macOS `.dmg` is done and only the Linux packages
-      remain.
+      remain — writing to the public tracker still needs a go.
 
 **Verification:** `gh release view v2.13.0 --json assets`.
 
@@ -123,6 +123,6 @@ Linux native packages (`.AppImage`, `.deb`) stay open.
 
 ## Checkpoint: after task 5
 
-- [ ] Seven assets, correct names, on the release.
-- [ ] The suite green on macOS x86_64 in CI.
-- [ ] The README claims nothing that is not on the release.
+- [x] Seven assets, correct names, on the release.
+- [x] The suite green on macOS x86_64 in CI.
+- [x] The README claims nothing that is not on the release.
