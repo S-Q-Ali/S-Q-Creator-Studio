@@ -10,12 +10,13 @@ and it is what caught the v2.11.0 archive-naming defect. It grows to cover
 the Intel cell, the two disk images and the deployment target.
 
 **Acceptance criteria:**
-- [ ] A test asserts the release matrix has a `macos-x64` cell and a
+- [x] A test asserts the release matrix has a `macos-x64` cell and a
       `macos-15-intel` runner.
-- [ ] A test asserts the publish step expects all seven file names.
-- [ ] A test asserts `MACOSX_DEPLOYMENT_TARGET` is set to `13.0`.
-- [ ] A test asserts the disk image step exists and is guarded to macOS.
-- [ ] A test asserts `ci.yml` runs the suite on `macos-15-intel`.
+- [x] A test asserts the publish step expects all seven file names.
+- [x] A test asserts the build script owns the macOS floor (the workflow sets
+      no `MACOSX_DEPLOYMENT_TARGET`).
+- [x] A test asserts the disk image step exists and is guarded to macOS.
+- [x] A test asserts `ci.yml` runs the suite on `macos-15-intel`.
 
 **Verification:** `python -m pytest tests/test_release_workflow.py -q` — each
 new test fails first, with a message naming what is missing.
@@ -32,9 +33,9 @@ for "the suite passes on macOS x86_64" to be a checked claim rather than an
 assumption.
 
 **Acceptance criteria:**
-- [ ] A push to `master` runs `pytest -m "not live"` on `macos-15-intel` at
+- [x] A push to `master` runs `pytest -m "not live"` on `macos-15-intel` at
       Python 3.12 and 3.14.
-- [ ] The build and smoke-test steps run there too, as they do on the other
+- [x] The build and smoke-test steps run there too, as they do on the other
       platforms.
 
 **Verification:** the six-cell matrix becomes eight, and the two new cells
@@ -46,28 +47,28 @@ are green on the push.
 
 ## Task 3: the release workflow builds Intel and the disk images
 
-**Description:** The build matrix gains the Intel cell; the macOS runners get
-an explicit deployment target; a new step builds a `.dmg` from the staged
-`.app`; the publish guard expects all seven files.
+**Description:** The build matrix gains the Intel cell; the build script
+measures the built bundle's macOS floor and refuses to ship a bundle that
+needs a newer macOS than the app claims; a new step builds a `.dmg` from the
+staged `.app`; the publish guard expects all seven files.
 
 **Acceptance criteria:**
-- [ ] The matrix has `macos-14 → macos-arm64` and `macos-15-intel →
+- [x] The matrix has `macos-14 → macos-arm64` and `macos-15-intel →
       macos-x64`, both archiving as `tar.gz`.
-- [ ] `MACOSX_DEPLOYMENT_TARGET` is `13.0` on the macOS build step, and the
-      step reads `LSMinimumSystemVersion` back from the built bundle and
-      fails when it is not 13.0.
-- [ ] The disk image step creates `dist/S-Q-Creator-Studio-$version-macos-*.dmg`
+- [x] The build script reads the built bundle's Mach-O `minos` and fails when
+      a binary needs a newer macOS than `MACOS_FLOOR` (13.0).
+- [x] The disk image step creates `dist/S-Q-Creator-Studio-$version-macos-*.dmg`
       from the staged `.app`, with an `Applications` symlink inside, and it
       runs only on macOS.
-- [ ] The publish step fails when any of the seven expected files is missing.
-- [ ] The release notes table names the four Mac files.
+- [x] The publish step fails when any of the seven expected files is missing.
+- [x] The release notes table names the four Mac files.
 
 **Verification:** `python -m pytest tests/test_release_workflow.py -q` green;
 the tagged run publishes all seven assets.
 
 **Dependencies:** Task 1
 
-**Files:** `.github/workflows/release.yml` · **M**
+**Files:** `.github/workflows/release.yml`, `release/build.py` · **M**
 
 ## Task 4: the docs and the version
 
@@ -77,14 +78,14 @@ to 2.13.0 with a dated changelog heading, because a release is what ships
 this.
 
 **Acceptance criteria:**
-- [ ] The README's table lists the Windows installer, the Windows zip, the
+- [x] The README's table lists the Windows installer, the Windows zip, the
       Linux tar.gz and the four Mac files — seven rows that exist on the
       release.
-- [ ] The "what CI proves" paragraph names the Intel runner and drops the
+- [x] The "what CI proves" paragraph names the Intel runner and drops the
       claim that Intel Macs are untested.
-- [ ] The macOS section says the `.dmg` drags into Applications, and that
-      both files are unsigned until issue #15.
-- [ ] `pyproject.toml`, `src/s_q_ali_media_downloader/__init__.py` and
+- [x] The macOS section says the `.dmg` drags into Applications, and says
+      both Mac files are unsigned until the signing work lands (issue #15).
+- [x] `pyproject.toml`, `src/s_q_ali_media_downloader/__init__.py` and
       `CHANGELOG.md` say 2.13.0, with the heading dated.
 
 **Verification:** every file name in the README appears in the release's
@@ -115,9 +116,9 @@ Linux native packages (`.AppImage`, `.deb`) stay open.
 
 ## Checkpoint: after task 4
 
-- [ ] `ruff check src tests` clean.
-- [ ] The offline suite green.
-- [ ] `graphify update .` refreshed and committed.
+- [x] `ruff check src tests release` clean.
+- [x] The offline suite green.
+- [x] `graphify update .` refreshed and committed.
 
 ## Checkpoint: after task 5
 

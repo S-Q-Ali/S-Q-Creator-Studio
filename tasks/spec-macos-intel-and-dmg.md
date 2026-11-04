@@ -1,6 +1,6 @@
 # Spec: macOS Intel builds and disk images
 
-Status: **awaiting approval**
+Status: **in progress**
 
 ## Objective
 
@@ -69,13 +69,20 @@ path per OS. The new work follows that:
   archive: tar.gz
 ```
 
-```powershell
-# The disk image is macOS's own tool - hdiutil - and ditto is what copies a
-# .app without breaking the symlinks inside its frameworks.
-ditto "$app" "$root/S-Q Creator Studio.app"
-New-Item -ItemType SymbolicLink -Path "$root/Applications" -Target "/Applications"
-hdiutil create -volname "S-Q Creator Studio" -srcfolder $root -ov -format UDZO "dist/$name.dmg"
+```python
+# release/build.py - the disk image is macOS's own tool, and ditto is what
+# copies a .app without breaking the symlinks inside its frameworks.
+(root / "Applications").symlink_to("/Applications")
+subprocess.run(["ditto", str(app_bundle), str(root / app_bundle.name)], check=True)
+subprocess.run(
+    ["hdiutil", "create", "-volname", APP_NAME, "-srcfolder", str(root),
+     "-ov", "-format", "UDZO", str(out)],
+    check=True,
+)
 ```
+
+The shortcut has to exist **before** `hdiutil` runs: the image is made from the
+folder as it stands at that moment.
 
 ## Testing Strategy
 
@@ -88,11 +95,13 @@ hdiutil create -volname "S-Q Creator Studio" -srcfolder $root -ov -format UDZO "
 - **The built app** — the release workflow's smoke test launches the frozen
   app on each runner and fails if it exits early. It runs on the Intel cell
   too.
-- **The deployment target** — the app claims macOS 13+. A binary built on
-  macOS 15 without `MACOSX_DEPLOYMENT_TARGET` declares `minos 15` and refuses
-  to start on macOS 13 or 14. The build step must set the target to `13.0`,
-  and the workflow must read the built bundle back and fail when
-  `LSMinimumSystemVersion` is not `13.0`.
+- **The macOS floor is measured, not declared** — the app claims macOS 13+.
+  PySide6 6.11 ships a `macosx_13_0_universal2` wheel, so 13 is what the
+  bundle can promise. PyInstaller neither reads `MACOSX_DEPLOYMENT_TARGET` nor
+  writes `LSMinimumSystemVersion`, so a declared target would be fiction.
+  `release/build.py` instead reads the built bundle's Mach-O `minos` load
+  commands with `otool -l` and fails the build if any binary needs a newer
+  macOS than the claim.
 
 ## Boundaries
 
@@ -113,8 +122,8 @@ hdiutil create -volname "S-Q Creator Studio" -srcfolder $root -ov -format UDZO "
       `S-Q-Creator-Studio-2.13.0-macos-x64.dmg`.
 - [ ] The publish step refuses to release when any of the seven files is
       missing.
-- [ ] The built `.app` reports `LSMinimumSystemVersion` 13.0 on both Mac
-      runners, so "macOS 13+" is true.
+- [ ] The built `.app` reports a Mach-O `minos` of at most 13.0 on both Mac
+      runners, so "macOS 13+" is true — and the build fails if it does not.
 - [ ] The README lists every published file, and the sentence about Intel
       Macs being untested is gone.
 

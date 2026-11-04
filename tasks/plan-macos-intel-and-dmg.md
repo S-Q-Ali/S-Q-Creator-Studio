@@ -13,12 +13,14 @@ makes the publish step demand all seven files.
 - **`macos-15-intel` for the Intel cell.** GitHub's last x86_64 image, and it
   retires in Fall 2027 — so this buys time rather than solving the platform
   forever. Recorded here so the end is not a surprise.
-- **`MACOSX_DEPLOYMENT_TARGET=13.0` on both Mac runners.** The README claims
-  macOS 13+, but nothing sets a deployment target today, so a build on macOS
-  14 or 15 declares its own macOS version as the floor and would refuse to
-  start on an older Mac. The target is set explicitly and the build reads
-  `LSMinimumSystemVersion` back, so the claim is checked rather than hoped
-  for.
+- **The macOS floor is measured from the built bundle, not declared.** The
+  README claims macOS 13+, and the PySide6 6.11 wheel sets that limit
+  (`macosx_13_0_universal2`). But PyInstaller 6.22 reads neither
+  `MACOSX_DEPLOYMENT_TARGET` nor writes `LSMinimumSystemVersion`, so a
+  deployment target would be a value nothing honours. `release/build.py`
+  therefore reads every Mach-O `minos` load command in the bundle with
+  `otool -l` and fails the build when a binary needs a newer macOS than the
+  claim — and the claim is only raised when the build proves it.
 - **The suite runs on the Intel runner, not only the build.** The release
   workflow builds and smoke-tests; it does not run pytest — `ci.yml` does.
   So the Intel cell goes into `ci.yml` as well, or "the suite passes on
@@ -37,23 +39,23 @@ makes the publish step demand all seven files.
 
 ### Phase 1 — the tests that say what must be true
 
-- [ ] Task 1: the workflow's own tests cover the Intel cell, the two disk
-      images and the deployment target.
-- [ ] Task 2: `ci.yml` runs the suite on `macos-15-intel`.
+- [x] Task 1: the workflow's own tests cover the Intel cell, the two disk
+      images and the measured macOS floor.
+- [x] Task 2: `ci.yml` runs the suite on `macos-15-intel`.
 
 ### Checkpoint: red
 
-- [ ] The new tests fail against the current workflows, and the failure
+- [x] The new tests fail against the current workflows, and the failure
       names the missing Intel cell and the missing `.dmg` files.
 
 ### Phase 3 — the release workflow
 
-- [ ] Task 3: the `macos-x64` cell, the deployment target and the disk
+- [x] Task 3: the `macos-x64` cell, the measured floor check and the disk
       image step.
 
 ### Checkpoint: green
 
-- [ ] The new tests pass; `ruff` clean; the offline suite green.
+- [x] The new tests pass; `ruff` clean; the offline suite green.
 
 ### Phase 4 — the docs and the version
 
@@ -75,7 +77,7 @@ makes the publish step demand all seven files.
 | Risk | Impact | Mitigation |
 |---|---|---|
 | `macos-15-intel` retires Fall 2027 | The Intel build stops building | Recorded in the spec and the issue; a self-hosted runner is the later answer, and the portable `.tar.gz` keeps working for anyone who already has it |
-| The app's floor is really macOS 14 or 15, not 13 | A user on macOS 13 cannot start it | `MACOSX_DEPLOYMENT_TARGET=13.0` plus a read-back of `LSMinimumSystemVersion`; if the build cannot honour it, the floor moves to what the build proves and the README says so |
+| The app's floor is really macOS 14 or 15, not 13 | A user on macOS 13 cannot start it | The build measures the bundle's `minos` and fails above the claim; if the measured floor is higher, the claim moves up in `MACOS_FLOOR` and the README together — the app never ships claiming a macOS it does not run on |
 | The `.dmg` is unsigned, so Gatekeeper refuses it | The user has to approve the app | Same as today's `.app`; issue #15 owns signing, and the README already says the app is unsigned |
 | The `.dmg` is ~750 MB beside a ~750 MB `.tar.gz` | ~1.5 GB per architecture published | GitHub's per-asset limit is 2 GB, so it fits; recorded in the spec |
 | The Intel runner is slower and the queue grows | CI takes longer | The Intel cell runs only on pushes to `master`, like the rest of the matrix |
