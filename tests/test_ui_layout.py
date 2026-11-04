@@ -121,6 +121,29 @@ def test_nothing_is_clipped_at_any_size(window, size, compact):
     assert not clipped, f"clipped at {size[0]}x{size[1]}:\n  " + "\n  ".join(clipped)
 
 
+def test_the_rail_grows_instead_of_clipping_its_buttons(window):
+    """The rail's width is a density token; the width its content needs is set
+    by the platform font, and only one of the two can give.
+
+    On ubuntu-24.04 the same rows that fit inside the token on Windows asked
+    130px per button and lost their last letters. The token is the floor, not
+    the cap.
+    """
+    rail = window.findChild(QWidget, "Rail")
+    wide = QPushButton("A label no density token has room for")
+    rail.layout().addWidget(wide)
+    window._apply_density()
+    window.resize(1280, 720)
+    window.show()
+    for _ in range(40):
+        qapp_process()
+
+    assert wide.width() >= wide.sizeHint().width(), (
+        f"the rail kept {rail.width()}px and clipped a "
+        f"{wide.sizeHint().width()}px label to {wide.width()}px"
+    )
+
+
 @pytest.mark.parametrize("size", SIZES)
 @pytest.mark.parametrize("compact", [False, True], ids=["comfortable", "compact"])
 def test_every_control_is_big_enough_to_click(window, size, compact):

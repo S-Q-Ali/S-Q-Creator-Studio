@@ -708,7 +708,11 @@ def apply_density(window: QWidget, compact: bool) -> None:
     rail = window.findChild(QWidget, "Rail")
     if rail is not None:
         _remember_base(rail, "densityRailWidth", tokens["rail"])
-        rail.setFixedWidth(tokens["rail"])
+        # The token is the floor, not the cap: how wide a label needs is the
+        # platform font's business, and a Linux face asks for more than the
+        # Windows one the token was tuned on. Capping at the token clipped
+        # "Account based" and "Add to queue" on Linux.
+        rail.setFixedWidth(max(tokens["rail"], rail.layout().minimumSize().width()))
 
     window.updateGeometry()
     if window.layout() is not None:
