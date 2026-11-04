@@ -369,7 +369,14 @@ Tasks are ordered by dependency. Sizes: XS = 1 file, S = 1–2, M = 3–5.
       `core/` and `agent/`, which is its own change, not a release's.
 
 ### Checkpoint: done
-- [ ] Full matrix green twice, three archives published, no orphan processes,
+- [x] Full matrix green twice, three archives published, no orphan processes,
       README claims only what CI proves, glass-UI work unblocked.
       Matrix: green once at `99cff1f` (six cells); the second pass is this tag's
-      own run. Archives: pending the `v2.11.0` run.
+      own run. Archives: published with the `v2.12.0` tag — the `v2.11.0` run
+      named all three archives from an empty variable (`$BUILD_KEY` instead of
+      `$env:BUILD_KEY`), so it shipped two copies of the macOS build and no
+      Linux archive at all. The workflow is fixed and guarded, and `v2.12.0`
+      published `S-Q-Creator-Studio-2.12.0-linux-x64.tar.gz`,
+      `S-Q-Creator-Studio-2.12.0-macos-arm64.tar.gz`,
+      `S-Q-Creator-Studio-2.12.0-windows-x64.zip` and
+      `S-Q-Creator-Studio-Setup-2.12.0.exe`.
