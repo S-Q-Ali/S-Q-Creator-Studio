@@ -285,7 +285,7 @@ which has no rule in either current sheet, gets one.
 
 **Verification:**
 - [x] `pytest tests/test_qss_parses.py tests/test_ui_layout.py tests/test_gui.py -q`; full suite green.
-- [ ] PNGs at all four sizes reviewed — folded into Task 10's render pass.
+- [x] PNGs at all four sizes reviewed — done in Task 10's render pass (4 sizes × 2 densities), which is where the combo caret and the Options glyph were caught.
 
 **Dependencies:** Task 6 · **Scope:** M (3 files: `theme.py`, `tests/test_ui_layout.py`, `tests/test_qss_parses.py`)
 
@@ -404,7 +404,7 @@ so it needs no symbol face in the stack.
 Suite after 9: **846 passed, 19 deselected**.
 
 ### Checkpoint: glass treatment
-- [ ] Every screen on the glass sheet; opaque where function demands it; contrast asserted on composites; PNGs reviewed.
+- [x] Every screen on the glass sheet; opaque where function demands it; contrast asserted on composites; PNGs reviewed. *(all four proven in Tasks 4-10; the PNG review is Task 10's grid, and it is what surfaced the two defects fixed in `c905a97` and `380e276`)*
 
 ## Phase 4 — verify-and-docs
 
@@ -492,16 +492,17 @@ the versions it describes. The criterion as written ("no mention anywhere a
 user would read it") is therefore met for the parts a reader takes as the
 present state, not for the archive.
 
-**Proposed, not performed:** `themes/design-concepts.html` and
+**Raised, now answered:** `themes/design-concepts.html` and
 `themes/neon-concepts.html` are the two Oct 25 concept mockups; nothing in
-`src`, `tests` or the build reads them (grep confirms), so they are dead weight
-or design history — the user's call. `ui/stylesheets/` turned out to be already
-gone: the folder the plan listed does not exist in the working tree.
+`src`, `tests` or the build reads them (grep confirms). The user's call is to
+keep them as design history, so both stay exactly where they are and nothing
+in this repo was deleted for the glass build. `ui/stylesheets/` turned out to
+be already gone: the folder the plan listed does not exist in the working tree.
 
 Suite after 11: **847 passed, 19 deselected** (no test change; docs only).
 
-## Open question left for the user
+## Questions the user answered
 
-Whether `themes/design-concepts.html` and `themes/neon-concepts.html` should be
-kept as design history or deleted with the empty `ui/stylesheets/` folder
-(Task 11 raises it; nothing is deleted without a go).
+`themes/design-concepts.html` and `themes/neon-concepts.html`: **kept as design
+history.** They are not dead weight to remove, and no `ui/stylesheets/` folder
+was left behind to sweep. Nothing in this repo is deleted for the glass build.
