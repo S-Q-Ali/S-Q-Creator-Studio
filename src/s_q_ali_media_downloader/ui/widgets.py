@@ -1,8 +1,13 @@
 """Reusable widgets: the painted backdrop, queue cards, chips and helpers."""
 
+from math import ceil
+
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import (
     QColor,
+    QFont,
+    QFontMetrics,
+    QGuiApplication,
     QLinearGradient,
     QPainter,
     QPainterPath,
@@ -21,7 +26,13 @@ from PySide6.QtWidgets import (
 )
 
 from s_q_ali_media_downloader.engine import is_youtube_url
-from s_q_ali_media_downloader.theme import BACKDROP, STATUS_COLORS, STATUS_WEIGHTS, C
+from s_q_ali_media_downloader.theme import (
+    BACKDROP,
+    STATUS_COLORS,
+    STATUS_WEIGHTS,
+    UI_FAMILIES,
+    C,
+)
 
 
 def shorten(text, limit=95):
@@ -47,6 +58,50 @@ def shield_pixmap(size=15, colour=C["amber"]):
     path.lineTo(size * 0.1, size * 0.22)
     path.closeSubpath()
     painter.drawPath(path)
+    painter.end()
+    return pm
+
+
+WORDMARK_TEXT = "S-Q-Ali"
+_wordmarks: dict[tuple[int, str, float], QPixmap] = {}
+
+
+def wordmark_pixmap(height: int, colour: str = C["text"]) -> QPixmap:
+    """The rail's logotype, painted once at ``height`` and reused.
+
+    A QLabel typesets the name in whatever font the machine has and clips it
+    to whatever the layout hands over. Drawing it measures the name first,
+    and buys the letter-spacing QSS has no property for. Cached by size, so a
+    resize or a density change never repaints it per frame.
+    """
+    app = QGuiApplication.instance()
+    ratio = app.devicePixelRatio() if app is not None else 1.0
+    key = (height, colour, ratio)
+    if key not in _wordmarks:
+        _wordmarks[key] = _paint_wordmark(height, colour, ratio)
+    return _wordmarks[key]
+
+
+def _paint_wordmark(height: int, colour: str, ratio: float) -> QPixmap:
+    font = QFont()
+    font.setFamilies(list(UI_FAMILIES))
+    font.setPixelSize(height)
+    font.setWeight(QFont.Weight.Bold)
+    font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, max(0.5, height * 0.05))
+    metrics = QFontMetrics(font)
+    box = metrics.boundingRect(WORDMARK_TEXT)
+    pm = QPixmap(
+        max(1, ceil((box.width() + 2) * ratio)),
+        max(1, ceil((box.height() + 2) * ratio)),
+    )
+    pm.setDevicePixelRatio(ratio)
+    pm.fill(Qt.transparent)
+    painter = QPainter(pm)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.TextAntialiasing)
+    painter.setFont(font)
+    painter.setPen(QColor(colour))
+    painter.drawText(1, 1 + metrics.ascent(), WORDMARK_TEXT)
     painter.end()
     return pm
 

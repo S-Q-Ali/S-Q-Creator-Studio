@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from s_q_ali_media_downloader.theme import (
+    DENSITY,
     GLASS,
     STATUS_COLORS,
     STYLESHEET,
@@ -263,11 +264,6 @@ def test_sheet_covers_every_widget_the_app_paints():
         assert selector in STYLESHEET, f"{selector} has no rule"
 
 
-def test_focus_gets_a_visible_ring():
-    """Neither old sheet had a :focus rule, and grey glass swallows one."""
-    assert "QPushButton:focus" in STYLESHEET
-
-
 def test_compact_renders_smaller_from_the_same_tokens():
     comfortable = stylesheet("comfortable")
     compact = stylesheet("compact")
@@ -284,7 +280,7 @@ def test_comfortable_keeps_the_measurements_the_app_shipped_with():
     """
     css = stylesheet("comfortable")
     assert "font-size: 13px" in _rule(css, "QWidget")
-    assert "font-size: 19px" in _rule(css, "#Wordmark")
+    assert DENSITY["comfortable"]["title"] == 19
     assert "font-size: 10px" in _rule(css, 'QLabel[role="section"]')
     assert "padding: 8px 14px" in _rule(css, "QPushButton")
     assert "padding: 8px 10px" in _rule(css, "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox")
@@ -293,10 +289,20 @@ def test_comfortable_keeps_the_measurements_the_app_shipped_with():
 def test_compact_measures_the_same_sheet_down():
     css = stylesheet("compact")
     assert "font-size: 12px" in _rule(css, "QWidget")
-    assert "font-size: 17px" in _rule(css, "#Wordmark")
+    assert DENSITY["compact"]["title"] == 17
     assert "font-size: 9px" in _rule(css, 'QLabel[role="section"]')
     assert "padding: 5px 11px" in _rule(css, "QPushButton")
     assert "padding: 5px 8px" in _rule(css, "QLineEdit, QPlainTextEdit, QTextEdit, QComboBox")
+
+
+@pytest.mark.parametrize("density", ("comfortable", "compact"))
+def test_the_wordmark_is_drawn_not_styled(density):
+    """The rail's name is painted into a pixmap, so the sheet has no hand in it.
+
+    A ``#Wordmark`` rule here would be a second copy of the title size - one
+    the painter never reads, and one that silently disagrees with the first.
+    """
+    assert not any(sel == "#Wordmark" for sel, _, _ in _rules(stylesheet(density)))
 
 
 PSEUDO_STATES = (":checked", ":hover", ":pressed", ":focus", ":selected", ":disabled")

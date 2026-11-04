@@ -68,11 +68,19 @@ from s_q_ali_media_downloader.engine import (
     normalize_youtube_channel_url,
     platform_of,
 )
-from s_q_ali_media_downloader.theme import STATUS_COLORS, C
+from s_q_ali_media_downloader.theme import DENSITY, STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.music_page import MusicPage
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
-from s_q_ali_media_downloader.ui.widgets import Backdrop, Chip, Job, JobCard, shield_pixmap
+from s_q_ali_media_downloader.ui.widgets import (
+    WORDMARK_TEXT,
+    Backdrop,
+    Chip,
+    Job,
+    JobCard,
+    shield_pixmap,
+    wordmark_pixmap,
+)
 
 ORG = "S-Q-Ali"
 VERSION = __version__
@@ -212,8 +220,11 @@ class MainWindow(QMainWindow):
         head.addWidget(stripe)
         names = QVBoxLayout()
         names.setSpacing(2)
-        mark = QLabel("S-Q-Ali")
+        mark = QLabel()
         mark.setObjectName("Wordmark")
+        mark.setAccessibleName(WORDMARK_TEXT)
+        mark.setPixmap(wordmark_pixmap(DENSITY["comfortable"]["title"]))
+        self.wordmark = mark
         sub = QLabel("CREATOR STUDIO")
         sub.setObjectName("WordmarkSub")
         names.addWidget(mark)
@@ -642,7 +653,10 @@ class MainWindow(QMainWindow):
         """Pick the layout density and tell the widgets about it."""
         from s_q_ali_media_downloader.theme import apply_density
 
-        apply_density(self, self.settings_page.compact_check.isChecked())
+        compact = self.settings_page.compact_check.isChecked()
+        apply_density(self, compact)
+        name = "compact" if compact else "comfortable"
+        self.wordmark.setPixmap(wordmark_pixmap(DENSITY[name]["title"]))
         self._update_folder_label()
 
     def _save_queue(self):

@@ -2,14 +2,21 @@
 
 import os
 
+import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QApplication, QLabel, QMessageBox, QPushButton
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QWidget,
+)
 
 from s_q_ali_media_downloader import __version__
 from s_q_ali_media_downloader.theme import STYLESHEET, C
 from s_q_ali_media_downloader.ui.main_window import MainWindow, resource
-from s_q_ali_media_downloader.ui.widgets import Job
+from s_q_ali_media_downloader.ui.widgets import Job, wordmark_pixmap
 
 
 def test_main_window_smoke(qapp, isolated_appdata):
@@ -19,8 +26,11 @@ def test_main_window_smoke(qapp, isolated_appdata):
     assert __version__ in title
 
     labels = [label.text() for label in window.findChildren(QLabel)]
-    assert "S-Q-Ali" in labels
     assert "CREATOR STUDIO" in labels
+
+    mark = window.findChild(QLabel, "Wordmark")
+    assert mark.pixmap() is not None and not mark.pixmap().isNull()
+    assert mark.accessibleName() == "S-Q-Ali", "a drawn name still needs a readable one"
 
     buttons = [button.text() for button in window.findChildren(QPushButton)]
     assert any("GitHub" in text for text in buttons)
@@ -357,3 +367,56 @@ def test_keyboard_focus_paints_on_every_control_kind(qapp, isolated_appdata):
 
     assert not blind, f"focus paints nothing on: {blind}"
     window.close()
+
+
+# --------------------------------------------------------------------------- #
+# The drawn wordmark
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("compact", (False, True))
+def test_the_wordmark_is_drawn_and_fits_its_rail(qapp, isolated_appdata, compact):
+    """The rail's name is a pixmap, so the layout cannot clip it.
+
+    A QLabel typeset at 19px trusts a font that is not on every machine the
+    app runs on; the drawn name is measured once, at the size the rail can
+    actually give it, and the stripe and the margins are already spent.
+    """
+    window = MainWindow()
+    window.settings_page.compact_check.setChecked(compact)
+    window._apply_density()
+    qapp.processEvents()
+
+    rail = window.findChild(QWidget, "Rail")
+    mark = window.findChild(QLabel, "Wordmark")
+    available = rail.width() - 22 - 22 - 4 - 12  # margins, stripe, head spacing
+
+    pm = mark.pixmap()
+    assert pm is not None and not pm.isNull()
+    ratio = pm.devicePixelRatio()
+    assert pm.width() / ratio <= available
+    assert pm.height() / ratio <= 40  # the height the stripe already sets
+    window.close()
+
+
+def test_the_wordmark_redraws_when_the_density_changes(qapp, isolated_appdata):
+    """The title size is a density token, so the drawing has to follow it."""
+    window = MainWindow()
+
+    def painted_height() -> float:
+        pm = window.wordmark.pixmap()
+        return pm.height() / pm.devicePixelRatio()
+
+    window.settings_page.compact_check.setChecked(True)
+    window._apply_density()
+    compact = painted_height()
+    window.settings_page.compact_check.setChecked(False)
+    window._apply_density()
+    comfortable = painted_height()
+
+    assert comfortable > compact
+    window.close()
+
+
+def test_the_wordmark_is_painted_once_and_reused(qapp):
+    """A resize must not repaint the logotype: the pixmap is cached per size."""
+    assert wordmark_pixmap(28) is wordmark_pixmap(28)
+    assert wordmark_pixmap(28) is not wordmark_pixmap(17)

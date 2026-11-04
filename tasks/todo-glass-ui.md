@@ -328,13 +328,40 @@ glass rather than text in a font nobody guarantees. Personality is spent here
 and nowhere else.
 
 **Acceptance criteria:**
-- [ ] The pixmap is generated once and reused; a resize does not repaint it per frame.
-- [ ] It is legible at both densities and in both the 280px and 248px rail.
+- [x] The pixmap is generated once and reused; a resize does not repaint it per frame.
+- [x] It is legible at both densities and in both the 280px and 248px rail.
 
 **Verification:**
-- [ ] A test asserts the rail's wordmark has non-empty geometry at both densities; `test_ui_layout.py` clipping green.
+- [x] A test asserts the rail's wordmark has non-empty geometry at both densities; `test_ui_layout.py` clipping green.
 
 **Dependencies:** Task 7 · **Scope:** S (3 files: `ui/widgets.py`, `ui/main_window.py`, `tests/test_gui.py`)
+
+**Outcome (what the render showed):**
+`wordmark_pixmap` in `ui/widgets.py` paints `WORDMARK_TEXT` once per
+`(height, colour, device-pixel-ratio)` and hands the rail a `QLabel` with a
+pixmap and an accessible name; `_apply_density` repaints it when the density
+changes, so the title size has exactly one source — `DENSITY[...]["title"]` —
+and the `#Wordmark` font rule is gone from the sheet (`test_the_wordmark_is_-
+_drawn_not_styled` refuses a second copy). At 1440×900 on this machine's 125%
+display the name measures 71×27 logical px in the 280px rail and 64×26 in the
+248px one, against a budget of 220 and 188; both read as bold letter-spaced
+type next to the blue stripe, and the compact rail is quieter rather than
+cramped.
+
+Two things the render taught:
+- `QGuiApplication.devicePixelRatio()` is an *instance* method in PySide6 — the
+  static-looking call raised `TypeError: unbound method` and took the whole GUI
+  suite down with it.
+- The offscreen platform has **no font database** here (`QFontDatabase.families()`
+  returns 0, and every glyph rasterises as a tofu box while the metrics still
+  come back). Pixel reviews have to run on the native `windows` platform; only
+  the numbers are trustworthy offscreen. That is why the rail PNGs are rendered
+  without `QT_QPA_PLATFORM`.
+
+`test_focus_gets_a_visible_ring` was deleted: `FOCUS_RING` already names the
+plain button, and the pixel test in `test_gui.py` proves it paints.
+
+Suite after 8: **844 passed, 19 deselected** (six new tests, one retired).
 
 ### Task 9: A font stack that exists on each OS
 

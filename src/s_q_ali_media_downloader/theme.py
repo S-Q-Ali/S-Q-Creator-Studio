@@ -167,6 +167,14 @@ BACKDROP = {
 }
 
 # --------------------------------------------------------------------------- #
+# Type
+# --------------------------------------------------------------------------- #
+# Asked for in order; Qt falls through to whatever the machine has. The sheet
+# and the drawn wordmark read this one list - a logotype set in a different
+# family from the interface is two brands, not one.
+UI_FAMILIES = ("Segoe UI Variable Display", "Segoe UI", "Inter")
+
+# --------------------------------------------------------------------------- #
 # Density
 # --------------------------------------------------------------------------- #
 # ``scale`` shrinks the spacing inside the layouts. ``rail`` is the width of
@@ -212,6 +220,7 @@ def stylesheet(density: str = "comfortable") -> str:
     body = t["body"]
     caption = t["caption"]
     mono = "'Consolas', 'Cascadia Mono', 'DejaVu Sans Mono', monospace"
+    ui = ", ".join(f"'{family}'" for family in UI_FAMILIES) + ", sans-serif"
     well = rgba(_LIGHT, GLASS["low"])
     # The fills are the flattened solids, not the alphas. A translucent card
     # over a gradient is a card whose colour depends on where it happens to
@@ -224,7 +233,7 @@ def stylesheet(density: str = "comfortable") -> str:
     return f"""
 QWidget {{
     color: {C['text']};
-    font-family: 'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif;
+    font-family: {ui};
     font-size: {body}px;
 }}
 QMainWindow, QDialog {{ background: {C['bg']}; }}
@@ -235,12 +244,8 @@ QLabel {{ background: transparent; }}
     background: {panel};
     border-right: 1px solid {C['border']};
 }}
-#Wordmark {{
-    font-size: {t['title']}px;
-    font-weight: 700;
-    color: {C['text']};
-    background: transparent;
-}}
+/* #Wordmark paints itself: widgets.wordmark_pixmap draws the name into a
+   pixmap at the density's title size, so no rule styles its font. */
 #WordmarkSub {{
     font-size: {caption}px;
     color: {C['accent_hi']};
