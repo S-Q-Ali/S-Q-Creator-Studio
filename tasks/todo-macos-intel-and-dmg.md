@@ -106,8 +106,8 @@ Linux native packages (`.AppImage`, `.deb`) stay open.
 **Acceptance criteria:**
 - [x] `v2.13.0` is published with all seven assets, correctly named.
 - [x] The macOS runner that built the Intel archive is an Intel runner.
-- [ ] Issue #14 says the macOS `.dmg` is done and only the Linux packages
-      remain — writing to the public tracker still needs a go.
+- [x] Issue #14 says the macOS `.dmg` is done and only the Linux packages
+      remain.
 
 **Verification:** `gh release view v2.13.0 --json assets`.
 
