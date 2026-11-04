@@ -169,10 +169,22 @@ BACKDROP = {
 # --------------------------------------------------------------------------- #
 # Type
 # --------------------------------------------------------------------------- #
-# Asked for in order; Qt falls through to whatever the machine has. The sheet
-# and the drawn wordmark read this one list - a logotype set in a different
-# family from the interface is two brands, not one.
-UI_FAMILIES = ("Segoe UI Variable Display", "Segoe UI", "Inter")
+# Qt has no alias for "the system face", so the stack names one per platform,
+# in the order the app ships to them: Windows, then macOS, then Linux. Qt asks
+# them in turn and takes the first the machine has, so a box missing its own
+# face still lands on something its neighbours would recognise. The sheet and
+# the drawn wordmark read this one list - a logotype set in a different family
+# from the interface is two brands, not one. No font file is bundled.
+UI_FAMILIES = (
+    "Segoe UI Variable Display",
+    "Segoe UI",  # Windows
+    ".AppleSystemUIFont",
+    "Helvetica Neue",  # macOS
+    "Noto Sans",
+    "Cantarell",
+    "Ubuntu",
+    "Inter",  # Linux
+)
 
 # --------------------------------------------------------------------------- #
 # Density

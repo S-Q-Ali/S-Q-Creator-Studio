@@ -371,13 +371,37 @@ load the right font folder per OS (`conftest.py:13-44`), so this is what makes
 the type honest on the Linux and macOS builds.
 
 **Acceptance criteria:**
-- [ ] The stack names the system UI face on Windows, macOS and Linux, in that order, with a generic fallback.
-- [ ] No clipping appears at any supported size on this machine.
+- [x] The stack names the system UI face on Windows, macOS and Linux, in that order, with a generic fallback.
+- [x] No clipping appears at any supported size on this machine.
 
 **Verification:**
-- [ ] `pytest tests/test_ui_layout.py tests/test_suite_portability.py -q`.
+- [x] `pytest tests/test_ui_layout.py tests/test_suite_portability.py -q`.
 
 **Dependencies:** Task 7 · **Scope:** XS (1-2 files: `theme.py`, one test)
+
+**Outcome:** `UI_FAMILIES` is now eight names in three blocks — Segoe (Windows),
+`.AppleSystemUIFont` then Helvetica Neue (macOS), Noto Sans / Cantarell / Ubuntu
+/ Inter (Linux) — and the sheet appends the generic `sans-serif`. One ordered
+list, no `sys.platform` branch: Qt asks the families in turn and takes the first
+the machine has, so a box missing its own face still lands on a neighbour's.
+`test_the_font_stack_names_each_platforms_own_face` pins the order and
+`test_the_sheet_ends_the_font_stack_with_a_generic` pins the tail. The mono
+stack was left alone: it already ends in a generic and no platform is missing
+one.
+
+The Windows faces are unchanged, so this task's real effect is on the Linux and
+macOS builds, which cannot be rendered from here — the two non-Windows names are
+the ones Qt reports as the system face on each, not something measured on this
+machine.
+
+One thing the render pass corrected about Task 8's note: the offscreen platform
+has no font database, but `tests/render_glass_screenshots.py:21` already works
+around it by loading the Windows font files, so an offscreen PNG is only tofu
+when that step is skipped. The `➔` in "Send Selected Videos to Queue" is fine —
+rendered with the glass sheet on the native platform it draws as a heavy arrow,
+so it needs no symbol face in the stack.
+
+Suite after 9: **846 passed, 19 deselected**.
 
 ### Checkpoint: glass treatment
 - [ ] Every screen on the glass sheet; opaque where function demands it; contrast asserted on composites; PNGs reviewed.

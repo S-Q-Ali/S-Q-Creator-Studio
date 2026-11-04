@@ -17,6 +17,7 @@ from s_q_ali_media_downloader.theme import (
     STATUS_COLORS,
     STYLESHEET,
     TEXT_SURFACES,
+    UI_FAMILIES,
     C,
     flatten,
     rgba,
@@ -303,6 +304,28 @@ def test_the_wordmark_is_drawn_not_styled(density):
     the painter never reads, and one that silently disagrees with the first.
     """
     assert not any(sel == "#Wordmark" for sel, _, _ in _rules(stylesheet(density)))
+
+
+# The faces each platform ships its interface in, in the order the stack asks
+# for them. Qt has no alias for "the system face", so the list is the only way
+# to name one.
+OS_UI_FACES = {
+    "windows": ("Segoe UI Variable Display", "Segoe UI"),
+    "macos": (".AppleSystemUIFont", "Helvetica Neue"),
+    "linux": ("Noto Sans", "Cantarell", "Ubuntu", "Inter"),
+}
+
+
+def test_the_font_stack_names_each_platforms_own_face():
+    """Windows first, then macOS, then Linux, each as a block."""
+    expected = [family for faces in OS_UI_FACES.values() for family in faces]
+    assert list(UI_FAMILIES) == expected
+
+
+def test_the_sheet_ends_the_font_stack_with_a_generic():
+    """A machine holding none of the named faces still renders readable text."""
+    stack = _rule(STYLESHEET, "QWidget").split("font-family:")[1].split(";")[0]
+    assert stack.strip().endswith("sans-serif")
 
 
 PSEUDO_STATES = (":checked", ":hover", ":pressed", ":focus", ":selected", ":disabled")
