@@ -343,14 +343,9 @@ QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled, QComboBox:disab
     border-color: {C['border']};
     background: {well};
 }}
-QComboBox::drop-down {{ border: none; width: 26px; }}
-QComboBox::down-arrow {{
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid {C['muted']};
-    margin-right: 10px;
-}}
+/* The down indicator is left to the platform style. Styling either
+   ::drop-down or ::down-arrow switches Qt's own arrow off, and Qt has no
+   CSS border triangle: transparent sides paint as a filled sliver. */
 QComboBox QAbstractItemView {{
     background: {C['raised_hi']};
     border: 1px solid {C['border']};

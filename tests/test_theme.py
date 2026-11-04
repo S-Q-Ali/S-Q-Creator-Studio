@@ -265,6 +265,14 @@ def test_sheet_covers_every_widget_the_app_paints():
         assert selector in STYLESHEET, f"{selector} has no rule"
 
 
+def test_the_combo_arrow_is_left_to_qt():
+    """Qt has no CSS border triangle, and no arrow of its own once you style
+    the sub-control: the glass sheet used to draw transparent sides and paint
+    a filled sliver where a caret should be.
+    """
+    assert not re.search(r"(?m)^QComboBox::", STYLESHEET)
+
+
 def test_compact_renders_smaller_from_the_same_tokens():
     comfortable = stylesheet("comfortable")
     compact = stylesheet("compact")
