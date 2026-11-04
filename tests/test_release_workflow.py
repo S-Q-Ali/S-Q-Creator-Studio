@@ -100,6 +100,18 @@ def test_the_disk_image_is_published_next_to_the_archive():
     assert 'dist/$name.dmg' in text
 
 
+def test_the_browser_and_ffmpeg_are_looked_for_inside_the_macos_bundle():
+    """On macOS the app is a bundle: Apple allows only the executable in
+    Contents/MacOS, so the shipped browser and ffmpeg live in Resources.
+    A check that looks beside the launcher would pass on a build that
+    shipped neither."""
+    text = _workflow()
+
+    assert "Contents/Resources" in text
+    assert '"$extras/browsers"' in text
+    assert '"$extras/bin/ffmpeg"' in text
+
+
 def test_the_suite_runs_on_the_intel_mac():
     # The release workflow builds and smoke-tests; it does not run pytest.
     # CI does, so an Intel claim that nobody ran the tests on would be an

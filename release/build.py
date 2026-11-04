@@ -143,6 +143,15 @@ def build_with_pyinstaller() -> Path:
     result = subprocess.run(pyinstaller_args(), cwd=ROOT, check=False)
     if result.returncode != 0:
         fail(f"PyInstaller build failed with code {result.returncode}.")
+    if IS_MACOS:
+        # On macOS PyInstaller writes two things: the COLLECT folder and the
+        # bundle it assembles from it. Only the bundle is the app - it is
+        # what carries Info.plist, and without it the app has no identifier
+        # for the keychain and no home in the dock.
+        bundle = DISTPATH / f"{APP_NAME}.app"
+        if not bundle.is_dir():
+            fail(f"PyInstaller left no app bundle in {DISTPATH}.")
+        return bundle
     built = DISTPATH / APP_NAME
     if not built.is_dir():
         fail(f"PyInstaller left no build in {built}.")
@@ -330,6 +339,28 @@ def build_dmg(app_bundle: Path, out: Path) -> None:
         shutil.rmtree(root, ignore_errors=True)
 
 
+def codesign_app(app_bundle: Path) -> None:
+    """Sign the bundle again, because files were added to it.
+
+    PyInstaller seals the bundle when it builds it. Adding ffmpeg and the
+    browser to its resources breaks that seal, and macOS refuses a bundle
+    whose signature no longer matches its contents. An ad-hoc signature is
+    enough for now; issue #15 signs the app properly.
+    """
+    done = subprocess.run(
+        ["codesign", "--force", "--deep", "--sign", "-", str(app_bundle)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if done.returncode != 0:
+        fail(
+            "Could not sign the app bundle.",
+            done.stderr.strip()[:400],
+        )
+    print(f"Bundle signed: {app_bundle}")
+
+
 def dmg_path(version: str) -> Path:
     """Where the disk image for this machine is written."""
     return RELEASE / f"S-Q-Creator-Studio-{version}-macos-{macos_arch()}.dmg"
@@ -337,8 +368,12 @@ def dmg_path(version: str) -> Path:
 
 def stage_contents(built: Path, portable: Path) -> None:
     print(f"\n{'=' * 60}\n Copying to {portable}\n{'=' * 60}\n")
+    # An app bundle is copied as a bundle: its symlinks - the framework
+    # cross-links inside Contents - have to stay symlinks, or the bundle is
+    # no longer the app PyInstaller signed.
+    target = portable / built.name if built.name.endswith(".app") else portable
     try:
-        shutil.copytree(built, portable, dirs_exist_ok=True)
+        shutil.copytree(built, target, dirs_exist_ok=True, symlinks=True)
     except OSError as exc:
         fail(f"Failed to copy the build to {portable}: {exc}")
 
@@ -541,6 +576,7 @@ def main() -> None:
         app_bundle = next(iter(sorted(portable.glob("*.app"))), None)
         if app_bundle is None:
             fail(f"The build left no app bundle in {portable}.")
+        codesign_app(app_bundle)
         check_macos_floor(portable)
         disk_image = dmg_path(version)
         build_dmg(app_bundle, disk_image)

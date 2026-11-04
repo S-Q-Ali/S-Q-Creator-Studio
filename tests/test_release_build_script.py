@@ -388,6 +388,84 @@ def test_the_disk_image_is_named_after_the_machine_that_built_it(monkeypatch):
 # --------------------------------------------------------------------------- #
 # The installer stays Windows-only, and the batch file stays thin
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# The macOS app bundle
+# --------------------------------------------------------------------------- #
+def test_on_macos_the_app_that_is_built_is_the_bundle(monkeypatch, tmp_path):
+    """PyInstaller writes two things on macOS: the COLLECT folder and the
+    bundle. Only the bundle is the app - it is what carries Info.plist, and
+    without it the app has no identifier for the keychain."""
+    dist = tmp_path / "out"
+    bundle = dist / f"{build.APP_NAME}.app"
+    bundle.mkdir(parents=True)
+    monkeypatch.setattr(build, "IS_MACOS", True)
+    monkeypatch.setattr(build, "DISTPATH", dist)
+    monkeypatch.setattr(
+        build.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", "")
+    )
+
+    assert build.build_with_pyinstaller() == bundle
+
+
+def test_a_macos_build_without_a_bundle_stops(monkeypatch, tmp_path):
+    monkeypatch.setattr(build, "IS_MACOS", True)
+    monkeypatch.setattr(build, "DISTPATH", tmp_path / "out")
+    monkeypatch.setattr(
+        build.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", "")
+    )
+
+    with pytest.raises(SystemExit):
+        build.build_with_pyinstaller()
+
+
+def test_the_bundle_is_copied_as_a_bundle_and_keeps_its_symlinks(tmp_path):
+    """The framework cross-links inside Contents are symlinks; copied as
+    files they would make the bundle something other than what was signed."""
+    source = tmp_path / "S-Q Creator Studio.app"
+    contents = source / "Contents"
+    (contents / "MacOS").mkdir(parents=True)
+    (contents / "MacOS" / build.APP_NAME).write_text("launcher")
+    (contents / "Resources").mkdir()
+    (contents / "Resources" / "alias").symlink_to("MacOS")
+    portable = tmp_path / "portable"
+    portable.mkdir()
+
+    build.stage_contents(source, portable)
+
+    copied = portable / "S-Q Creator Studio.app" / "Contents"
+    assert (copied / "MacOS" / build.APP_NAME).is_file()
+    assert (copied / "Resources" / "alias").is_symlink()
+
+
+def test_the_bundle_is_signed_again_after_files_are_added_to_it(monkeypatch, tmp_path):
+    """PyInstaller seals the bundle; ffmpeg and the browser break that seal,
+    and macOS refuses a bundle whose signature no longer matches."""
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+    app = tmp_path / f"{build.APP_NAME}.app"
+
+    build.codesign_app(app)
+
+    assert commands[0][:2] == ["codesign", "--force"]
+    assert "--deep" in commands[0]
+    assert str(app) == commands[0][-1]
+
+
+def test_a_bundle_that_cannot_be_signed_stops_the_build(monkeypatch, tmp_path):
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, "", "codesign: broken")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit):
+        build.codesign_app(tmp_path / "app.app")
+
+
 def test_inno_setup_is_only_looked_for_on_windows(tmp_path, monkeypatch):
     monkeypatch.setattr(build, "IS_WINDOWS", False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))

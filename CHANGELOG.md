@@ -23,6 +23,14 @@ All notable changes are documented here. The format follows
   and the build now measures the Mach-O version of every binary in the bundle
   and fails the release if one needs a newer macOS than the claim.
 
+### Fixed
+
+- **The macOS build is a real app bundle now.** It used to ship the executable
+  with its files beside it — no `Info.plist`, so no bundle identifier, which is
+  what the login keychain needs to keep the API keys — and there was no bundle
+  to put in a disk image. The macOS archives now contain
+  `S-Q Creator Studio.app`, the same bundle the disk image carries.
+
 ## [2.12.0] — 2026-11-04
 
 ### Added

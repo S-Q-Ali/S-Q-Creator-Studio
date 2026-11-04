@@ -119,8 +119,16 @@ jobs:
           )
           $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $exe) { throw "the portable build has no launcher" }
-          if (-not (Test-Path "$portable/browsers")) { throw "the browser was not shipped" }
-          $ffmpeg = if ($IsWindows) { "$portable/bin/ffmpeg.exe" } else { "$portable/bin/ffmpeg" }
+          # The browser and ffmpeg sit next to the launcher on Windows and
+          # Linux, and in the bundle's resources on macOS - where Apple
+          # allows only the executable in Contents/MacOS.
+          $extras = if ($IsMacOS) {
+            "$portable/S-Q Creator Studio.app/Contents/Resources"
+          } else {
+            $portable
+          }
+          if (-not (Test-Path "$extras/browsers")) { throw "the browser was not shipped" }
+          $ffmpeg = if ($IsWindows) { "$extras/bin/ffmpeg.exe" } else { "$extras/bin/ffmpeg" }
           if (-not (Test-Path $ffmpeg)) { throw "ffmpeg was not staged" }
 
           Write-Output "launcher: $exe  $([math]::Round((Get-Item $exe).Length/1MB,1)) MB"
