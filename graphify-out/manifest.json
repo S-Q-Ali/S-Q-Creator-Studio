@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "tests/test_reframe.py": {
-    "mtime": 1793892705.899581,
-    "seen": 1793893541.3811245,
-    "ast_hash": "f9c156a28aead3a53d13830f3dbee409",
+    "mtime": 1793894059.5594053,
+    "seen": 1793894788.2338812,
+    "ast_hash": "3b2a6547f0fc1c0cb6859f1f44b12cd9",
     "semantic_hash": ""
   },
   "tests/test_shorts.py": {
@@ -2403,6 +2403,18 @@
     "mtime": 1793891884.409125,
     "seen": 1793892224.2571664,
     "ast_hash": "426a4b83745b9647073e1007b662e789",
+    "semantic_hash": ""
+  },
+  "tests/fixtures/TRACKER_CLIP.txt": {
+    "mtime": 1793894074.8354564,
+    "seen": 1793894788.2343702,
+    "ast_hash": "564eda18df6acc6bb7b66a94fcea1fe0",
+    "semantic_hash": ""
+  },
+  "tests/fixtures/tracker-clip.mp4": {
+    "mtime": 1793893987.4102404,
+    "seen": 1793894788.234389,
+    "ast_hash": "f59dcbb420960c9b501a23d5c5d480cb",
     "semantic_hash": ""
   }
 }
