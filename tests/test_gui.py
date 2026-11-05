@@ -420,3 +420,85 @@ def test_the_wordmark_is_painted_once_and_reused(qapp):
     """A resize must not repaint the logotype: the pixmap is cached per size."""
     assert wordmark_pixmap(28) is wordmark_pixmap(28)
     assert wordmark_pixmap(28) is not wordmark_pixmap(17)
+
+
+class _StubSignal:
+    def connect(self, slot):
+        pass
+
+
+class _StubThread:
+    """The shape of a DownloadThread, with nothing running in it."""
+
+    job_started = _StubSignal()
+    job_meta = _StubSignal()
+    job_quality = _StubSignal()
+    job_progress = _StubSignal()
+    job_retrying = _StubSignal()
+    job_result = _StubSignal()
+    log = _StubSignal()
+    countdown = _StubSignal()
+    finished_all = _StubSignal()
+
+    def __init__(self, jobs, folder, quality, cookies, pace, passes, workers, **options):
+        self.options = options
+
+    def start(self):
+        pass
+
+    def isRunning(self):
+        return False
+
+
+def _window_with_a_queued_link(qapp, isolated_appdata, tmp_path, monkeypatch):
+    from s_q_ali_media_downloader.ui import main_window as mw
+
+    captured = []
+    monkeypatch.setattr(mw, "DownloadThread", lambda *a, **k: captured.append(k) or _StubThread(*a, **k))
+    window = MainWindow()
+    window.folder_edit.setText(str(tmp_path))
+    window._add_job(Job("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+    return window, captured
+
+
+def _restore_extra_passes(window):
+    """Leave the shared preferences as they were found."""
+    window.vertical.setChecked(False)
+    window.split_mode.setCurrentText("Off")
+    window.clips.setValue(6)
+    window._save_settings()
+    window.close()
+
+
+def test_the_run_carries_the_extra_passes_the_settings_asked_for(
+    qapp, isolated_appdata, tmp_path, monkeypatch
+):
+    window, captured = _window_with_a_queued_link(
+        qapp, isolated_appdata, tmp_path, monkeypatch
+    )
+    window.vertical.setChecked(True)
+    window.split_mode.setCurrentText("N clips")
+    window.clips.setValue(9)
+
+    window.start_run()
+
+    assert captured[-1] == {"vertical": True, "split": "N clips", "clips": 9}
+
+    _restore_extra_passes(window)
+
+
+def test_the_run_carries_nothing_when_both_extra_passes_are_off(
+    qapp, isolated_appdata, tmp_path, monkeypatch
+):
+    window, captured = _window_with_a_queued_link(
+        qapp, isolated_appdata, tmp_path, monkeypatch
+    )
+    window.vertical.setChecked(False)
+    window.split_mode.setCurrentText("Off")
+
+    window.start_run()
+
+    assert captured[-1] == {"vertical": False, "split": "Off", "clips": 6}
+
+    _restore_extra_passes(window)
+

@@ -213,3 +213,86 @@ def test_an_unreadable_key_asks_again_without_naming_windows(
     assert "Groq API key" in page.key_warning.text()
     assert "Windows" not in page.key_warning.text()
     assert "Enter them again" in page.key_warning.text()
+
+
+# --------------------------------------------------------------------------- #
+# the vertical 9:16 and the shorts split (tasks/plan-vertical-reframe.md)
+# --------------------------------------------------------------------------- #
+def _page_with_fresh_store(qapp, tmp_path):
+    """A page whose preferences live in a file of their own."""
+    from PySide6.QtCore import QSettings
+
+    page = SettingsPage()
+    page.settings = QSettings(str(tmp_path / "prefs.ini"), QSettings.IniFormat)
+    page.load()
+    return page
+
+
+def test_the_vertical_version_is_off_by_default(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    assert page.vertical.isChecked() is False
+
+
+def test_the_split_is_off_by_default(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    assert page.split.currentText() == "Off"
+
+
+def test_the_split_offers_every_mode_the_engine_knows(qapp, tmp_path):
+    from s_q_ali_media_downloader.engine import SPLIT_OPTIONS
+
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    choices = [page.split.itemText(i) for i in range(page.split.count())]
+    assert choices == list(SPLIT_OPTIONS)
+
+
+def test_the_clip_count_shows_only_in_the_n_clips_mode(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    assert page.clips.isHidden()
+
+    page.split.setCurrentText("N clips")
+    assert page.clips.isHidden() is False
+
+    page.split.setCurrentText("60 s")
+    assert page.clips.isHidden()
+
+
+def test_the_vertical_choice_survives_a_save_and_a_load(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    page.vertical.setChecked(True)
+    page.save()
+    page.vertical.setChecked(False)
+    page.load()
+
+    assert page.vertical.isChecked() is True
+
+
+def test_the_split_mode_and_the_clip_count_survive_a_load(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+
+    page.split.setCurrentText("N clips")
+    page.clips.setValue(11)
+    page.save()
+    page.split.setCurrentText("Off")
+    page.clips.setValue(6)
+    page.load()
+
+    assert page.split.currentText() == "N clips"
+    assert page.clips.value() == 11
+    assert page.clips.isHidden() is False
+
+
+def test_a_stored_mode_the_app_does_not_know_falls_back_to_off(qapp, tmp_path):
+    page = _page_with_fresh_store(qapp, tmp_path)
+    page.settings.setValue("split", "every second")
+    page.settings.setValue("clips", "not a number")
+
+    page.load()
+
+    assert page.split.currentText() == "Off"
+    assert page.clips.value() == 6

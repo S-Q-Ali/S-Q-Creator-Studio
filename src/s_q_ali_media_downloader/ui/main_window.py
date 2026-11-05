@@ -48,6 +48,7 @@ from s_q_ali_media_downloader.engine import (
     MAX_ACCOUNT_VIDEOS,
     PARALLEL_OPTIONS,
     RETRY_PASSES,
+    SPLIT_OFF,
     AccountFetchThread,
     DownloadThread,
     FacebookFetchThread,
@@ -170,6 +171,9 @@ class MainWindow(QMainWindow):
         self.parallel = self.settings_page.parallel
         self.passes = self.settings_page.passes
         self.cookies = self.settings_page.cookies
+        self.vertical = self.settings_page.vertical
+        self.split_mode = self.settings_page.split
+        self.clips = self.settings_page.clips
 
         self.rail = self._build_rail()
         layout.addWidget(self.rail)
@@ -1146,6 +1150,9 @@ class MainWindow(QMainWindow):
             self.pace.currentText(),
             passes,
             workers,
+            vertical=self.vertical.isChecked(),
+            split=self.split_mode.currentText(),
+            clips=self.clips.value(),
         )
         self.thread.job_started.connect(self.on_started)
         self.thread.job_meta.connect(self.on_meta)
@@ -1168,6 +1175,10 @@ class MainWindow(QMainWindow):
         )
         if passes:
             note += f", then {passes} end pass{'es' if passes != 1 else ''}"
+        if self.split_mode.currentText() != SPLIT_OFF:
+            note += f" · split into shorts ({self.split_mode.currentText()})"
+        if self.vertical.isChecked():
+            note += " · plus a vertical 9:16 version"
         self.set_status(note + ".")
         self._sync_buttons()
 

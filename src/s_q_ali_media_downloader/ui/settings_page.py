@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -35,14 +36,18 @@ from PySide6.QtWidgets import (
 from s_q_ali_media_downloader.core import settings_store
 from s_q_ali_media_downloader.engine import (
     APP_NAME,
+    DEFAULT_CLIPS,
     DEFAULT_DELAY,
     DEFAULT_PARALLEL,
     DEFAULT_PASSES,
     DEFAULT_QUALITY,
+    DEFAULT_SPLIT,
     DELAY_PRESETS,
     PARALLEL_OPTIONS,
     QUALITY_OPTIONS,
     RETRY_PASSES,
+    SPLIT_CLIPS,
+    SPLIT_OPTIONS,
     default_output_dir,
     impersonation_summary,
 )
@@ -71,6 +76,11 @@ STORAGE_NOTES = {
              "unencrypted in the settings file.",
 }
 SHOW_BROWSER_KEY = "show_discovery_browser"
+
+# How many clips the N-clips mode will take: below two there is nothing to
+# split, and above thirty each short is shorter than a breath.
+MIN_CLIPS = 2
+MAX_CLIPS = 30
 
 
 class GroqKeyTestWorker(QThread):
@@ -133,6 +143,24 @@ def make_settings() -> QSettings:
 def discovery_browser_is_visible() -> bool:
     """Whether discovery should show its browser window (the default)."""
     return make_settings().value(SHOW_BROWSER_KEY, "true") != "false"
+
+
+def _is_true(value) -> bool:
+    """A stored flag, whether the store kept it as text or as a boolean.
+
+    The registry keeps the string "true" and an ini file keeps a real
+    boolean, so comparing against one of them loses the other.
+    """
+    return str(value).lower() == "true"
+
+
+def _clip_count(value) -> int:
+    """The stored clip count, inside the range the spin box offers."""
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        count = DEFAULT_CLIPS
+    return max(MIN_CLIPS, min(MAX_CLIPS, count))
 
 
 class SettingsPage(QWidget):
@@ -392,6 +420,38 @@ class SettingsPage(QWidget):
             "Close Chrome before you start a run."
         )
 
+        self.vertical = QCheckBox("Also make a vertical 9:16 version")
+        self.vertical.setToolTip(
+            "Each video also lands as a 9:16 file beside the original, with "
+            "the crop window following the person in the frame.\n"
+            "It is one extra pass over the video after the download, so a "
+            "long one takes its time."
+        )
+
+        self.split = QComboBox()
+        self.split.addItems(SPLIT_OPTIONS)
+        self.split.setMaximumWidth(220)
+        self.split.setToolTip(
+            "Cut each video into shorts at the pauses in the speech, or at a "
+            "change of scene where there is no pause near."
+        )
+        self.clips_label = QLabel("clips")
+        self.clips_label.setProperty("role", "hint")
+        self.clips = QSpinBox()
+        self.clips.setRange(MIN_CLIPS, MAX_CLIPS)
+        self.clips.setValue(DEFAULT_CLIPS)
+        self.clips.setToolTip("How many clips the length is divided into.")
+        split_row = QWidget()
+        split_lay = QHBoxLayout(split_row)
+        split_lay.setContentsMargins(0, 0, 0, 0)
+        split_lay.setSpacing(8)
+        split_lay.addWidget(self.split)
+        split_lay.addWidget(self.clips_label)
+        split_lay.addWidget(self.clips)
+        split_lay.addStretch(1)
+        self.split.currentTextChanged.connect(self._show_clip_count)
+        self._show_clip_count(self.split.currentText())
+
         self.identity = QLabel("")
         self.identity.setProperty("role", "hint")
         self.identity.setWordWrap(True)
@@ -404,9 +464,25 @@ class SettingsPage(QWidget):
             ("Workers", self.parallel, ""),
             ("End passes", self.passes, ""),
             ("", self.cookies, ""),
+            ("", self.vertical, ""),
+            (
+                "Split into shorts",
+                split_row,
+                (
+                    "The length is divided by the number of clips and each cut "
+                    "moves to the nearest pause. The app says the length it will "
+                    "use before it cuts."
+                ),
+            ),
             ("", self.identity, ""),
         ]
         return rows
+
+    def _show_clip_count(self, choice: str) -> None:
+        """The clip count only means something in the N clips mode."""
+        counting = choice == SPLIT_CLIPS
+        self.clips_label.setVisible(counting)
+        self.clips.setVisible(counting)
 
     def _build_layout(self) -> list[tuple]:
         self.compact_check = QCheckBox("Compact layout")
@@ -476,6 +552,11 @@ class SettingsPage(QWidget):
         )
 
         self.cookies.setChecked(self.settings.value("cookies") == "true")
+        self.vertical.setChecked(_is_true(self.settings.value("vertical")))
+        split = self.settings.value("split")
+        self.split.setCurrentText(split if split in SPLIT_OPTIONS else DEFAULT_SPLIT)
+        self._show_clip_count(self.split.currentText())
+        self.clips.setValue(_clip_count(self.settings.value("clips")))
         self.show_browser_check.setChecked(
             self.settings.value(SHOW_BROWSER_KEY, "true") != "false"
         )
@@ -544,6 +625,11 @@ class SettingsPage(QWidget):
         self.settings.setValue("passes", self.passes.currentText())
         self.settings.setValue("parallel", self.parallel.currentText())
         self.settings.setValue("cookies", "true" if self.cookies.isChecked() else "false")
+        self.settings.setValue(
+            "vertical", "true" if self.vertical.isChecked() else "false"
+        )
+        self.settings.setValue("split", self.split.currentText())
+        self.settings.setValue("clips", self.clips.value())
         self.settings.setValue(
             SHOW_BROWSER_KEY,
             "true" if self.show_browser_check.isChecked() else "false",
