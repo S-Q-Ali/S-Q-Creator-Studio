@@ -1,4 +1,8 @@
-"""Tests for the 9:16 reframe maths - the crop window and the path it takes."""
+"""Tests for the 9:16 reframe maths - the crop window and the path it takes.
+
+The detector tests use a public-domain portrait; see
+``tests/fixtures/PORTRAIT.txt`` for where it came from.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,8 @@ from pathlib import Path
 import pytest
 
 from s_q_ali_media_downloader.core import reframe
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_the_crop_window_is_exactly_nine_by_sixteen():
@@ -186,3 +192,35 @@ def test_the_render_resolves_the_paths_before_it_moves_to_its_own_folder(
 
     assert os.path.isabs(seen["input"])
 
+
+
+def test_both_models_are_in_the_package():
+    assert reframe.model_path(reframe.FACE_MODEL).is_file()
+    assert reframe.model_path(reframe.BODY_MODEL).is_file()
+
+
+def test_a_frame_with_a_person_gives_the_subject():
+    cv2 = pytest.importorskip("cv2")
+    frame = cv2.imread(str(FIXTURES / "portrait.jpg"))
+
+    centre = reframe.SubjectDetector().detect(frame)
+
+    assert centre is not None
+    x, y = centre
+    assert 0 < x < frame.shape[1]
+    assert 0 < y < frame.shape[0]
+
+
+def test_an_empty_frame_gives_no_subject():
+    cv2 = pytest.importorskip("cv2")
+    frame = cv2.imread(str(FIXTURES / "portrait.jpg")) * 0
+
+    assert reframe.SubjectDetector().detect(frame) is None
+
+
+def test_a_face_is_preferred_over_the_body():
+    cv2 = pytest.importorskip("cv2")
+    frame = cv2.imread(str(FIXTURES / "portrait.jpg"))
+    detector = reframe.SubjectDetector()
+
+    assert detector.detect(frame) == detector.face_centre(frame)

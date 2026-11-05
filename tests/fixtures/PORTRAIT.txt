@@ -1,0 +1,5 @@
+portrait.jpg
+  The official portrait of Barack Obama (2012), by the White House. A work of
+  the United States federal government, so it is in the public domain.
+  Source: https://commons.wikimedia.org/wiki/File:President_Barack_Obama.jpg
+  Fetched at 500px wide for the detector test.

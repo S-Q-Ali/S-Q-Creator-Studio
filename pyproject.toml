@@ -57,6 +57,9 @@ dev = [
     "pyinstaller>=6.10",
     "setuptools>=84.1.0",
     "pip-audit>=2.10.1",
+    # The 9:16 reframe's detector runs on OpenCV's dnn module. It moves into
+    # the runtime requirements with the packaging step.
+    "opencv-python-headless==4.14.0.94",
 ]
 # The optional AI-agent browser. It reads the pages the deterministic
 # renderer cannot, using the same Groq/Gemini keys as the judge. It exact-pins

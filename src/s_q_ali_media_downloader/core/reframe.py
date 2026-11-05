@@ -9,12 +9,29 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+#: YuNet finds a face. It is small and it is fast.
+FACE_MODEL = "face_detection_yunet_2023mar.onnx"
+
+#: NanoDet finds a person. It is the fallback for a shot with no face in it.
+BODY_MODEL = "object_detection_nanodet_2022nov_int8.onnx"
+
+#: The size NanoDet was exported at.
+BODY_SIZE = 416
+
+#: COCO class 0 is the person.
+PERSON_CLASS = 0
+
+#: How sure a detection has to be before it counts.
+BODY_SCORE = 0.35
+BODY_NMS = 0.6
 
 #: The window is cut in whole 16-row bands, so the 9:16 comes out exact and
 #: the scale to the output size does not stretch the picture.
@@ -201,6 +218,122 @@ def _run_ffmpeg(command: list[str], cwd: str) -> int:
     if result.returncode != 0:
         logger.error("ffmpeg failed: %s", (result.stderr or "").strip()[-800:])
     return result.returncode
+
+
+def model_path(name: str) -> Path:
+    """Where a model file lives - in the frozen bundle or beside this module."""
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        bundled = Path(meipass) / "models" / name
+        if bundled.is_file():
+            return bundled
+    return Path(__file__).resolve().parents[1] / "models" / name
+
+
+class SubjectDetector:
+    """Finds the subject in a frame: a face if there is one, a body if not.
+
+    The models are loaded once and kept - loading them per frame would cost
+    more than the detection itself.
+    """
+
+    def __init__(self) -> None:
+        import cv2
+
+        self._cv2 = cv2
+        self._face = cv2.FaceDetectorYN.create(
+            str(model_path(FACE_MODEL)), "", (320, 320), 0.6, 0.3, 5000
+        )
+        self._body = cv2.dnn.readNet(str(model_path(BODY_MODEL)))
+
+    def detect(self, frame) -> tuple[int, int] | None:
+        """The centre of the subject in the frame, or None if there is none."""
+        centre = self.face_centre(frame)
+        if centre is not None:
+            return centre
+        return self.body_centre(frame)
+
+    def face_centre(self, frame) -> tuple[int, int] | None:
+        height, width = frame.shape[:2]
+        self._face.setInputSize((width, height))
+        _, faces = self._face.detect(frame)
+        if faces is None or len(faces) == 0:
+            return None
+        biggest = max(faces, key=lambda face: float(face[2]) * float(face[3]))
+        x, y, box_width, box_height = (float(value) for value in biggest[:4])
+        return int(x + box_width / 2), int(y + box_height / 2)
+
+    def body_centre(self, frame) -> tuple[int, int] | None:
+        height, width = frame.shape[:2]
+        resized = self._cv2.resize(frame, (BODY_SIZE, BODY_SIZE))
+        self._body.setInput(self._cv2.dnn.blobFromImage(self._prepare(resized)))
+        outputs = self._body.forward(self._body.getUnconnectedOutLayersNames())
+
+        boxes = self._person_boxes(outputs)
+        if not boxes:
+            return None
+        x, y, box_width, box_height = max(
+            boxes, key=lambda box: box[2] * box[3]
+        )
+        return (
+            int((x + box_width / 2) * width / BODY_SIZE),
+            int((y + box_height / 2) * height / BODY_SIZE),
+        )
+
+    def _prepare(self, image):
+        """The model was trained on RGB with this mean and spread."""
+        import numpy as np
+
+        mean = np.array([103.53, 116.28, 123.675], dtype=np.float32)
+        spread = np.array([57.375, 57.12, 58.395], dtype=np.float32)
+        rgb = self._cv2.cvtColor(image, self._cv2.COLOR_BGR2RGB)
+        return (rgb.astype(np.float32) - mean) / spread
+
+    def _person_boxes(self, outputs) -> list[list[float]]:
+        """Decode NanoDet's output into the boxes of the people in the frame."""
+        import numpy as np
+
+        boxes: list[list[float]] = []
+        scores: list[float] = []
+        for stride, cls_score, bbox_pred in zip(
+            (8, 16, 32), outputs[::2], outputs[1::2]
+        ):
+            distances = np.exp(bbox_pred[0].reshape(-1, 8))
+            distances = distances / distances.sum(axis=1, keepdims=True)
+            distances = (distances @ np.arange(8)).reshape(-1, 4) * stride
+
+            grid = BODY_SIZE // stride
+            shift_x = np.arange(grid) * stride
+            shift_y = np.arange(grid) * stride
+            xv, yv = np.meshgrid(shift_x, shift_y)
+            anchors = np.column_stack(
+                (
+                    xv.flatten() + 0.5 * (stride - 1),
+                    yv.flatten() + 0.5 * (stride - 1),
+                )
+            )
+
+            left = anchors[:, 0] - distances[:, 0]
+            top = anchors[:, 1] - distances[:, 1]
+            right = anchors[:, 0] + distances[:, 2]
+            bottom = anchors[:, 1] + distances[:, 3]
+
+            confidence = cls_score[0][:, PERSON_CLASS]
+            for index in np.nonzero(confidence >= BODY_SCORE)[0]:
+                boxes.append(
+                    [
+                        float(left[index]),
+                        float(top[index]),
+                        float(right[index] - left[index]),
+                        float(bottom[index] - top[index]),
+                    ]
+                )
+                scores.append(float(confidence[index]))
+
+        if not boxes:
+            return []
+        kept = self._cv2.dnn.NMSBoxes(boxes, scores, BODY_SCORE, BODY_NMS)
+        return [boxes[int(index)] for index in np.array(kept).flatten()]
 
 
 def _even(value: int) -> int:
