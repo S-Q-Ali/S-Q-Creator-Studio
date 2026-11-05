@@ -224,3 +224,59 @@ def test_a_face_is_preferred_over_the_body():
     detector = reframe.SubjectDetector()
 
     assert detector.detect(frame) == detector.face_centre(frame)
+
+
+def test_a_jump_in_the_subject_does_not_snap_the_camera():
+    path = reframe.path_from_centres([(0.0, 960), (0.5, 1600)], 1920, 594)
+
+    assert path[0].x == 662
+    assert path[1].x - path[0].x == reframe.max_step_for(594)
+
+
+def test_a_frame_with_no_detection_keeps_the_previous_position():
+    path = reframe.path_from_centres(
+        [(0.0, 960), (0.5, None), (1.0, 960)], 1920, 594
+    )
+
+    assert [sample.x for sample in path] == [662, 662, 662]
+
+
+def test_a_video_with_no_detection_falls_back_to_the_centred_crop():
+    path = reframe.path_from_centres([(0.0, None), (0.5, None)], 1920, 594)
+
+    assert [sample.x for sample in path] == [662, 662]
+
+
+def test_the_tracker_reads_the_frames_of_a_video(tmp_path):
+    cv2 = pytest.importorskip("cv2")
+    np = pytest.importorskip("numpy")
+    video = tmp_path / "clip.mp4"
+    writer = cv2.VideoWriter(
+        str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (320, 240)
+    )
+    for _ in range(20):
+        writer.write(np.zeros((240, 320, 3), dtype="uint8"))
+    writer.release()
+
+    class Stub:
+        def __init__(self):
+            self.seen = 0
+
+        def detect(self, frame):
+            self.seen += 1
+            return (160, 120)
+
+    stub = Stub()
+    path = reframe.track_video(str(video), sample_fps=5.0, detector=stub)
+
+    assert stub.seen == 10
+    assert [sample.time for sample in path] == [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]
+
+
+def test_the_vertical_size_is_nine_by_sixteen_and_even():
+    """An odd size is refused by the encoder, and a size that is not 9:16
+    would stretch the picture."""
+    for height in (1080, 720, 624, 361):
+        width, out_height = reframe.output_size(height)
+        assert width % 2 == 0 and out_height % 2 == 0
+        assert width * 16 == out_height * 9

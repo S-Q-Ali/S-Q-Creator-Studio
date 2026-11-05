@@ -78,11 +78,16 @@ chosen (the largest and most central detection), the path is smoothed, and
 the last known position is held through a frame where nothing was found.
 
 **Acceptance criteria:**
-- [ ] A detection that jumps does not move the crop window in one step.
-- [ ] A frame with no detection keeps the previous position.
-- [ ] A video with no detection at all falls back to the centred crop.
+- [x] A detection that jumps does not move the crop window in one step.
+- [x] A frame with no detection keeps the previous position.
+- [x] A video with no detection at all falls back to the centred crop.
 
-**Verification:** `pytest tests/test_reframe.py -q` green.
+**Verification:** `pytest tests/test_reframe.py -q` green. The whole chain was
+run on a real video of a person: 25 samples at 5 fps → the path → the render
+→ a 630×1120 file (exact 9:16) with the original audio copied.
+
+**Note:** the window may travel at most a quarter of its width per sample, so
+the movement stays bounded instead of snapping to a new detection.
 
 **Dependencies:** Task 3 · **Files:** `core/reframe.py`, `tests/test_reframe.py` ·
 **S**
@@ -187,8 +192,8 @@ what it costs, the version is bumped, and the release is tagged.
 
 ## Checkpoint: after Task 4
 
-- [ ] The offline suite green.
-- [ ] A short video goes through detection → path → render and comes out
+- [x] The offline suite green.
+- [x] A short video goes through detection → path → render and comes out
       9:16 with its audio.
 
 ## Checkpoint: after Task 6

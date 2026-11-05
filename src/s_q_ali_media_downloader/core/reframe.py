@@ -80,12 +80,14 @@ def crop_path(
     source_width: int,
     crop_width: int,
     max_step: int | None = None,
+    start: int = 0,
 ) -> list[int]:
     """The legal path of the crop window.
 
     The wanted positions are clamped into the frame and then moved towards at
     most ``max_step`` per sample. A sample with no detection keeps the
-    position it had.
+    position it had; ``start`` is where the window sits until the first
+    detection.
     """
     step = max_step_for(crop_width) if max_step is None else max_step
     path: list[int] = []
@@ -93,7 +95,7 @@ def crop_path(
 
     for wanted in positions:
         if wanted is None:
-            path.append(current if current is not None else 0)
+            path.append(current if current is not None else start)
             continue
         target = _even(clamp_x(wanted, source_width, crop_width))
         if current is None:
@@ -114,8 +116,14 @@ def write_command_file(path: Path | str, samples: Iterable[Sample]) -> None:
 
 
 def output_size(source_height: int) -> tuple[int, int]:
-    """The vertical size: the source height across, 16:9 taller."""
-    return source_height, source_height * 16 // 9
+    """The vertical size: as near the source height as a 9:16 frame can be.
+
+    The size is cut from the same 18x32 grid as the crop window, so the
+    scale from the window to the output is the same in both directions and
+    the picture is not stretched.
+    """
+    units = max(1, round(source_height / 18))
+    return 18 * units, 32 * units
 
 
 def vertical_output_path(source: str) -> str:
@@ -218,6 +226,61 @@ def _run_ffmpeg(command: list[str], cwd: str) -> int:
     if result.returncode != 0:
         logger.error("ffmpeg failed: %s", (result.stderr or "").strip()[-800:])
     return result.returncode
+
+
+def path_from_centres(
+    centres: Sequence[tuple[float, int | None]],
+    source_width: int,
+    crop_width: int,
+) -> list[Sample]:
+    """The crop path from the sampled subject centres.
+
+    A centre of None means nothing was found in that frame; the window keeps
+    the position it had. With no detection at all the window stays centred.
+    """
+    times = [time for time, _ in centres]
+    wanted = [
+        None if centre is None else centre - crop_width // 2
+        for _, centre in centres
+    ]
+    start = _even((source_width - crop_width) // 2)
+    path = crop_path(wanted, source_width, crop_width, start=start)
+    return [Sample(time, x) for time, x in zip(times, path)]
+
+
+def track_video(
+    video: str,
+    sample_fps: float = 5.0,
+    detector: SubjectDetector | None = None,
+) -> list[Sample]:
+    """The crop path for a video: where the window sits at every sample."""
+    import cv2
+
+    capture = cv2.VideoCapture(video)
+    if not capture.isOpened():
+        return []
+    try:
+        width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
+        crop_width, _ = crop_window(width, height)
+        step = max(1, round(fps / sample_fps))
+
+        finder = detector or SubjectDetector()
+        centres: list[tuple[float, int | None]] = []
+        index = 0
+        while True:
+            ok, frame = capture.read()
+            if not ok:
+                break
+            if index % step == 0:
+                found = finder.detect(frame)
+                centres.append((index / fps, None if found is None else found[0]))
+            index += 1
+    finally:
+        capture.release()
+
+    return path_from_centres(centres, width, crop_width)
 
 
 def model_path(name: str) -> Path:
