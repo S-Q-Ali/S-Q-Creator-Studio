@@ -35,9 +35,15 @@ PERSON_CLASS = 0
 BODY_SCORE = 0.35
 BODY_NMS = 0.6
 
-#: The window is cut in whole 16-row bands, so the 9:16 comes out exact and
+#: The window is cut in whole 32-row bands, so the 9:16 comes out exact and
 #: the scale to the output size does not stretch the picture.
 CROP_HEIGHT_STEP = 32
+
+#: The vertical file stops at full HD - 60 of those bands, 1080x1920. The
+#: window cut from a 4K film is about a thousand pixels wide, so a taller
+#: output is the same picture in more bytes and more encode time than a
+#: phone ever shows.
+MAX_OUTPUT_UNITS = 60
 
 #: The window may travel at most this much of its own width between two
 #: samples, so a detection that jumps does not snap the camera.
@@ -126,13 +132,13 @@ def write_command_file(path: Path | str, samples: Iterable[Sample]) -> None:
 
 
 def output_size(source_height: int) -> tuple[int, int]:
-    """The vertical size: as near the source height as a 9:16 frame can be.
+    """The vertical size: the source height, never more than full HD.
 
     The size is cut from the same 18x32 grid as the crop window, so the
     scale from the window to the output is the same in both directions and
     the picture is not stretched.
     """
-    units = max(1, round(source_height / 18))
+    units = max(1, min(MAX_OUTPUT_UNITS, round(source_height / 18)))
     return 18 * units, 32 * units
 
 

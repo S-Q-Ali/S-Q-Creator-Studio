@@ -25,8 +25,10 @@ How to cook.mp4            1920×1080   4:12   ← original, untouched
 How to cook_9x16.mp4        594×1056 → 1080×1920   4:12   ← new
 ```
 
-- The output height follows the source: a 1080p source gives 1080×1920, a
-  720p source gives 720×1280. Nothing is upscaled to look better than it is.
+- The output height follows the source up to full HD: a 1080p or 4K source
+  gives 1080×1920, a 720p source gives 720×1280. A 4K film's picture is about
+  a thousand pixels wide, so a taller file is the same picture in more bytes
+  and more encode time, for rows no phone shows.
 - The audio is the original track, copied — not re-encoded, so it does not
   drift and it is not degraded.
 - The crop window follows the subject: it moves when the speaker moves, it
@@ -182,8 +184,8 @@ where the *why* is not in the code.
 ## Success criteria
 
 - [ ] A landscape download also produces a vertical file at the source's
-      height × 9/16, with the original audio. The crop window is 9:16 to the
-      pixel, so the scale to the output does not stretch the picture.
+      height up to 1080×1920, with the original audio. The crop window is
+      9:16 to the pixel, so the scale to the output does not stretch it.
 - [ ] The subject stays inside the crop window for a talking-head video.
 - [ ] A video with no detectable person still gets a centred 9:16 version.
 - [ ] A video that is already vertical is left alone.

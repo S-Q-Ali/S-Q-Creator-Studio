@@ -70,7 +70,7 @@ def test_the_window_is_cut_from_the_picture_and_sits_inside_it():
     chain = reframe.filter_chain("crop.cmd", 3840, 2160, box=(256, 1901))
 
     assert "crop@c=w=918:h=1632" in chain
-    assert "scale=1638:2912" in chain
+    assert "scale=1080:1920" in chain
     # 256 + (1646 - 1632) // 2 = 263, and an odd offset shifts the chroma.
     assert "x=1460:y=262" in chain
 
@@ -417,6 +417,17 @@ def test_the_vertical_size_is_nine_by_sixteen_and_even():
         width, out_height = reframe.output_size(height)
         assert width % 2 == 0 and out_height % 2 == 0
         assert width * 16 == out_height * 9
+
+
+def test_a_bigger_source_does_not_mean_a_bigger_vertical_file():
+    """A 4K film arrives as a 3840x2160 container holding a 2.33:1 picture,
+    so the window cut out of it is a thousand pixels wide. Scaling that to
+    2912 rows is the same picture in four times the bytes, in four times the
+    encode time, on a phone that shows 1080 of them."""
+    assert reframe.output_size(2160) == (1080, 1920)
+    assert reframe.output_size(1080) == (1080, 1920)
+    assert reframe.output_size(720) == (720, 1280)
+    assert reframe.output_size(624) == (630, 1120)
 
 
 def test_the_frame_size_is_what_the_decoder_sees():

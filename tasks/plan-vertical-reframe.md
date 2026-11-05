@@ -40,6 +40,10 @@ original.mp4
   49 samples in 100, and 1920 on 9. The centres are scaled back and the window
   is placed in the size of the file, so the smoothing limit and the edges are
   still the file's own.
+- **The vertical file stops at 1080×1920.** The first choice was the source
+  height × 9/16, which on a 4K download means 2912 rows out of a window a
+  thousand pixels wide: the same picture in four times the bytes and four
+  times the encode time. Below full HD the height still follows the source.
 - **The window is cut from the picture, not the container.** A film that
   arrives in a 16:9 file carries black bands, and a window cut from the
   container keeps them: the point of the feature is a frame that is full.
@@ -143,6 +147,10 @@ two things the synthetic tests could not.
 - [x] **Task 11: the copy the detectors read.** Tracking every frame of the
       file at 3840×2160 cost more than the render. `analyse` tracks a
       1920-wide, five-frame copy and scales the centres back.
+- [x] **Task 12: the file stops at 1080×1920.** The window cut from a 4K film
+      is a thousand pixels wide; the output was 2912 rows of it. Capped, the
+      same 20 seconds render in 26 s instead of 79 and weigh 13.9 MB instead
+      of 28.5.
 
 ### Checkpoint: Phase 5
 
@@ -160,7 +168,7 @@ two things the synthetic tests could not.
 | Risk | Impact | Mitigation |
 |---|---|---|
 | The subject is lost mid-clip | The camera lags or jumps | The path is smoothed, the last known position is held, and a centre crop is the floor |
-| Detection is slow on a long video | A 30-minute clip takes minutes | Measured on a 4K download: tracking the file costs 12.75 s of work per s of film, a 1920-wide five-frame copy 2.30 s. The render is the other pass, 3.4-4.0 s per s, and is shown as progress |
+| Detection is slow on a long video | A 30-minute clip takes minutes | Measured on a 4K download: 12.75 s of work per s of film tracking the file, 2.30 s through the 1920-wide five-frame copy, and 1.29 s for the render at the 1080×1920 cap - 2¼ h for a 37.6-minute film against 10½ h before both changes. The render is shown as progress |
 | `opencv-python-headless` adds ~90 MB | A bigger download | It is one wheel, it is headless (no GUI libs), and the build is already 1.4 GB |
 | The app stops starting on a platform | A broken release | The CI matrix runs the built app on all four platforms, and the feature is off by default so a missing OpenCV cannot break a download |
 | A short ends mid-sentence | An unusable clip | Silence is asked for first; the scene change is the fallback |

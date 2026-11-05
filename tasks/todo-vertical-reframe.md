@@ -255,6 +255,28 @@ the framing is the last word.
 **Dependencies:** Task 10 · **Files:** `core/reframe.py`, `engine.py`,
 `tests/test_reframe.py` · **M**
 
+## Task 12: the vertical file stops at 1080×1920
+
+**Description:** the window cut from a 4K film is about a thousand pixels wide
+and the output was 2912 rows of it - the same picture in twice the bytes and
+three times the encode time, for rows no phone shows. `output_size` follows
+the source height up to 60 grid units and no further.
+
+**Acceptance criteria:**
+- [x] 1080×1920 is the largest the vertical file gets; a 720p source is still
+      720×1280 and a 624-row one is 630×1120.
+- [x] The output stays on the same 18x32 grid as the window, so the scale does
+      not stretch the picture.
+- [x] The audio is still copied, not re-encoded: the question was asked and
+      answered no.
+
+**Verification:** the same 20 seconds of 4K rendered in 26 s and weighed
+13.9 MB against 79 s and 28.5 MB uncapped; the offline suite and both live
+reframe tests cover the chain.
+
+**Dependencies:** Task 10 · **Files:** `core/reframe.py`, `tests/test_reframe.py`,
+`tasks/spec-vertical-reframe.md` · **S**
+
 ## Checkpoint: after Task 2
 
 - [ ] `ruff check src tests release` clean.
