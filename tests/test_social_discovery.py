@@ -18,6 +18,11 @@ def _no_ai_key(monkeypatch):
     monkeypatch.setattr(judge, "groq_key", lambda: None)
     monkeypatch.setattr(judge, "gemini_key", lambda: None)
 
+    def no_web_search(*args, **kwargs):
+        raise judge.JudgeUnavailable("Web search unavailable in this offline test.")
+
+    monkeypatch.setattr(judge, "propose_searched", no_web_search)
+
 
 class _FakeChannel:
     channel_id = "UC123"
