@@ -31,8 +31,15 @@ original.mp4
   of any length and `crop` accepts the `x` command, so the path is written as
   a file the worker writes next to the video.
 - **The crop path is sampled, not per frame.** Detection runs at about 5 fps;
-  between samples the window moves linearly, and the value is smoothed with
-  an EMA so the camera does not jitter.
+  between samples the window moves linearly, and the value is smoothed so the
+  camera does not jitter.
+- **The crop window is 9:16 to the pixel.** A 1920×1080 source is cut to
+  594×1056 - the largest whole 16-row band that keeps the ratio exact - and
+  scaled to 1080×1920. A window of 608×1080 would be 0.08% off the ratio and
+  the scale would stretch the picture by that much.
+- **The window may only travel a quarter of its width per sample.** The
+  movement is bounded rather than smoothed with an EMA, so a detection that
+  jumps cannot snap the camera no matter how the smoothing is tuned.
 - **Cut points come from silence first, scene change second.** A short that
   ends in the middle of a sentence is worse than one that is a few seconds
   off its target length, so `silencedetect` is asked first and the scene
@@ -48,7 +55,7 @@ original.mp4
 
 ### Phase 1: the pure part
 
-- [ ] **Task 1: the crop path.** `core/reframe.py` grows the maths: the crop
+- [x] **Task 1: the crop path.** `core/reframe.py` grows the maths: the crop
       width for a source, the clamp to the frame, the smoothing, and the
       `sendcmd` command file. Pure functions, no model, no ffmpeg.
 - [ ] **Task 2: the ffmpeg render.** `core/reframe.py` grows the render: the

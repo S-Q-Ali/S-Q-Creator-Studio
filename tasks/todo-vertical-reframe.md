@@ -10,15 +10,17 @@ smoothing of the sampled positions, and the `sendcmd` command file that hands
 the path to ffmpeg.
 
 **Acceptance criteria:**
-- [ ] The crop width for a 1920×1080 source is 608.
-- [ ] A crop x is clamped to `[0, width - crop_width]`.
-- [ ] The smoothing moves the window at most so far per sample, so a jump in
+- [x] The crop window for a 1920×1080 source is 594×1056 — 9:16 to the
+      pixel, so the scale to 1080×1920 does not stretch the picture.
+- [x] A crop x is clamped to `[0, width - crop_width]`.
+- [x] The smoothing moves the window at most so far per sample, so a jump in
       detection does not snap the camera.
-- [ ] The command file holds one `crop@c x <value>` line per sample, in
+- [x] The command file holds one `crop@c x <value>` line per sample, in
       time order.
 
 **Verification:** `pytest tests/test_reframe.py -q` green; the command file
-and the clamp are asserted exactly.
+and the clamp are asserted exactly. The generated command file was also run
+through ffmpeg 9.0 with `sendcmd`/`crop@c` and produced a 1080×1920 file.
 
 **Dependencies:** None · **Files:** `core/reframe.py`, `tests/test_reframe.py` ·
 **S**

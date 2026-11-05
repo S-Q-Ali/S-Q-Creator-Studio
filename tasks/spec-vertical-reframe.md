@@ -22,7 +22,7 @@ download folder.
 
 ```
 How to cook.mp4            1920×1080   4:12   ← original, untouched
-How to cook_9x16.mp4        608×1080 → 1080×1920   4:12   ← new
+How to cook_9x16.mp4        594×1056 → 1080×1920   4:12   ← new
 ```
 
 - The output height follows the source: a 1080p source gives 1080×1920, a
@@ -182,7 +182,8 @@ where the *why* is not in the code.
 ## Success criteria
 
 - [ ] A landscape download also produces a vertical file at the source's
-      height × 9/16, with the original audio.
+      height × 9/16, with the original audio. The crop window is 9:16 to the
+      pixel, so the scale to the output does not stretch the picture.
 - [ ] The subject stays inside the crop window for a talking-head video.
 - [ ] A video with no detectable person still gets a centred 9:16 version.
 - [ ] A video that is already vertical is left alone.
