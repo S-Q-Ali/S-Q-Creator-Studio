@@ -146,7 +146,7 @@ two things the synthetic tests could not.
 
 ### Checkpoint: Phase 5
 
-- [ ] The offline suite green, and the real-media test measures what is left of
+- [x] The offline suite green, and the real-media test measures what is left of
       the vertical file after the bands are cut out: nothing.
 
 ### Phase 6: ship
