@@ -37,6 +37,9 @@ original.mp4
   ends in the middle of a sentence is worse than one that is a few seconds
   off its target length, so `silencedetect` is asked first and the scene
   score is the fallback.
+- **The *N clips* mode recommends, it does not decide.** The app says the
+  duration it would use — and says when that duration is over a platform's
+  limit — and the user picks the number of clips.
 - **The original is never touched.** Everything new is written beside it.
 - **A centre crop is the floor.** If no subject is found at all, the video
   still gets a centred 9:16 version — the feature never fails a download.
@@ -79,7 +82,10 @@ original.mp4
 
 - [ ] **Task 5: the cut points.** `core/shorts.py` finds the pauses
       (`silencedetect`) and the scene changes, and picks the cut points that
-      land nearest each target length.
+      land nearest each target length. The *N clips* mode divides the
+      duration by the clip count, moves each boundary to the nearest pause,
+      and reports the duration it will use — including when that duration is
+      over YouTube Shorts' 3-minute limit.
 - [ ] **Task 6: the split.** `core/shorts.py` cuts the video into the
       segments with one ffmpeg pass per short, keeping the audio.
 
@@ -93,8 +99,9 @@ original.mp4
 
 - [ ] **Task 7: the two controls.** A checkbox on the download page — "Also
       make a vertical 9:16 version" — and the dropdown beside it — "Split
-      into shorts" — and the post-download leg in the worker that runs the
-      split, then the reframe on each piece.
+      into shorts" (Off, Auto, 30 s, 45 s, 60 s, 90 s, *N clips*) with a
+      spin box for the clip count, and the post-download leg in the worker
+      that runs the split, then the reframe on each piece.
 - [ ] **Task 8: the packaging.** `opencv-python-headless` moves into the
       runtime requirements, the models are copied into the bundle by the
       PyInstaller spec, and the CI matrix proves the app still starts on all

@@ -93,9 +93,33 @@ Two, both on the download page, both applying to the whole queue:
 | Control | Values | Default |
 |---|---|---|
 | "Also make a vertical 9:16 version" | on / off | off |
-| "Split into shorts" | Off · 30 s · 45 s · 60 s · 90 s · Auto (scene changes) | Off |
+| "Split into shorts" | Off · Auto · 30 s · 45 s · 60 s · 90 s · *N clips* | Off |
 
-`Auto` cuts wherever the scene changes, with no target length.
+**Auto** cuts wherever the scene changes, with no target length.
+
+**N clips** is the mode the user asked for: they say how many clips they want
+(6, say) and the app works out the duration that gives them the best result.
+The arithmetic:
+
+- The even share is `duration ÷ N` — 33 minutes into 6 clips is 5 min 30 s
+  each.
+- Each boundary then moves to the **nearest natural pause** (a silence in the
+  speech, or a scene change) to that share, so the clips stay as equal as
+  the content allows.
+- The app says what it will do before it starts: *"6 clips → 5 min 30 s each.
+  That is over YouTube Shorts' 3-minute limit — 11 clips would fit."* The
+  user can accept it or change the number.
+
+The recommendation is a number on screen, not a rule that overrides the user.
+
+## The output is 9:16, not a 16:9 video with bars
+
+The vertical file is a **true 9:16 video**: 1080×1920, and the picture fills
+the frame from edge to edge. There is no black bar above and below, no
+letterbox, and no pillarbox — the frame is cropped to the vertical shape and
+the crop follows the subject, so the person stays in the picture instead of
+being cropped out. The subject is tracked through the clip, so the picture
+moves with them rather than staying still.
 
 ## Commands
 
@@ -164,6 +188,10 @@ where the *why* is not in the code.
 - [ ] A video that is already vertical is left alone.
 - [ ] The dropdown cuts a long video into shorts of the chosen length, at a
       pause where one is near.
+- [ ] The *N clips* mode says the duration it will use before it starts, and
+      says when that duration is over a platform's limit.
+- [ ] The vertical file is a true 9:16 picture that fills the frame, with no
+      bars.
 - [ ] Both features are off by default and apply to the whole queue.
 - [ ] The app still builds and runs on Windows, macOS Intel, macOS Apple
       Silicon and Linux.
@@ -172,5 +200,7 @@ where the *why* is not in the code.
 
 - **The naming of the short files.** `_short01_` follows the long file's
   name; `_short_01_` would sort the same. Nothing depends on it.
-- **Whether a short that is shorter than half the target is dropped.** A
-  4-second leftover at the end of a 60-second split is usually noise.
+- **A trailing short shorter than half the target.** The user chose to keep
+  every short and to let the *N clips* mode do the balancing, so nothing is
+  dropped — the last clip in an *N clips* split is trimmed to the even share
+  rather than dropped.

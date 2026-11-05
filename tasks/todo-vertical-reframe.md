@@ -92,6 +92,10 @@ worse than one a few seconds off its length.
 - [ ] A video with neither pauses nor scene changes falls back to equal
       segments of the target length.
 - [ ] The `Auto` mode cuts on scene changes with no target length.
+- [ ] The *N clips* mode divides the duration by the clip count and reports
+      the duration it will use before anything is written.
+- [ ] The report says when the duration is over YouTube Shorts' 3-minute
+      limit, and how many clips would fit.
 
 **Verification:** `pytest tests/test_shorts.py -q` green.
 
@@ -116,12 +120,15 @@ ffmpeg pass per short, keeping the audio, and names them
 ## Task 7: the two controls in the app
 
 **Description:** a checkbox on the download page — "Also make a vertical 9:16
-version" — and a dropdown beside it — "Split into shorts" (Off, 30 s, 45 s,
-60 s, 90 s, Auto). The post-download leg in the worker runs the split first,
-then the reframe on each piece.
+version" — and a dropdown beside it — "Split into shorts" (Off, Auto, 30 s,
+45 s, 60 s, 90 s, *N clips*) with a spin box for the clip count. The
+post-download leg in the worker runs the split first, then the reframe on
+each piece.
 
 **Acceptance criteria:**
 - [ ] Both controls are off by default and apply to the whole queue.
+- [ ] The spin box only shows in the *N clips* mode, and the app says the
+      duration it will use.
 - [ ] The split runs before the reframe, and each short gets its own vertical
       version.
 - [ ] With the vertical box unticked, the shorts stay 16:9.
