@@ -195,7 +195,7 @@ def render_vertical(
     """
     if not source_width or not source_height:
         return RenderResult(None, "The download has no video, only audio.")
-    if source_width * 16 <= source_height * 9:
+    if not is_landscape(source_width, source_height):
         return RenderResult(None, "The download is already vertical.")
 
     try:
@@ -246,6 +246,32 @@ def path_from_centres(
     start = _even((source_width - crop_width) // 2)
     path = crop_path(wanted, source_width, crop_width, start=start)
     return [Sample(time, x) for time, x in zip(times, path)]
+
+
+def frame_size(video: str) -> tuple[int, int, float]:
+    """The width, the height and the frame rate of a video file.
+
+    The file is the truth: what a site said a download would be is not
+    always what landed, and the crop window has to fit the file.
+    """
+    import cv2
+
+    capture = cv2.VideoCapture(video)
+    try:
+        if not capture.isOpened():
+            return 0, 0, 0.0
+        return (
+            int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+            capture.get(cv2.CAP_PROP_FPS) or 0.0,
+        )
+    finally:
+        capture.release()
+
+
+def is_landscape(source_width: int, source_height: int) -> bool:
+    """Whether the frame is wide enough that a 9:16 crop adds something."""
+    return source_width * 16 > source_height * 9
 
 
 def track_video(

@@ -280,3 +280,38 @@ def test_the_vertical_size_is_nine_by_sixteen_and_even():
         width, out_height = reframe.output_size(height)
         assert width % 2 == 0 and out_height % 2 == 0
         assert width * 16 == out_height * 9
+
+
+def test_the_frame_size_is_what_the_decoder_sees(tmp_path):
+    """The site's metadata says what it meant to serve; the file says what
+    landed, and the crop window has to fit the file."""
+    cv2 = pytest.importorskip("cv2")
+    np = pytest.importorskip("numpy")
+    video = tmp_path / "clip.mp4"
+    writer = cv2.VideoWriter(
+        str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (320, 240)
+    )
+    for _ in range(20):
+        writer.write(np.zeros((240, 320, 3), dtype="uint8"))
+    writer.release()
+
+    width, height, fps = reframe.frame_size(str(video))
+
+    assert (width, height) == (320, 240)
+    assert fps == pytest.approx(10.0)
+
+
+def test_a_file_that_holds_no_video_has_no_size(tmp_path):
+    pytest.importorskip("cv2")
+    broken = tmp_path / "broken.mp4"
+    broken.write_bytes(b"not a video")
+
+    assert reframe.frame_size(str(broken)) == (0, 0, 0.0)
+
+
+def test_a_frame_wider_than_nine_by_sixteen_is_the_one_worth_reframing():
+    """The bar is the shape of the output, not whether the source is wide."""
+    assert reframe.is_landscape(1920, 1080)
+    assert reframe.is_landscape(1000, 1000)
+    assert not reframe.is_landscape(1080, 1920)
+    assert not reframe.is_landscape(562, 1000)

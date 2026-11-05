@@ -28,6 +28,7 @@ import unicodedata
 import yt_dlp
 from PySide6.QtCore import QStandardPaths, QThread, Signal
 
+from s_q_ali_media_downloader.core import reframe, shorts
 from s_q_ali_media_downloader.core.facebook_client import (
     FacebookError,
     list_page_videos,
@@ -98,6 +99,17 @@ QUALITY_OPTIONS = {
     "Audio only": "bestaudio/best",
 }
 DEFAULT_QUALITY = "Best up to 4K"
+
+#: The modes of the "Split into shorts" dropdown. Off and Auto have no
+#: length of their own; the fixed lengths come from the split module; the
+#: last one is where the user says how many clips and the app works out
+#: what each one will be.
+SPLIT_OFF = "Off"
+SPLIT_AUTO = "Auto"
+SPLIT_CLIPS = "N clips"
+SPLIT_OPTIONS = (SPLIT_OFF, SPLIT_AUTO, *shorts.TARGETS, SPLIT_CLIPS)
+DEFAULT_SPLIT = SPLIT_OFF
+DEFAULT_CLIPS = 6
 
 #: The video codecs that do not belong in an MP4. YouTube's 4K streams are
 #: VP9 and AV1, and a file that carries them under an .mp4 name is refused by
@@ -824,6 +836,22 @@ def find_ffmpeg():
     return None
 
 
+def ffmpeg_binary():
+    """The ffmpeg the app can run, as a command rather than a folder.
+
+    ``find_ffmpeg`` answers where ffmpeg lives because yt-dlp wants the
+    folder; the reframe and the split build their own command lines and
+    want the file.
+    """
+    import sys
+
+    directory = find_ffmpeg()
+    if not directory:
+        return "ffmpeg"
+    binary = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    return os.path.join(directory, binary)
+
+
 def build_music_opts(fmt, outtmpl, ffmpeg_dir=None, use_cookies=False):
     """yt-dlp options for one music track: best audio → requested codec.
 
@@ -973,6 +1001,9 @@ class DownloadThread(QThread):
         delay_key=DEFAULT_DELAY,
         extra_passes=0,
         parallel=2,
+        vertical=False,
+        split=DEFAULT_SPLIT,
+        clips=DEFAULT_CLIPS,
         parent=None,
     ):
         super().__init__(parent)
@@ -983,11 +1014,15 @@ class DownloadThread(QThread):
         self.delay_range = DELAY_PRESETS.get(delay_key, DELAY_PRESETS[DEFAULT_DELAY])
         self.extra_passes = extra_passes
         self.parallel = max(1, int(parallel))
+        self.vertical = bool(vertical)
+        self.split = split if split in SPLIT_OPTIONS else DEFAULT_SPLIT
+        self.clips = max(1, int(clips))
         self._resume = threading.Event()
         self._resume.set()
         self._stop = False
         self._impersonate = True
         self._ffmpeg_dir = find_ffmpeg()
+        self._ffmpeg = ffmpeg_binary()
 
     def pause(self):
         self._resume.clear()
@@ -1149,10 +1184,95 @@ class DownloadThread(QThread):
             except OSError:
                 target = downloaded
         self.job_meta.emit(uid, os.path.splitext(os.path.basename(target))[0], platform)
+        self._post_leg(uid, target, info)
         try:
             return human_size(os.path.getsize(target))
         except OSError:
             return "—"
+
+    def _post_leg(self, uid, path, info):
+        """The shorts and the vertical versions, once the download has landed.
+
+        The download is already won by the time this runs, so nothing here
+        may fail it: each step says what happened and leaves the original
+        file alone.
+        """
+        if self._stop or self.quality == "Audio only":
+            return
+        if not self.vertical and self.split == DEFAULT_SPLIT:
+            return
+
+        pieces = [path]
+        if self.split != DEFAULT_SPLIT:
+            try:
+                pieces = self._split_leg(uid, path, info)
+            except Exception as exc:
+                logger.warning("The split failed for %s", path, exc_info=True)
+                self.log.emit(f"The split could not run: {exc}")
+        if self.vertical:
+            for piece in pieces:
+                try:
+                    self._vertical_leg(uid, piece)
+                except Exception as exc:
+                    logger.warning("The vertical version failed for %s", piece, exc_info=True)
+                    self.log.emit(f"The vertical version could not be made: {exc}")
+
+    def _split_leg(self, uid, path, info):
+        """Cut the download into shorts at the pauses. The whole file back
+        when there is nothing to cut or nothing to cut it with."""
+        duration = float(info.get("duration") or 0.0)
+        if not duration:
+            self.log.emit("This download did not report its length, so it was not split.")
+            return [path]
+
+        target = shorts.TARGETS.get(self.split)
+        clips = self.clips if self.split == SPLIT_CLIPS else None
+        self._wait_while_paused()
+        silences = shorts.detect_silences(path, ffmpeg=self._ffmpeg)
+        scenes = shorts.detect_scene_changes(path, ffmpeg=self._ffmpeg)
+        plan = shorts.plan_cuts(
+            duration, target=target, silences=silences, scenes=scenes, clips=clips
+        )
+        if plan.note:
+            self.log.emit(plan.note)
+        if not plan.segments:
+            return [path]
+
+        self.job_progress.emit(uid, 99.0, "—", "splitting")
+        result = shorts.split_video(path, plan, ffmpeg=self._ffmpeg)
+        if not result.outputs:
+            self.log.emit(result.note)
+            return [path]
+        self.log.emit(f"{len(result.outputs)} shorts saved beside the original.")
+        return result.outputs
+
+    def _vertical_leg(self, uid, path):
+        """The 9:16 version of one piece, beside it, with the subject tracked."""
+        width, height, _fps = reframe.frame_size(path)
+        if not width or not height:
+            self.log.emit("This download has no picture to reframe.")
+            return
+        if not reframe.is_landscape(width, height):
+            self.log.emit("This download is already vertical.")
+            return
+
+        self._wait_while_paused()
+        self.job_progress.emit(uid, 99.0, "—", "vertical 9:16")
+        result = reframe.render_vertical(
+            path,
+            reframe.vertical_output_path(path),
+            width,
+            height,
+            reframe.track_video(path),
+            ffmpeg=self._ffmpeg,
+        )
+        self.log.emit(result.note)
+
+    def _wait_while_paused(self):
+        """Hold between the ffmpeg passes. A pause never cancels a job whose
+        file is already on disk, so this waits instead of raising."""
+        while self.is_paused() and not self._stop:
+            time.sleep(0.1)
 
     def _attempt(self, uid, url):
         """Attempt a single download.
