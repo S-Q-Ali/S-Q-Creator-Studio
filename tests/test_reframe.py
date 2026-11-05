@@ -1,7 +1,9 @@
 """Tests for the 9:16 reframe maths - the crop window and the path it takes.
 
 The detector tests use a public-domain portrait; see
-``tests/fixtures/PORTRAIT.txt`` for where it came from.
+``tests/fixtures/PORTRAIT.txt`` for where it came from. The video tests use a
+clip built by ffmpeg; see ``tests/fixtures/TRACKER_CLIP.txt`` for why it is a
+committed file instead of one the test writes.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ import pytest
 from s_q_ali_media_downloader.core import reframe
 
 FIXTURES = Path(__file__).parent / "fixtures"
+TRACKER_CLIP = FIXTURES / "tracker-clip.mp4"
 
 
 def test_the_crop_window_is_exactly_nine_by_sixteen():
@@ -272,16 +275,10 @@ def test_a_video_with_no_detection_falls_back_to_the_centred_crop():
     assert [sample.x for sample in path] == [662, 662]
 
 
-def test_the_tracker_reads_the_frames_of_a_video(tmp_path):
-    cv2 = pytest.importorskip("cv2")
-    np = pytest.importorskip("numpy")
-    video = tmp_path / "clip.mp4"
-    writer = cv2.VideoWriter(
-        str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (320, 240)
-    )
-    for _ in range(20):
-        writer.write(np.zeros((240, 320, 3), dtype="uint8"))
-    writer.release()
+def test_the_tracker_reads_the_frames_of_a_video():
+    """The tracker samples at 5 fps from a 2-second 10 fps clip: ten frames,
+    every other one of the twenty."""
+    pytest.importorskip("cv2")
 
     class Stub:
         def __init__(self):
@@ -292,7 +289,7 @@ def test_the_tracker_reads_the_frames_of_a_video(tmp_path):
             return (160, 120)
 
     stub = Stub()
-    path = reframe.track_video(str(video), sample_fps=5.0, detector=stub)
+    path = reframe.track_video(str(TRACKER_CLIP), sample_fps=5.0, detector=stub)
 
     assert stub.seen == 10
     assert [sample.time for sample in path] == [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]
@@ -307,20 +304,12 @@ def test_the_vertical_size_is_nine_by_sixteen_and_even():
         assert width * 16 == out_height * 9
 
 
-def test_the_frame_size_is_what_the_decoder_sees(tmp_path):
+def test_the_frame_size_is_what_the_decoder_sees():
     """The site's metadata says what it meant to serve; the file says what
     landed, and the crop window has to fit the file."""
-    cv2 = pytest.importorskip("cv2")
-    np = pytest.importorskip("numpy")
-    video = tmp_path / "clip.mp4"
-    writer = cv2.VideoWriter(
-        str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (320, 240)
-    )
-    for _ in range(20):
-        writer.write(np.zeros((240, 320, 3), dtype="uint8"))
-    writer.release()
+    pytest.importorskip("cv2")
 
-    width, height, fps = reframe.frame_size(str(video))
+    width, height, fps = reframe.frame_size(str(TRACKER_CLIP))
 
     assert (width, height) == (320, 240)
     assert fps == pytest.approx(10.0)

@@ -1,0 +1,15 @@
+tracker-clip.mp4
+  Two seconds of black: 320x240, 10 fps, 20 frames, no audio, 2 KB.
+  Built with ffmpeg, not with OpenCV:
+
+    ffmpeg -y -f lavfi -i "color=black:s=320x240:r=10:d=2" \
+      -c:v libx264 -preset ultrafast -crf 51 -g 20 \
+      -pix_fmt yuv420p -movflags +faststart -an tests/fixtures/tracker-clip.mp4
+
+  The test used to write this itself with cv2.VideoWriter and the "mp4v"
+  fourcc. That codec is not in the OpenCV wheel for Intel macOS, so the file
+  came out empty and reopened with zero frames - the test then failed on that
+  runner alone, over a writer it never needed. A clip read from disk only asks
+  the decoder, which every wheel has.
+  Every frame is solid colour, so no subject is ever found: the tests that use
+  this check the sampling and the size the decoder reports, not the tracking.
