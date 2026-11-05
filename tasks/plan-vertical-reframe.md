@@ -58,49 +58,50 @@ original.mp4
 - [x] **Task 1: the crop path.** `core/reframe.py` grows the maths: the crop
       width for a source, the clamp to the frame, the smoothing, and the
       `sendcmd` command file. Pure functions, no model, no ffmpeg.
-- [ ] **Task 2: the ffmpeg render.** `core/reframe.py` grows the render: the
+- [x] **Task 2: the ffmpeg render.** `core/reframe.py` grows the render: the
       filter chain, the audio copy, the output name, and the "already
       vertical" and "audio only" skips.
 
 ### Checkpoint: Phase 1
 
-- [ ] `ruff check src tests release` clean.
-- [ ] The offline suite green.
-- [ ] The command file and the filter string are covered by tests that assert
+- [x] `ruff check src tests release` clean.
+- [x] The offline suite green.
+- [x] The command file and the filter string are covered by tests that assert
       the exact text.
 
 ### Phase 2: the subject
 
-- [ ] **Task 3: the detection.** The YuNet model (MIT) and the NanoDet
+- [x] **Task 3: the detection.** The YuNet model (MIT) and the NanoDet
       fallback (Apache-2.0) are downloaded into
       `src/s_q_ali_media_downloader/models/`, the detector is written, and the
       subject's centre per sampled frame is produced.
-- [ ] **Task 4: the tracker.** The sampled centres become a crop path: pick
+- [x] **Task 4: the tracker.** The sampled centres become a crop path: pick
       the subject (largest, most central), smooth it, and hold the last
       known position through a frame where nothing was found.
 
 ### Checkpoint: Phase 2
 
-- [ ] The offline suite green.
-- [ ] A short video goes through detection → path → render and comes out
+- [x] The offline suite green.
+- [x] A short video goes through detection → path → render and comes out
       9:16 with its audio.
 
 ### Phase 3: the split
 
-- [ ] **Task 5: the cut points.** `core/shorts.py` finds the pauses
+- [x] **Task 5: the cut points.** `core/shorts.py` finds the pauses
       (`silencedetect`) and the scene changes, and picks the cut points that
       land nearest each target length. The *N clips* mode divides the
       duration by the clip count, moves each boundary to the nearest pause,
       and reports the duration it will use — including when that duration is
       over YouTube Shorts' 3-minute limit.
-- [ ] **Task 6: the split.** `core/shorts.py` cuts the video into the
+- [x] **Task 6: the split.** `core/shorts.py` cuts the video into the
       segments with one ffmpeg pass per short, keeping the audio.
 
 ### Checkpoint: Phase 3
 
-- [ ] The offline suite green.
+- [x] The offline suite green.
 - [ ] A two-minute video splits into three shorts, none of them cut in the
-      middle of a sentence.
+      middle of a sentence. (The live test cuts at the detected pauses; the
+      listening check on real speech is the owner's.)
 
 ### Phase 4: in the app
 

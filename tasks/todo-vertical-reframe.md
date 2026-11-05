@@ -100,18 +100,27 @@ nearest each target length. A short that ends in the middle of a sentence is
 worse than one a few seconds off its length.
 
 **Acceptance criteria:**
-- [ ] A silence in the speech is preferred over a scene change.
-- [ ] The cut point for a 60 s target is within 15 s of 60 s when the video
+- [x] A silence in the speech is preferred over a scene change.
+- [x] The cut point for a 60 s target is within 15 s of 60 s when the video
       offers a pause there.
-- [ ] A video with neither pauses nor scene changes falls back to equal
+- [x] A video with neither pauses nor scene changes falls back to equal
       segments of the target length.
-- [ ] The `Auto` mode cuts on scene changes with no target length.
-- [ ] The *N clips* mode divides the duration by the clip count and reports
+- [x] The `Auto` mode cuts on scene changes with no target length.
+- [x] The *N clips* mode divides the duration by the clip count and reports
       the duration it will use before anything is written.
-- [ ] The report says when the duration is over YouTube Shorts' 3-minute
+- [x] The report says when the duration is over YouTube Shorts' 3-minute
       limit, and how many clips would fit.
 
-**Verification:** `pytest tests/test_shorts.py -q` green.
+**Verification:** 44 focused tests passed, including a real ffmpeg 9.0
+120-second clip whose pauses and scene changes were both detected near 40
+and 80 seconds. The offline suite and ruff also passed after review fixes.
+
+**Note:** N clips keeps exactly N parts; fixed targets keep even a short
+final part. Reports show the average and actual planned duration range,
+warn if any part exceeds 180 seconds, and round up the recommended count.
+Pauses win over scene changes within non-overlapping target windows.
+Silence detection cannot guarantee sentence boundaries; without a nearby
+pause, scene changes or evenly spaced cuts are used.
 
 **Dependencies:** None · **Files:** `core/shorts.py`, `tests/test_shorts.py` · **S**
 
@@ -122,11 +131,21 @@ ffmpeg pass per short, keeping the audio, and names them
 `<name>_short01.mp4`.
 
 **Acceptance criteria:**
-- [ ] Each short carries the original audio.
-- [ ] The parts together cover the whole video, with no gap and no overlap.
-- [ ] A video shorter than one target length is not split at all.
+- [x] Each short carries the original audio.
+- [x] The parts together cover the whole video, with no gap and no overlap.
+- [x] A video shorter than one target length is not split at all.
 
-**Verification:** `pytest tests/test_shorts.py -q` green.
+**Verification:** 57 offline tests and 5 live tests green against ffmpeg 9.0.
+A 120-second clip split at `40.3 / 80.7`, `40.35 / 80.75` and
+`40.000005 / 80.000005` keeps all 1,200 decoded frames across the three
+shorts and the copied audio packets are sha256-identical to the original.
+
+**Note:** a fractional cut boundary silently dropped one frame until the
+encoder was told to pass the source time base through
+(`-fps_mode:v passthrough -enc_time_base:v demux`). The original is never
+touched: every destination is checked before the first render, each clip is
+staged in a temp dir and published with an exclusive create, and a failed
+clip removes only the file that clip created.
 
 **Dependencies:** Task 5 · **Files:** `core/shorts.py`, `tests/test_shorts.py` ·
 **S**
@@ -198,9 +217,14 @@ what it costs, the version is bumped, and the release is tagged.
 
 ## Checkpoint: after Task 6
 
-- [ ] The offline suite green.
+- [x] The offline suite green.
 - [ ] A two-minute video splits into three shorts, none of them cut in the
       middle of a sentence.
+
+The live test splits a 120-second clip into three at the detected pauses
+(near 40 s and 80 s), so the cut points land where the audio is silent. The
+test media is a tone, not speech, so the sentence-boundary half of this
+check is the owner's listening test on a real talking-head video.
 
 ## Checkpoint: after Task 8
 
