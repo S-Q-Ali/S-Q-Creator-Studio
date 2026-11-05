@@ -188,9 +188,9 @@ requirements, the models are copied into the bundle by the PyInstaller spec,
 and the CI matrix proves the built app still starts on all four platforms.
 
 **Acceptance criteria:**
-- [ ] `opencv-python-headless==4.14.0.94` is in the runtime requirements.
-- [ ] The models are in the bundle and the frozen app finds them.
-- [ ] The CI matrix builds and launches the app on all four platforms.
+- [x] `opencv-python-headless==4.14.0.94` is in the runtime requirements.
+- [x] The models are in the bundle and the frozen app finds them.
+- [x] The CI matrix builds and launches the app on all four platforms.
 
 **Verification:** the release build runs on the CI matrix.
 
@@ -211,6 +211,49 @@ what it costs, the version is bumped, and the release is tagged.
 
 **Dependencies:** Task 8 · **Files:** `README.md`, `CHANGELOG.md`,
 `pyproject.toml` · **XS**
+
+## Task 10: the picture inside the frame
+
+**Description:** a film that arrives in a 16:9 container carries black bands,
+and the window was cut from the container, so the vertical file kept them. The
+window is now cut from the picture ffmpeg's cropdetect reports.
+
+**Acceptance criteria:**
+- [x] The box comes out of cropdetect, and a box that is not a letterbox is
+      ignored.
+- [x] The render fills the vertical frame with picture.
+- [x] The leg hands the box from the analysis to the render.
+
+**Verification:** the real-media test that renders a letterboxed file measures
+the black left in the output; on the 4K download the window went from
+1206x2144 with 498 black rows to 918x1632 with none.
+
+**Dependencies:** Task 4 · **Files:** `core/reframe.py`, `engine.py`,
+`tests/test_reframe.py`, `tests/test_engine_post_leg.py` · **S**
+
+## Task 11: the copy the detectors read
+
+**Description:** the tracking pass decoded every frame of the file at its own
+size, which cost more than the render. `analyse` builds a 1920-wide copy at
+five frames a second, reads the subject there, and scales the centres back into
+the file before the window is placed.
+
+**Acceptance criteria:**
+- [x] One call gives the box and the path, and the path is in the size of the
+      file.
+- [x] A file that will not give up a proxy is still tracked the old way.
+- [x] The copy lands on the same subject as the full-size read: on 20 seconds
+      of 4K, 91 samples in 100 are within two-thirds of the window of the
+      path read at full size, and the frames looked at are on the subject. At
+      1280 only 51 were, and one shot put the window on out-of-focus fabric
+      while the hand was the subject.
+
+**Verification:** the timings are in the commit message - 12.75 s of work per
+second of film at full size, 2.30 s through the 1920 copy; the owner's eye on
+the framing is the last word.
+
+**Dependencies:** Task 10 · **Files:** `core/reframe.py`, `engine.py`,
+`tests/test_reframe.py` · **M**
 
 ## Checkpoint: after Task 2
 

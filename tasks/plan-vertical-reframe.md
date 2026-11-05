@@ -33,6 +33,18 @@ original.mp4
 - **The crop path is sampled, not per frame.** Detection runs at about 5 fps;
   between samples the window moves linearly, and the value is smoothed so the
   camera does not jitter.
+- **The detectors read a copy, not the file.** A 1920-wide, five-frame-per-
+  second copy of the film costs a fifth of what the file itself costs to
+  decode. It cannot be much smaller: measured on a 4K download, a 1280-wide
+  copy put the window more than half a window away from the full-size path on
+  49 samples in 100, and 1920 on 9. The centres are scaled back and the window
+  is placed in the size of the file, so the smoothing limit and the edges are
+  still the file's own.
+- **The window is cut from the picture, not the container.** A film that
+  arrives in a 16:9 file carries black bands, and a window cut from the
+  container keeps them: the point of the feature is a frame that is full.
+  ffmpeg's `cropdetect` says where the picture is, and it is cheap. A box less
+  than half the frame is not a letterbox and the whole frame is cut instead.
 - **The crop window is 9:16 to the pixel.** A 1920×1080 source is cut to
   594×1056 - the largest whole 16-row band that keeps the ratio exact - and
   scaled to 1080×1920. A window of 608×1080 would be 0.08% off the ratio and
@@ -110,7 +122,7 @@ original.mp4
       into shorts" (Off, Auto, 30 s, 45 s, 60 s, 90 s, *N clips*) with a
       spin box for the clip count, and the post-download leg in the worker
       that runs the split, then the reframe on each piece.
-- [ ] **Task 8: the packaging.** `opencv-python-headless` moves into the
+- [x] **Task 8: the packaging.** `opencv-python-headless` moves into the
       runtime requirements, the models are copied into the bundle by the
       PyInstaller spec, and the CI matrix proves the app still starts on all
       four platforms.
@@ -120,7 +132,24 @@ original.mp4
 - [x] `ruff` clean, the offline suite green, `graphify update .` refreshed.
 - [ ] The Windows installer builds and the app starts.
 
-### Phase 5: ship
+### Phase 5: on real film
+
+The first run of the feature was on a 37.6-minute 4K download, and it found
+two things the synthetic tests could not.
+
+- [x] **Task 10: the picture inside the frame.** The film is 2.33:1 inside a
+      16:9 container, so the window cut from the container carried 498 rows of
+      black. It is cut from the picture `cropdetect` reports instead.
+- [x] **Task 11: the copy the detectors read.** Tracking every frame of the
+      file at 3840×2160 cost more than the render. `analyse` tracks a
+      1920-wide, five-frame copy and scales the centres back.
+
+### Checkpoint: Phase 5
+
+- [ ] The offline suite green, and the real-media test measures what is left of
+      the vertical file after the bands are cut out: nothing.
+
+### Phase 6: ship
 
 - [ ] **Task 9:** the README and the CHANGELOG say what the feature does and
       what it costs (time per minute of video, and the ~90 MB the app grows
@@ -131,7 +160,7 @@ original.mp4
 | Risk | Impact | Mitigation |
 |---|---|---|
 | The subject is lost mid-clip | The camera lags or jumps | The path is smoothed, the last known position is held, and a centre crop is the floor |
-| Detection is slow on a long video | A 30-minute clip takes minutes | Sample at ~5 fps and detect on the smaller axis; the render pass is the real cost and is shown as progress |
+| Detection is slow on a long video | A 30-minute clip takes minutes | Measured on a 4K download: tracking the file costs 12.75 s of work per s of film, a 1920-wide five-frame copy 2.30 s. The render is the other pass, 3.4-4.0 s per s, and is shown as progress |
 | `opencv-python-headless` adds ~90 MB | A bigger download | It is one wheel, it is headless (no GUI libs), and the build is already 1.4 GB |
 | The app stops starting on a platform | A broken release | The CI matrix runs the built app on all four platforms, and the feature is off by default so a missing OpenCV cannot break a download |
 | A short ends mid-sentence | An unusable clip | Silence is asked for first; the scene change is the fallback |

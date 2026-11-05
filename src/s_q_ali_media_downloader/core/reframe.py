@@ -1,7 +1,8 @@
 """The maths of the 9:16 reframe - where the crop window sits over time.
 
-Nothing here touches a video. The window is cut, the path is smoothed, and
-the path is written out as the command file that ffmpeg's ``sendcmd`` reads.
+The window is cut, the path is smoothed, and the path is written out as the
+command file that ffmpeg's ``sendcmd`` reads. ``analyse`` finds the picture
+and the path in a real file; ``render_vertical`` writes the vertical version.
 """
 
 from __future__ import annotations
@@ -41,6 +42,14 @@ CROP_HEIGHT_STEP = 32
 #: The window may travel at most this much of its own width between two
 #: samples, so a detection that jumps does not snap the camera.
 MAX_STEP_RATIO = 0.25
+
+#: The detectors do not need the file at its own size. This is the copy they
+#: read, and it cannot be much smaller: at 1280 the subject of a 4K film is a
+#: few pixels and the path misses the one read at full size by over half a
+#: window on 49 samples in 100; at 1920 it misses on 9, for a fifth of the
+#: work.
+PROXY_WIDTH = 1920
+PROXY_FPS = 5.0
 
 
 @dataclass(frozen=True)
@@ -353,22 +362,55 @@ def is_landscape(source_width: int, source_height: int) -> bool:
     return source_width * 16 > source_height * 9
 
 
-def track_video(
+def proxy_command(
+    ffmpeg: str,
+    source: str,
+    output: str,
+    fps: float = PROXY_FPS,
+    width: int = PROXY_WIDTH,
+) -> list[str]:
+    """The copy the detectors read: the same film, small and slow.
+
+    Nothing listens to it, so the audio is dropped. The scale expression keeps
+    a file that is already smaller than the proxy the size it is.
+    """
+    return [
+        ffmpeg,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-i",
+        source,
+        "-vf",
+        f"fps={fps},scale=w='min({width},iw)':h=-2",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "30",
+        "-pix_fmt",
+        "yuv420p",
+        output,
+    ]
+
+
+def track_centres(
     video: str,
-    sample_fps: float = 5.0,
+    sample_fps: float = PROXY_FPS,
     detector: SubjectDetector | None = None,
-) -> list[Sample]:
-    """The crop path for a video: where the window sits at every sample."""
+) -> list[tuple[float, int | None]]:
+    """When the subject is in a video and where, as that video is measured."""
     import cv2
 
     capture = cv2.VideoCapture(video)
     if not capture.isOpened():
         return []
     try:
-        width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
-        crop_width, _ = crop_window(width, height)
         step = max(1, round(fps / sample_fps))
 
         finder = detector or SubjectDetector()
@@ -385,7 +427,48 @@ def track_video(
     finally:
         capture.release()
 
-    return path_from_centres(centres, width, crop_width)
+    return centres
+
+
+def analyse(
+    video: str,
+    ffmpeg: str = "ffmpeg",
+    sample_fps: float = PROXY_FPS,
+    runner: Callable[[list[str], str], int] | None = None,
+    detector: SubjectDetector | None = None,
+) -> tuple[tuple[int, int] | None, list[Sample]]:
+    """The picture inside the frame, and the crop path for the window.
+
+    Detection is the expensive half of a reframe: on a 4K download it costs
+    twelve seconds of work for every second of film. A copy at PROXY_WIDTH
+    and five frames a second costs a fifth of that, which is why the centres
+    are read there and scaled back - and why that width is not free to shrink.
+    """
+    width, height, _fps = frame_size(video)
+    box = detect_picture(video, ffmpeg=ffmpeg)
+    _top, picture_height = _picture_rows(width, height, box)
+    crop_width, _height = crop_window(width, picture_height)
+
+    run = runner or _run_ffmpeg
+    proxy_width = 0
+    with tempfile.TemporaryDirectory() as work:
+        proxy = os.path.join(work, "proxy.mp4")
+        if run(proxy_command(ffmpeg, os.path.abspath(video), proxy), work) == 0:
+            proxy_width = frame_size(proxy)[0]
+        if proxy_width:
+            ratio = width / proxy_width
+            centres = [
+                (time, None if x is None else round(x * ratio))
+                for time, x in track_centres(
+                    proxy, sample_fps=sample_fps, detector=detector
+                )
+            ]
+        else:
+            # shortcut: a file that gives no proxy is tracked at its own size,
+            # which is slow but correct.
+            centres = track_centres(video, sample_fps=sample_fps, detector=detector)
+
+    return box, path_from_centres(centres, width, crop_width)
 
 
 def model_path(name: str) -> Path:

@@ -62,12 +62,9 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
         seen.append(("size", video))
         return 1920, 1080, 30.0
 
-    def track_video(video, **kwargs):
-        seen.append(("track", video))
-        return []
-
-    def detect_picture(video, **kwargs):
-        seen.append(("picture", video))
+    def analyse(video, **kwargs):
+        seen.append(("analyse", video))
+        return None, []
 
     def render_vertical(source, output, width, height, samples, **kwargs):
         seen.append(("render", source, output))
@@ -82,8 +79,7 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
         monkeypatch.setattr(engine.shorts, name, fake)
     options = {
         "frame_size": frame_size,
-        "track_video": track_video,
-        "detect_picture": detect_picture,
+        "analyse": analyse,
         "render_vertical": render_vertical,
     }
     for name, fake in options.items():
@@ -113,32 +109,32 @@ def test_the_vertical_box_makes_the_vertical_file_beside_the_download(monkeypatc
 
     thread._post_leg(1, SOURCE, {"duration": 120.0})
 
-    assert ("picture", SOURCE) in seen
-    assert ("track", SOURCE) in seen
+    assert ("analyse", SOURCE) in seen
     assert ("render", SOURCE, "out/How to cook_9x16.mp4") in seen
 
 
-def test_a_letterboxed_download_is_cut_from_its_picture(monkeypatch):
-    """A film in a 16:9 container carries black bars; the window has to come out
-    of the picture, or the vertical file keeps them and does not fill the frame."""
+def test_the_picture_and_the_path_from_the_analysis_reach_the_render(monkeypatch):
+    """A film in a 16:9 container carries black bars and the tracker reads a
+    small copy of it; the render has to be told both."""
     seen = []
     _install(monkeypatch, seen)
-    boxes = {}
+    handed = {}
 
-    def detect_picture(video, **kwargs):
-        return (256, 1901)
+    def analyse(video, **kwargs):
+        return (256, 1901), [reframe.Sample(0.0, 1460)]
 
     def render_vertical(source, output, width, height, samples, **kwargs):
-        boxes[output] = kwargs.get("box")
+        handed["box"] = kwargs.get("box")
+        handed["samples"] = samples
         return reframe.RenderResult(output=output, note="done")
 
-    monkeypatch.setattr(engine.reframe, "detect_picture", detect_picture)
+    monkeypatch.setattr(engine.reframe, "analyse", analyse)
     monkeypatch.setattr(engine.reframe, "render_vertical", render_vertical)
     thread = _thread(monkeypatch, vertical=True)
 
     thread._post_leg(1, SOURCE, {"duration": 120.0})
 
-    assert boxes == {"out/How to cook_9x16.mp4": (256, 1901)}
+    assert handed == {"box": (256, 1901), "samples": [reframe.Sample(0.0, 1460)]}
 
 
 def test_the_split_runs_before_the_reframe(monkeypatch):

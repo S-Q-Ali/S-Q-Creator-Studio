@@ -1258,14 +1258,15 @@ class DownloadThread(QThread):
 
         self._wait_while_paused()
         self.job_progress.emit(uid, 99.0, "—", "vertical 9:16")
+        box, samples = reframe.analyse(path, ffmpeg=self._ffmpeg)
         result = reframe.render_vertical(
             path,
             reframe.vertical_output_path(path),
             width,
             height,
-            reframe.track_video(path),
+            samples,
             ffmpeg=self._ffmpeg,
-            box=reframe.detect_picture(path, ffmpeg=self._ffmpeg),
+            box=box,
         )
         self.log.emit(result.note)
 

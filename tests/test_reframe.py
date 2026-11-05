@@ -342,10 +342,72 @@ def test_the_tracker_reads_the_frames_of_a_video():
             return (160, 120)
 
     stub = Stub()
-    path = reframe.track_video(str(TRACKER_CLIP), sample_fps=5.0, detector=stub)
+    centres = reframe.track_centres(str(TRACKER_CLIP), sample_fps=5.0, detector=stub)
 
     assert stub.seen == 10
-    assert [sample.time for sample in path] == [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]
+    assert [time for time, _x in centres] == [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]
+    assert [x for _time, x in centres] == [160] * 10
+
+
+def test_the_copy_the_detectors_read_is_smaller_and_slower():
+    """Detection on the file as it landed costs twelve seconds per second of
+    film; the subject is no harder to see at 1920 across and five frames a
+    second, and that width is what keeps the two paths in agreement."""
+    command = reframe.proxy_command("ffmpeg", "in.mp4", "out.mp4")
+
+    assert "fps=5.0,scale=w='min(1920,iw)':h=-2" in command
+    assert "-an" in command
+    assert "-preset" in command
+    assert command[-1] == "out.mp4"
+
+
+def test_the_analysis_reads_the_copy_and_hands_back_a_path_for_the_file(tmp_path, monkeypatch):
+    """The detectors see a 1920-wide copy; the crop filter works in the file,
+    so every centre is scaled back before the window is placed."""
+    monkeypatch.setattr(
+        reframe,
+        "frame_size",
+        lambda video: (3840, 2160, 60.0) if video.endswith("Film.mp4") else (1920, 1080, 5.0),
+    )
+    monkeypatch.setattr(reframe, "detect_picture", lambda video, **kwargs: (256, 1901))
+    monkeypatch.setattr(
+        reframe,
+        "track_centres",
+        lambda video, **kwargs: [(0.0, 663), (0.2, 1200)],
+    )
+    read = []
+
+    def fake_runner(command, cwd):
+        read.append(command[-1])
+        return 0
+
+    box, samples = reframe.analyse(str(tmp_path / "Film.mp4"), runner=fake_runner)
+
+    assert box == (256, 1901)
+    # 663 in the copy is 1326 in the file, and the 918-wide window is placed
+    # with its middle under it. The next centre is far off to the right, so the
+    # window travels the most it is allowed between two samples - a quarter of
+    # its own width - and lands on 866 + 229, made even.
+    assert [sample.x for sample in samples] == [866, 1094]
+    assert read and read[0].endswith("proxy.mp4")
+
+
+def test_a_file_that_refuses_to_give_up_a_proxy_is_still_tracked(tmp_path, monkeypatch):
+    """The copy is the cheap way to find the subject, not the only way."""
+    monkeypatch.setattr(reframe, "frame_size", lambda video: (3840, 2160, 60.0))
+    monkeypatch.setattr(reframe, "detect_picture", lambda video, **kwargs: None)
+    read = []
+
+    def spy(video, **kwargs):
+        read.append(video)
+        return []
+
+    monkeypatch.setattr(reframe, "track_centres", spy)
+    monkeypatch.setattr(reframe, "path_from_centres", lambda *args: [])
+
+    reframe.analyse(str(tmp_path / "Film.mp4"), runner=lambda command, cwd: 1)
+
+    assert read == [str(tmp_path / "Film.mp4")]
 
 
 def test_the_vertical_size_is_nine_by_sixteen_and_even():
