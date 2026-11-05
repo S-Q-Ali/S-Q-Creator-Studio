@@ -6,9 +6,15 @@ the path is written out as the command file that ffmpeg's ``sendcmd`` reads.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+import logging
+import os
+import subprocess
+import tempfile
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 #: The window is cut in whole 16-row bands, so the 9:16 comes out exact and
 #: the scale to the output size does not stretch the picture.
@@ -23,6 +29,12 @@ MAX_STEP_RATIO = 0.25
 class Sample:
     time: float
     x: int
+
+
+@dataclass(frozen=True)
+class RenderResult:
+    output: str | None = None
+    note: str = ""
 
 
 def crop_window(source_width: int, source_height: int) -> tuple[int, int]:
@@ -82,6 +94,113 @@ def write_command_file(path: Path | str, samples: Iterable[Sample]) -> None:
     Path(path).write_text(
         "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
     )
+
+
+def output_size(source_height: int) -> tuple[int, int]:
+    """The vertical size: the source height across, 16:9 taller."""
+    return source_height, source_height * 16 // 9
+
+
+def vertical_output_path(source: str) -> str:
+    """Where the vertical version of a download goes."""
+    return f"{os.path.splitext(source)[0]}_9x16.mp4"
+
+
+def filter_chain(command_file: str, source_width: int, source_height: int) -> str:
+    """The filter chain: read the path, cut the window out, make it vertical."""
+    crop_width, crop_height = crop_window(source_width, source_height)
+    out_width, out_height = output_size(source_height)
+    x = (source_width - crop_width) // 2
+    y = (source_height - crop_height) // 2
+    return (
+        f"sendcmd=f={command_file},"
+        f"crop@c=w={crop_width}:h={crop_height}:x={x}:y={y},"
+        f"scale={out_width}:{out_height},setsar=1"
+    )
+
+
+def build_command(
+    ffmpeg: str, source: str, output: str, chain: str
+) -> list[str]:
+    """The ffmpeg call. The audio is copied, never re-encoded."""
+    return [
+        ffmpeg,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-y",
+        "-i",
+        source,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        "-vf",
+        chain,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "copy",
+        "-movflags",
+        "+faststart",
+        output,
+    ]
+
+
+def render_vertical(
+    source: str,
+    output: str,
+    source_width: int,
+    source_height: int,
+    samples: Sequence[Sample],
+    ffmpeg: str = "ffmpeg",
+    runner: Callable[[list[str], str], int] | None = None,
+) -> RenderResult:
+    """Render the vertical version of a download beside it.
+
+    A download that is already vertical, or that has no video at all, is left
+    alone and says why.
+    """
+    if not source_width or not source_height:
+        return RenderResult(None, "The download has no video, only audio.")
+    if source_width * 16 <= source_height * 9:
+        return RenderResult(None, "The download is already vertical.")
+
+    try:
+        chain = filter_chain("crop.cmd", source_width, source_height)
+    except ValueError as exc:
+        return RenderResult(None, str(exc))
+
+    command = build_command(ffmpeg, os.path.abspath(source), os.path.abspath(output), chain)
+    run = runner or _run_ffmpeg
+    with tempfile.TemporaryDirectory() as work:
+        write_command_file(os.path.join(work, "crop.cmd"), samples)
+        code = run(command, work)
+
+    if code != 0 or not os.path.isfile(output):
+        return RenderResult(None, "The vertical version could not be made.")
+    return RenderResult(output, "The vertical version is beside the original.")
+
+
+def _run_ffmpeg(command: list[str], cwd: str) -> int:
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        logger.error("ffmpeg failed: %s", (result.stderr or "").strip()[-800:])
+    return result.returncode
 
 
 def _even(value: int) -> int:

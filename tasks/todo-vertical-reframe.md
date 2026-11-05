@@ -33,14 +33,15 @@ through ffmpeg 9.0 with `sendcmd`/`crop@c` and produced a 1080×1920 file.
 an audio-only download.
 
 **Acceptance criteria:**
-- [ ] The filter string names the command file, the crop window and the
+- [x] The filter string names the command file, the crop window and the
       9:16 output size.
-- [ ] The audio is copied, not re-encoded.
-- [ ] A vertical source is left alone and says so.
-- [ ] An audio-only download is left alone and says so.
+- [x] The audio is copied, not re-encoded.
+- [x] A vertical source is left alone and says so.
+- [x] An audio-only download is left alone and says so.
 
 **Verification:** `pytest tests/test_reframe.py -q` green; the filter string
-is asserted exactly.
+is asserted exactly. The render was also run against real ffmpeg 9.0: a
+1920×1080 clip came out 1080×1920 h264 with the original AAC track copied.
 
 **Dependencies:** Task 1 · **Files:** `core/reframe.py`, `tests/test_reframe.py` ·
 **S**

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 
 from s_q_ali_media_downloader.core import reframe
@@ -75,3 +78,111 @@ def test_the_command_file_holds_one_line_per_sample_in_time_order(tmp_path):
         "0.000 crop@c x 100;",
         "1.500 crop@c x 400;",
     ]
+
+
+def test_the_vertical_file_sits_next_to_the_original():
+    assert (
+        reframe.vertical_output_path("How to cook.mp4") == "How to cook_9x16.mp4"
+    )
+
+
+def test_the_filter_names_the_command_file_the_window_and_the_output_size():
+    chain = reframe.filter_chain("crop.cmd", 1920, 1080)
+
+    assert chain == (
+        "sendcmd=f=crop.cmd,"
+        "crop@c=w=594:h=1056:x=663:y=12,"
+        "scale=1080:1920,setsar=1"
+    )
+
+
+def test_the_audio_is_copied_and_the_video_is_re_encoded():
+    command = reframe.build_command(
+        "ffmpeg", "in.mp4", "out.mp4", "sendcmd=f=crop.cmd"
+    )
+
+    assert command[command.index("-c:a") + 1] == "copy"
+    assert command[command.index("-c:v") + 1] == "libx264"
+
+
+def test_a_vertical_source_is_left_alone():
+    result = reframe.render_vertical(
+        source="in.mp4",
+        output="in_9x16.mp4",
+        source_width=1080,
+        source_height=1920,
+        samples=[reframe.Sample(0.0, 0)],
+        ffmpeg="there-is-no-ffmpeg-here",
+    )
+
+    assert result.output is None
+    assert "vertical" in result.note.lower()
+
+
+def test_an_audio_only_download_is_left_alone():
+    result = reframe.render_vertical(
+        source="in.mp3",
+        output="in_9x16.mp4",
+        source_width=0,
+        source_height=0,
+        samples=[],
+        ffmpeg="there-is-no-ffmpeg-here",
+    )
+
+    assert result.output is None
+    assert "audio" in result.note.lower()
+
+
+def test_a_landscape_source_is_rendered(tmp_path):
+    source = tmp_path / "in.mp4"
+    source.write_bytes(b"not really a video")
+    output = tmp_path / "in_9x16.mp4"
+
+    ran = {}
+
+    def fake_run(command, cwd):
+        ran["command"] = command
+        ran["cwd"] = cwd
+        ran["commands"] = Path(cwd, "crop.cmd").read_text(encoding="utf-8")
+        Path(output).write_bytes(b"made")
+        return 0
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=str(output),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=fake_run,
+    )
+
+    assert result.output == str(output)
+    assert any("sendcmd=f=crop.cmd" in part for part in ran["command"])
+    assert ran["commands"].splitlines() == ["0.000 crop@c x 100;"]
+
+
+def test_the_render_resolves_the_paths_before_it_moves_to_its_own_folder(
+    tmp_path, monkeypatch
+):
+    """ffmpeg runs in the folder that holds the command file, so a relative
+    path would be looked up in the wrong place."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "in.mp4").write_bytes(b"x")
+    seen = {}
+
+    def fake_run(command, cwd):
+        seen["input"] = command[command.index("-i") + 1]
+        return 1
+
+    reframe.render_vertical(
+        source="in.mp4",
+        output="out.mp4",
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 0)],
+        runner=fake_run,
+    )
+
+    assert os.path.isabs(seen["input"])
+
