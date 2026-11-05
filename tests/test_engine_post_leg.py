@@ -66,6 +66,9 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
         seen.append(("track", video))
         return []
 
+    def detect_picture(video, **kwargs):
+        seen.append(("picture", video))
+
     def render_vertical(source, output, width, height, samples, **kwargs):
         seen.append(("render", source, output))
         return reframe.RenderResult(output=output, note="The vertical version is beside it.")
@@ -80,6 +83,7 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
     options = {
         "frame_size": frame_size,
         "track_video": track_video,
+        "detect_picture": detect_picture,
         "render_vertical": render_vertical,
     }
     for name, fake in options.items():
@@ -109,8 +113,32 @@ def test_the_vertical_box_makes_the_vertical_file_beside_the_download(monkeypatc
 
     thread._post_leg(1, SOURCE, {"duration": 120.0})
 
+    assert ("picture", SOURCE) in seen
     assert ("track", SOURCE) in seen
     assert ("render", SOURCE, "out/How to cook_9x16.mp4") in seen
+
+
+def test_a_letterboxed_download_is_cut_from_its_picture(monkeypatch):
+    """A film in a 16:9 container carries black bars; the window has to come out
+    of the picture, or the vertical file keeps them and does not fill the frame."""
+    seen = []
+    _install(monkeypatch, seen)
+    boxes = {}
+
+    def detect_picture(video, **kwargs):
+        return (256, 1901)
+
+    def render_vertical(source, output, width, height, samples, **kwargs):
+        boxes[output] = kwargs.get("box")
+        return reframe.RenderResult(output=output, note="done")
+
+    monkeypatch.setattr(engine.reframe, "detect_picture", detect_picture)
+    monkeypatch.setattr(engine.reframe, "render_vertical", render_vertical)
+    thread = _thread(monkeypatch, vertical=True)
+
+    thread._post_leg(1, SOURCE, {"duration": 120.0})
+
+    assert boxes == {"out/How to cook_9x16.mp4": (256, 1901)}
 
 
 def test_the_split_runs_before_the_reframe(monkeypatch):
@@ -409,3 +437,52 @@ def test_a_real_download_is_cut_into_shorts_and_each_one_turns_vertical(
         out_width, out_height, _ = reframe.frame_size(str(vertical))
         assert out_width * 16 == out_height * 9  # fills the frame: no bars
         assert vertical.stat().st_size > 0
+
+
+@pytest.fixture(scope="module")
+def letterboxed_video(tmp_path_factory):
+    """A film in a 16:9 container: a 320x120 picture with 30 rows of black
+    above and below, the shape a downloaded movie actually arrives in."""
+    directory = engine.find_ffmpeg()
+    assert directory, "The real media tests need ffmpeg."
+    folder = tmp_path_factory.mktemp("letterbox-media")
+    source = folder / "Film.mp4"
+    subprocess.run(
+        [
+            engine.ffmpeg_binary(),
+            "-hide_banner", "-loglevel", "error", "-nostdin", "-n",
+            "-f", "lavfi", "-i", "color=white:s=320x120:r=10:d=20",
+            "-vf", "pad=320:180:0:30:color=black",
+            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+            str(source),
+        ],
+        capture_output=True,
+        check=True,
+        timeout=180,
+    )
+    return directory, source
+
+
+@pytest.mark.live
+def test_the_black_bands_of_a_film_do_not_travel_into_the_vertical_file(
+    tmp_path, monkeypatch, letterboxed_video
+):
+    directory, source = letterboxed_video
+    monkeypatch.setattr(engine, "find_ffmpeg", lambda: directory)
+    downloaded = tmp_path / "Film.mp4"
+    shutil.copyfile(source, downloaded)
+    assert reframe.detect_picture(str(downloaded), engine.ffmpeg_binary()) == (30, 149)
+    thread = DownloadThread(
+        jobs=[], output_dir=str(tmp_path), quality="Best up to 4K", vertical=True
+    )
+
+    thread._post_leg(1, str(downloaded), {"duration": 20.0})
+
+    vertical = tmp_path / "Film_9x16.mp4"
+    assert vertical.is_file()
+    _width, height, _fps = reframe.frame_size(str(vertical))
+    box = reframe.detect_picture(str(vertical), engine.ffmpeg_binary())
+    # Untouched bands are a third of this file. Nine tenths is the room left for
+    # a decode that reads the edges of a picture as slightly dark.
+    assert box is not None
+    assert (box[1] - box[0] + 1) * 10 >= height * 9

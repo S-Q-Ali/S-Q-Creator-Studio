@@ -1265,6 +1265,7 @@ class DownloadThread(QThread):
             height,
             reframe.track_video(path),
             ffmpeg=self._ffmpeg,
+            box=reframe.detect_picture(path, ffmpeg=self._ffmpeg),
         )
         self.log.emit(result.note)
 

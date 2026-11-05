@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -131,17 +132,94 @@ def vertical_output_path(source: str) -> str:
     return f"{os.path.splitext(source)[0]}_9x16.mp4"
 
 
-def filter_chain(command_file: str, source_width: int, source_height: int) -> str:
-    """The filter chain: read the path, cut the window out, make it vertical."""
-    crop_width, crop_height = crop_window(source_width, source_height)
-    out_width, out_height = output_size(source_height)
-    x = (source_width - crop_width) // 2
-    y = (source_height - crop_height) // 2
+def filter_chain(
+    command_file: str,
+    source_width: int,
+    source_height: int,
+    box: tuple[int, int] | None = None,
+) -> str:
+    """The filter chain: read the path, cut the window out, make it vertical.
+
+    ``box`` is where the picture sits inside the frame. A film with black
+    bands above and below has to be cut from the picture, or the bands travel
+    into the vertical file and the frame is not filled.
+    """
+    top, height = _picture_rows(source_width, source_height, box)
+    crop_width, crop_height = crop_window(source_width, height)
+    out_width, out_height = output_size(height)
+    x = _even((source_width - crop_width) // 2)
+    y = _even(top + (height - crop_height) // 2)
     return (
         f"sendcmd=f={command_file},"
         f"crop@c=w={crop_width}:h={crop_height}:x={x}:y={y},"
         f"scale={out_width}:{out_height},setsar=1"
     )
+
+
+def _picture_rows(
+    source_width: int, source_height: int, box: tuple[int, int] | None
+) -> tuple[int, int]:
+    """The rows the window is cut from, and where they start.
+
+    A box under half the frame is not a letterbox - a subtitle bar, or a
+    decode that reported nothing - and the whole frame is cut instead. The
+    widest film in release is 2.76:1, which is still 58 percent of 16:9.
+    """
+    if box:
+        top, bottom = box
+        height = bottom - top + 1
+        if height * 2 >= source_height:
+            try:
+                crop_window(source_width, height)
+            except ValueError:
+                pass
+            else:
+                return top, height
+    return 0, source_height
+
+
+def detect_picture(video: str, ffmpeg: str = "ffmpeg") -> tuple[int, int] | None:
+    """Where the picture is inside the frame, as ffmpeg's cropdetect sees it."""
+    result = subprocess.run(
+        [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "info",
+            "-nostdin",
+            "-i",
+            video,
+            "-vf",
+            "cropdetect=24:2:0",
+            "-an",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        errors="replace",
+        check=False,
+    )
+    return detect_picture_text(result.stderr or "")
+
+
+def detect_picture_text(report: str) -> tuple[int, int] | None:
+    """The picture box out of ffmpeg's cropdetect output: first row, last row.
+
+    The box the report gives most often is the one to cut to. A film keeps
+    its bands from end to end, so they are the rule and a full-frame shot is
+    the exception; a tie goes to the bigger box, which cuts less.
+    """
+    boxes = [
+        (int(top), int(top) + int(height) - 1)
+        for _width, height, _left, top in re.findall(
+            r"crop=(\d+):(\d+):(\d+):(\d+)", report
+        )
+    ]
+    if not boxes:
+        return None
+    return max(set(boxes), key=lambda box: (boxes.count(box), box[1] - box[0]))
 
 
 def build_command(
@@ -187,6 +265,7 @@ def render_vertical(
     samples: Sequence[Sample],
     ffmpeg: str = "ffmpeg",
     runner: Callable[[list[str], str], int] | None = None,
+    box: tuple[int, int] | None = None,
 ) -> RenderResult:
     """Render the vertical version of a download beside it.
 
@@ -199,7 +278,7 @@ def render_vertical(
         return RenderResult(None, "The download is already vertical.")
 
     try:
-        chain = filter_chain("crop.cmd", source_width, source_height)
+        chain = filter_chain("crop.cmd", source_width, source_height, box)
     except ValueError as exc:
         return RenderResult(None, str(exc))
 

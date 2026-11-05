@@ -38,6 +38,57 @@ def test_a_source_too_small_to_crop_vertically_is_refused():
         reframe.crop_window(100, 20)
 
 
+# --------------------------------------------------------------------------- #
+# The letterbox: the window is cut from the picture, not the container
+# --------------------------------------------------------------------------- #
+def test_the_picture_is_read_out_of_what_cropdetect_reports():
+    """ffmpeg says the same box for every frame of a letterboxed film; the
+    answer is that box, in the pixels of the file it read."""
+    report = (
+        "[cropdetect_0 @ 0x1] x1:0 x2:3839 y1:256 y2:1901 w:3840 h:1646 x:0 y:256 "
+        "pts:1 t:0.0 crop=3840:1646:0:256\n"
+        "[cropdetect_0 @ 0x1] x1:2 x2:3836 y1:256 y2:1901 w:3834 h:1646 x:2 y:256 "
+        "pts:2 t:0.2 crop=3834:1646:2:256\n"
+        "[cropdetect_0 @ 0x1] x1:0 x2:3839 y1:256 y2:1901 w:3840 h:1646 x:0 y:256 "
+        "pts:3 t:0.4 crop=3840:1646:0:256\n"
+    )
+
+    assert reframe.detect_picture_text(report) == (256, 1901)
+
+
+def test_a_frame_that_is_all_picture_reports_the_whole_frame():
+    assert reframe.detect_picture_text("crop=1920:1080:0:0\n") == (0, 1079)
+
+
+def test_no_cropdetect_report_is_no_picture():
+    assert reframe.detect_picture_text("ffmpeg said nothing useful") is None
+
+
+def test_the_window_is_cut_from_the_picture_and_sits_inside_it():
+    """A 3840x2160 container holding a 3840x1646 picture: the 9:16 window
+    comes out of the 1646 rows, and starts where the picture starts."""
+    chain = reframe.filter_chain("crop.cmd", 3840, 2160, box=(256, 1901))
+
+    assert "crop@c=w=918:h=1632" in chain
+    assert "scale=1638:2912" in chain
+    # 256 + (1646 - 1632) // 2 = 263, and an odd offset shifts the chroma.
+    assert "x=1460:y=262" in chain
+
+
+def test_a_box_that_is_the_whole_frame_is_the_old_centred_crop():
+    assert reframe.filter_chain("c.cmd", 1920, 1080) == reframe.filter_chain(
+        "c.cmd", 1920, 1080, box=(0, 1079)
+    )
+
+
+def test_a_box_that_is_not_a_picture_keeps_the_whole_frame():
+    """A strip of the frame is not a letterbox: a subtitle bar, or a decode
+    that reported one dark row, would cut the picture to nothing."""
+    assert reframe.filter_chain("c.cmd", 3840, 2160, box=(1000, 1039)) == reframe.filter_chain(
+        "c.cmd", 3840, 2160
+    )
+
+
 def test_the_crop_x_is_clamped_inside_the_frame():
     assert reframe.clamp_x(-40, 1920, 594) == 0
     assert reframe.clamp_x(4000, 1920, 594) == 1920 - 594
@@ -101,7 +152,9 @@ def test_the_filter_names_the_command_file_the_window_and_the_output_size():
 
     assert chain == (
         "sendcmd=f=crop.cmd,"
-        "crop@c=w=594:h=1056:x=663:y=12,"
+        # 662, not 663: the window sits here until the first command arrives,
+        # and an odd offset shifts the chroma by half a pixel.
+        "crop@c=w=594:h=1056:x=662:y=12,"
         "scale=1080:1920,setsar=1"
     )
 
