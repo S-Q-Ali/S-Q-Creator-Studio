@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from s_q_ali_media_downloader.engine import is_youtube_url
+from s_q_ali_media_downloader.engine import platform_of
 from s_q_ali_media_downloader.theme import (
     BACKDROP,
     STATUS_COLORS,
@@ -193,7 +193,10 @@ class JobCard(QFrame):
         top = QHBoxLayout()
         top.setSpacing(9)
 
-        self.badge = QLabel("YOUTUBE" if is_youtube_url(job.url) else "TIKTOK")
+        # The badge names the platform the link came from. Anything that is
+        # not YouTube used to be labelled TikTok, so an Instagram reel showed
+        # a TikTok badge.
+        self.badge = QLabel((platform_of(job.url) or "Video").upper())
         self.badge.setProperty("role", "badge")
         top.addWidget(self.badge, 0, Qt.AlignVCenter)
 

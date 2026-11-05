@@ -145,6 +145,15 @@ def test_the_card_shows_the_resolution_the_codec_and_the_size(qapp, isolated_app
     assert "412 MB" in card.meta.text()
 
 
+def test_the_card_badge_names_the_platform_the_link_came_from(qapp, isolated_appdata):
+    """An Instagram reel used to carry a TikTok badge: the card only asked
+    whether the link was YouTube."""
+    assert JobCard(Job("https://www.instagram.com/p/abc/")).badge.text() == "INSTAGRAM"
+    assert JobCard(Job("https://www.tiktok.com/@a/video/123")).badge.text() == "TIKTOK"
+    assert JobCard(Job("https://www.youtube.com/watch?v=abc")).badge.text() == "YOUTUBE"
+    assert JobCard(Job("https://www.facebook.com/reel/1")).badge.text() == "FACEBOOK"
+
+
 # ---------------------------------------------------------------------- #
 # The settings page
 # ---------------------------------------------------------------------- #
