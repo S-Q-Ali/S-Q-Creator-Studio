@@ -78,24 +78,62 @@ the last known position is held through a frame where nothing was found.
 **Dependencies:** Task 3 · **Files:** `core/reframe.py`, `tests/test_reframe.py` ·
 **S**
 
-## Task 5: the option in the app
+## Task 5: the cut points
 
-**Description:** a checkbox on the download page — "Also make a vertical 9:16
-version" — and the reframe leg in the download worker, after the file is on
-disk. The card shows that a vertical version was made.
+**Description:** `core/shorts.py` finds the pauses in the speech
+(`silencedetect`) and the scene changes, then picks the cut points that land
+nearest each target length. A short that ends in the middle of a sentence is
+worse than one a few seconds off its length.
 
 **Acceptance criteria:**
-- [ ] The option is off by default and applies to the whole queue.
-- [ ] The reframe runs after the download, in the worker, not on the UI
-      thread.
+- [ ] A silence in the speech is preferred over a scene change.
+- [ ] The cut point for a 60 s target is within 15 s of 60 s when the video
+      offers a pause there.
+- [ ] A video with neither pauses nor scene changes falls back to equal
+      segments of the target length.
+- [ ] The `Auto` mode cuts on scene changes with no target length.
+
+**Verification:** `pytest tests/test_shorts.py -q` green.
+
+**Dependencies:** None · **Files:** `core/shorts.py`, `tests/test_shorts.py` · **S**
+
+## Task 6: the split
+
+**Description:** `core/shorts.py` cuts the video into the segments with one
+ffmpeg pass per short, keeping the audio, and names them
+`<name>_short01.mp4`.
+
+**Acceptance criteria:**
+- [ ] Each short carries the original audio.
+- [ ] The parts together cover the whole video, with no gap and no overlap.
+- [ ] A video shorter than one target length is not split at all.
+
+**Verification:** `pytest tests/test_shorts.py -q` green.
+
+**Dependencies:** Task 5 · **Files:** `core/shorts.py`, `tests/test_shorts.py` ·
+**S**
+
+## Task 7: the two controls in the app
+
+**Description:** a checkbox on the download page — "Also make a vertical 9:16
+version" — and a dropdown beside it — "Split into shorts" (Off, 30 s, 45 s,
+60 s, 90 s, Auto). The post-download leg in the worker runs the split first,
+then the reframe on each piece.
+
+**Acceptance criteria:**
+- [ ] Both controls are off by default and apply to the whole queue.
+- [ ] The split runs before the reframe, and each short gets its own vertical
+      version.
+- [ ] With the vertical box unticked, the shorts stay 16:9.
+- [ ] The work runs in the worker, not on the UI thread.
 - [ ] A failure in the reframe never fails the download.
 
 **Verification:** `pytest tests -m "not live" -q` green.
 
-**Dependencies:** Task 2, Task 4 · **Files:** `ui/main_window.py`, `engine.py` ·
-**M**
+**Dependencies:** Task 2, Task 4, Task 6 · **Files:** `ui/main_window.py`,
+`engine.py` · **M**
 
-## Task 6: the packaging
+## Task 8: the packaging
 
 **Description:** `opencv-python-headless` moves into the runtime
 requirements, the models are copied into the bundle by the PyInstaller spec,
@@ -108,10 +146,10 @@ and the CI matrix proves the built app still starts on all four platforms.
 
 **Verification:** the release build runs on the CI matrix.
 
-**Dependencies:** Task 3, Task 5 · **Files:** `requirements.txt`, `pyproject.toml`,
+**Dependencies:** Task 3, Task 7 · **Files:** `requirements.txt`, `pyproject.toml`,
 the PyInstaller spec, `.github/workflows/ci.yml` · **M**
 
-## Task 7: the docs and the release
+## Task 9: the docs and the release
 
 **Description:** the README and the CHANGELOG say what the feature does and
 what it costs, the version is bumped, and the release is tagged.
@@ -123,7 +161,7 @@ what it costs, the version is bumped, and the release is tagged.
 
 **Verification:** `gh release view <tag> --json assets`.
 
-**Dependencies:** Task 6 · **Files:** `README.md`, `CHANGELOG.md`,
+**Dependencies:** Task 8 · **Files:** `README.md`, `CHANGELOG.md`,
 `pyproject.toml` · **XS**
 
 ## Checkpoint: after Task 2
@@ -135,9 +173,15 @@ what it costs, the version is bumped, and the release is tagged.
 
 - [ ] The offline suite green.
 - [ ] A short video goes through detection → path → render and comes out
-      1080×1920 with its audio.
+      9:16 with its audio.
 
 ## Checkpoint: after Task 6
+
+- [ ] The offline suite green.
+- [ ] A two-minute video splits into three shorts, none of them cut in the
+      middle of a sentence.
+
+## Checkpoint: after Task 8
 
 - [ ] `ruff` clean, the offline suite green, `graphify update .` refreshed.
 - [ ] The Windows installer builds and the app starts.

@@ -1,11 +1,19 @@
-# Plan: vertical 9:16 with subject tracking
+# Plan: vertical 9:16 with subject tracking, and long-form into shorts
 
 ## Overview
 
-A downloaded landscape video is post-processed into a vertical one whose crop
-window follows the person in the frame. Two passes: an analysis pass that
-detects the subject and records where the crop should sit over time, and a
-render pass that hands that path to ffmpeg.
+A downloaded landscape video is turned into vertical clips whose crop window
+follows the person in the frame, and a long video is cut into shorts first if
+the user asks for it. Three passes, all after the download, all in the worker
+thread:
+
+```
+original.mp4
+   │
+   ├─ (split)      → short01.mp4 … shortNN.mp4        ← ffmpeg, at a pause
+   │
+   └─ (reframe)    → short01_9x16.mp4 … 9x16.mp4      ← detect, track, crop
+```
 
 ## Architecture decisions
 
@@ -25,8 +33,11 @@ render pass that hands that path to ffmpeg.
 - **The crop path is sampled, not per frame.** Detection runs at about 5 fps;
   between samples the window moves linearly, and the value is smoothed with
   an EMA so the camera does not jitter.
-- **The original is never touched.** The vertical file is written beside it as
-  `<name>_9x16.mp4`.
+- **Cut points come from silence first, scene change second.** A short that
+  ends in the middle of a sentence is worse than one that is a few seconds
+  off its target length, so `silencedetect` is asked first and the scene
+  score is the fallback.
+- **The original is never touched.** Everything new is written beside it.
 - **A centre crop is the floor.** If no subject is found at all, the video
   still gets a centred 9:16 version — the feature never fails a download.
 
@@ -62,26 +73,41 @@ render pass that hands that path to ffmpeg.
 
 - [ ] The offline suite green.
 - [ ] A short video goes through detection → path → render and comes out
-      1080×1920 with its audio.
+      9:16 with its audio.
 
-### Phase 3: in the app
+### Phase 3: the split
 
-- [ ] **Task 5: the option.** A checkbox on the download page — "Also make a
-      vertical 9:16 version" — and the reframe leg in the download worker,
-      after the file is on disk.
-- [ ] **Task 6: the packaging.** `opencv-python-headless` moves into the
+- [ ] **Task 5: the cut points.** `core/shorts.py` finds the pauses
+      (`silencedetect`) and the scene changes, and picks the cut points that
+      land nearest each target length.
+- [ ] **Task 6: the split.** `core/shorts.py` cuts the video into the
+      segments with one ffmpeg pass per short, keeping the audio.
+
+### Checkpoint: Phase 3
+
+- [ ] The offline suite green.
+- [ ] A two-minute video splits into three shorts, none of them cut in the
+      middle of a sentence.
+
+### Phase 4: in the app
+
+- [ ] **Task 7: the two controls.** A checkbox on the download page — "Also
+      make a vertical 9:16 version" — and the dropdown beside it — "Split
+      into shorts" — and the post-download leg in the worker that runs the
+      split, then the reframe on each piece.
+- [ ] **Task 8: the packaging.** `opencv-python-headless` moves into the
       runtime requirements, the models are copied into the bundle by the
       PyInstaller spec, and the CI matrix proves the app still starts on all
       four platforms.
 
-### Checkpoint: Phase 3
+### Checkpoint: Phase 4
 
 - [ ] `ruff` clean, the offline suite green, `graphify update .` refreshed.
 - [ ] The Windows installer builds and the app starts.
 
-### Phase 4: ship
+### Phase 5: ship
 
-- [ ] **Task 7:** the README and the CHANGELOG say what the feature does and
+- [ ] **Task 9:** the README and the CHANGELOG say what the feature does and
       what it costs (time per minute of video, and the ~90 MB the app grows
       by); the version is bumped; the release is tagged.
 
@@ -90,13 +116,14 @@ render pass that hands that path to ffmpeg.
 | Risk | Impact | Mitigation |
 |---|---|---|
 | The subject is lost mid-clip | The camera lags or jumps | The path is smoothed, the last known position is held, and a centre crop is the floor |
-| Detection is slow on a long video | A 30-minute clip takes minutes | Sample at ~5 fps and run detection on the smaller of the two axes; the render pass is the real cost and is shown as progress |
+| Detection is slow on a long video | A 30-minute clip takes minutes | Sample at ~5 fps and detect on the smaller axis; the render pass is the real cost and is shown as progress |
 | `opencv-python-headless` adds ~90 MB | A bigger download | It is one wheel, it is headless (no GUI libs), and the build is already 1.4 GB |
-| The app stops starting on a platform | A broken release | The CI matrix runs the built app on all four platforms, and the reframe is off by default so a missing OpenCV cannot break a download |
+| The app stops starting on a platform | A broken release | The CI matrix runs the built app on all four platforms, and the feature is off by default so a missing OpenCV cannot break a download |
+| A short ends mid-sentence | An unusable clip | Silence is asked for first; the scene change is the fallback |
 | The model files are not in the bundle | The feature silently does nothing | The bundle path is resolved through `sys._MEIPASS`, and the app logs which model it loaded and where |
 
 ## Open questions
 
-The three questions in the spec are open: the output size, whether blurred
-padding is a second mode, and where the option lives. They are answered
-before Task 5 starts, not during it.
+The two questions in the spec are open: the naming of the short files, and
+whether a trailing short shorter than half the target is dropped. They are
+answered before Task 7 starts, not during it.
