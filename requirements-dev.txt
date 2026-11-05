@@ -13,8 +13,3 @@ pip-audit>=2.10.1
 # It exact-pins its whole dependency set (including anyio, mcp, pillow and
 # pypdf), so CI audits requirements.txt instead of the full environment.
 browser-use==0.13.14
-# The 9:16 reframe finds the subject in a frame with OpenCV's dnn module.
-# It moves into the runtime requirements with the packaging step.
-# 5.0 drops the HOG and CSRT trackers and changes the dnn post-processing the
-# detector models rely on, so the line is pinned to the verified release.
-opencv-python-headless==4.14.0.94

@@ -7,6 +7,7 @@ The detector tests use a public-domain portrait; see
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -197,6 +198,30 @@ def test_the_render_resolves_the_paths_before_it_moves_to_its_own_folder(
 def test_both_models_are_in_the_package():
     assert reframe.model_path(reframe.FACE_MODEL).is_file()
     assert reframe.model_path(reframe.BODY_MODEL).is_file()
+
+
+def test_a_frozen_app_reads_the_models_from_its_own_bundle(tmp_path, monkeypatch):
+    """PyInstaller stages the data files under ``sys._MEIPASS``, and the module
+    itself lives inside the archive - so the bundle is the only place a frozen
+    app can find them."""
+    models = tmp_path / "models"
+    models.mkdir()
+    for name in (reframe.FACE_MODEL, reframe.BODY_MODEL):
+        (models / name).write_text("model")
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    assert reframe.model_path(reframe.FACE_MODEL) == models / reframe.FACE_MODEL
+
+
+def test_a_bundle_without_the_model_falls_back_to_the_source_folder(tmp_path, monkeypatch):
+    """Running from the source tree is the other half: a bundle that carries
+    nothing beside this module is not where the models are."""
+    models = tmp_path / "models"
+    models.mkdir()
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    assert reframe.model_path(reframe.FACE_MODEL) != models / reframe.FACE_MODEL
+    assert reframe.model_path(reframe.FACE_MODEL).is_file()
 
 
 def test_a_frame_with_a_person_gives_the_subject():

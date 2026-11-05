@@ -47,6 +47,12 @@ dependencies = [
     # Tag and cover embedding for the music downloads, plus the quality
     # report shown next to each finished file.
     "mutagen>=1.47",
+    # The 9:16 reframe finds the subject in a frame with OpenCV's dnn module.
+    # 5.0 drops the HOG and CSRT trackers and changes the dnn post-processing
+    # the detector models rely on, so the line is pinned to the verified
+    # release; the headless wheel carries no GUI libraries, because the app's
+    # own GUI is Qt's.
+    "opencv-python-headless==4.14.0.94",
 ]
 
 [project.optional-dependencies]
@@ -57,9 +63,6 @@ dev = [
     "pyinstaller>=6.10",
     "setuptools>=84.1.0",
     "pip-audit>=2.10.1",
-    # The 9:16 reframe's detector runs on OpenCV's dnn module. It moves into
-    # the runtime requirements with the packaging step.
-    "opencv-python-headless==4.14.0.94",
 ]
 # The optional AI-agent browser. It reads the pages the deterministic
 # renderer cannot, using the same Groq/Gemini keys as the judge. It exact-pins
@@ -82,7 +85,7 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-s_q_ali_media_downloader = ["resources/*.ico"]
+s_q_ali_media_downloader = ["resources/*.ico", "models/*"]
 
 [tool.ruff]
 line-length = 100

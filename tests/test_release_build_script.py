@@ -79,6 +79,83 @@ def test_add_data_uses_the_separator_of_the_os_building():
     assert value.count(os.pathsep) == 1
 
 
+# --------------------------------------------------------------------------- #
+# The 9:16 reframe: its models and the OpenCV they run on
+# --------------------------------------------------------------------------- #
+def _add_data_values():
+    args = build.pyinstaller_args()
+    return [
+        args[index + 1]
+        for index, item in enumerate(args)
+        if item == "--add-data"
+    ]
+
+
+def test_the_models_travel_to_the_folder_the_app_looks_in():
+    """``reframe.model_path`` asks for ``<bundle>/models/<name>``, so that is
+    the destination the build has to give them."""
+    from s_q_ali_media_downloader.core import reframe
+
+    assert f"{build.MODELS}{os.pathsep}models" in _add_data_values()
+    assert build.reframe_models() == (reframe.FACE_MODEL, reframe.BODY_MODEL)
+
+
+def test_the_check_is_blind_to_a_folder_that_is_not_the_models_folder(tmp_path):
+    """A model sitting somewhere else in the bundle is not the bundle path."""
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir(parents=True)
+    for name in build.reframe_models():
+        (elsewhere / name).write_text("model")
+    (tmp_path / "cv2").mkdir()
+
+    with pytest.raises(SystemExit):
+        build.check_reframe_bundle(tmp_path)
+
+
+def test_a_bundle_that_carries_models_and_opencv_passes(tmp_path, capsys):
+    models = tmp_path / "_internal" / "models"
+    models.mkdir(parents=True)
+    for name in build.reframe_models():
+        (models / name).write_text("model")
+    (tmp_path / "_internal" / "cv2").mkdir()
+
+    build.check_reframe_bundle(tmp_path)
+
+    assert "reframe" in capsys.readouterr().out.lower()
+
+
+def test_a_bundle_missing_a_model_stops_the_build(tmp_path):
+    (tmp_path / "_internal" / "cv2").mkdir(parents=True)
+    (tmp_path / "_internal" / "models").mkdir()
+    (tmp_path / "_internal" / "models" / build.reframe_models()[0]).write_text("model")
+
+    with pytest.raises(SystemExit):
+        build.check_reframe_bundle(tmp_path)
+
+
+def test_a_bundle_without_opencv_stops_the_build(tmp_path):
+    """The import is lazy and the box is off by default: a bundle without
+    OpenCV starts fine and fails only when someone asks for the vertical."""
+    models = tmp_path / "_internal" / "models"
+    models.mkdir(parents=True)
+    for name in build.reframe_models():
+        (models / name).write_text("model")
+
+    with pytest.raises(SystemExit):
+        build.check_reframe_bundle(tmp_path)
+
+
+def test_the_models_are_part_of_the_installed_package():
+    """``pip install .`` finds them beside the module, but only if the wheel
+    carries them - the same files, a different bundle."""
+    tomllib = pytest.importorskip("tomllib")
+    root = RELEASE_DIR.parent
+    data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    patterns = data["tool"]["setuptools"]["package-data"]["s_q_ali_media_downloader"]
+
+    assert any("models" in pattern for pattern in patterns)
+
+
 def test_keyring_travels_only_where_it_is_installed(monkeypatch):
     """The keychain backends are chosen by name at run time.
 

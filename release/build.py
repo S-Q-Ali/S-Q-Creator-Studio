@@ -29,6 +29,9 @@ RELEASE = ROOT / "release"
 APP_NAME = "S-Q Creator Studio"
 ENTRY = Path("src") / "s_q_ali_media_downloader" / "__main__.py"
 ICON = Path("src") / "s_q_ali_media_downloader" / "resources" / "icon.ico"
+#: The detector models travel as a folder, and the app asks for them under
+#: ``models`` at the root of the bundle (``reframe.model_path``).
+MODELS = Path("src") / "s_q_ali_media_downloader" / "models"
 WORKPATH = ROOT / "build" / "pkg"
 DISTPATH = ROOT / "build" / "out"
 
@@ -122,6 +125,8 @@ def pyinstaller_args() -> list[str]:
         # that quietly ships nothing.
         "--add-data",
         f"{ICON}{os.pathsep}.",
+        "--add-data",
+        f"{MODELS}{os.pathsep}models",
         "--paths",
         "src",
     ]
@@ -156,6 +161,46 @@ def build_with_pyinstaller() -> Path:
     if not built.is_dir():
         fail(f"PyInstaller left no build in {built}.")
     return built
+
+
+def reframe_models() -> tuple[str, ...]:
+    """The model files the app's own detector asks for, by name.
+
+    The build and the app read one list: a bundle that stages a model the app
+    never looks for ships weight and not the feature.
+    """
+    from s_q_ali_media_downloader.core.reframe import BODY_MODEL, FACE_MODEL
+
+    return (FACE_MODEL, BODY_MODEL)
+
+
+def check_reframe_bundle(root: Path) -> None:
+    """Fail the build when the vertical reframe could not run inside it.
+
+    OpenCV is imported lazily and the box is off by default, so a bundle that
+    is missing it - or a model - starts perfectly well and fails only when a
+    user asks for the 9:16 version. That is not a failure a release should
+    carry.
+    """
+    wanted = set(reframe_models())
+    found: set[str] = set()
+    has_cv2 = False
+    for path in root.rglob("*"):
+        if path.name in wanted and path.parent.name == "models":
+            found.add(path.name)
+        elif path.is_dir() and path.name == "cv2":
+            has_cv2 = True
+
+    missing = [f"models/{name}" for name in sorted(wanted - found)]
+    if not has_cv2:
+        missing.append("cv2")
+    if missing:
+        fail(
+            "The bundle cannot make a vertical video.",
+            f"Missing from {root}: {', '.join(missing)}",
+            "OpenCV is a runtime requirement and the models are staged with --add-data.",
+        )
+    print(f"The vertical reframe is bundled: {', '.join(sorted(found))} and cv2.")
 
 
 def is_clearable(path: Path) -> bool:
@@ -561,6 +606,7 @@ def main() -> None:
     )
 
     built = build_with_pyinstaller()
+    check_reframe_bundle(built)
     portable = portable_dir()
     stage_contents(built, portable)
     launcher, extras = bundle_layout(portable)

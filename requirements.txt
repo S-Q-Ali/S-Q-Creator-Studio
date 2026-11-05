@@ -29,3 +29,8 @@ spotipyFree>=1.9.14
 websockets>=15.0.1
 # Tag and cover embedding for music downloads.
 mutagen>=1.47
+# The vertical 9:16 reframe finds the subject in a frame with OpenCV's dnn
+# module. 5.0 drops the trackers and changes the dnn post-processing the
+# detector models rely on, so the line is pinned to the verified release; the
+# headless wheel carries no GUI libraries, because the app's GUI is Qt's.
+opencv-python-headless==4.14.0.94
