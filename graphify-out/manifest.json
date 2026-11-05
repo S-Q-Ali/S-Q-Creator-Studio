@@ -2334,9 +2334,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1793905860.2630944,
-    "seen": 1793906907.810878,
-    "ast_hash": "ec2ae26404ddf2c3b8336cb18bbe4118",
+    "mtime": 1793907283.0648298,
+    "seen": 1793907992.9287057,
+    "ast_hash": "854da14b22f17c07bb60eaffbfcbf2b7",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "tests/test_reframe.py": {
-    "mtime": 1793905885.2514348,
-    "seen": 1793906907.8109908,
-    "ast_hash": "5b1c9ce2f2f5921a87d88c3a0045de94",
+    "mtime": 1793907240.4052997,
+    "seen": 1793907992.9288042,
+    "ast_hash": "07af48a7e28abc502f93108d1bfe8aaa",
     "semantic_hash": ""
   },
   "tests/test_shorts.py": {
@@ -2370,21 +2370,21 @@
     "semantic_hash": ""
   },
   "tasks/plan-vertical-reframe.md": {
-    "mtime": 1793905955.220647,
-    "seen": 1793906907.811484,
-    "ast_hash": "995cbf4d4c251a000010191f1a974217",
+    "mtime": 1793907964.6940708,
+    "seen": 1793907992.9292474,
+    "ast_hash": "7add14e419a262f170d14eb729090bec",
     "semantic_hash": ""
   },
   "tasks/spec-vertical-reframe.md": {
-    "mtime": 1793881017.075704,
-    "seen": 1793889470.520737,
-    "ast_hash": "9b098d332b1a9c38a17f53f273c4f4e3",
+    "mtime": 1793907323.1386673,
+    "seen": 1793907992.9292662,
+    "ast_hash": "c8fde46a2a8a32d07a462921249bb906",
     "semantic_hash": ""
   },
   "tasks/todo-vertical-reframe.md": {
-    "mtime": 1793905949.196325,
-    "seen": 1793906907.811531,
-    "ast_hash": "d2f05ed1e6b276dd1134733d2595cad6",
+    "mtime": 1793907959.6052985,
+    "seen": 1793907992.9292912,
+    "ast_hash": "8f334409a1a2f9141336c2ec91650e86",
     "semantic_hash": ""
   },
   "tests/fixtures/PORTRAIT.txt": {
