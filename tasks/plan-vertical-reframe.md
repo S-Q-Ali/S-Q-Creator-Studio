@@ -105,7 +105,7 @@ original.mp4
 
 ### Phase 4: in the app
 
-- [ ] **Task 7: the two controls.** A checkbox on the download page — "Also
+- [x] **Task 7: the two controls.** A checkbox on the download page — "Also
       make a vertical 9:16 version" — and the dropdown beside it — "Split
       into shorts" (Off, Auto, 30 s, 45 s, 60 s, 90 s, *N clips*) with a
       spin box for the clip count, and the post-download leg in the worker
@@ -117,7 +117,7 @@ original.mp4
 
 ### Checkpoint: Phase 4
 
-- [ ] `ruff` clean, the offline suite green, `graphify update .` refreshed.
+- [x] `ruff` clean, the offline suite green, `graphify update .` refreshed.
 - [ ] The Windows installer builds and the app starts.
 
 ### Phase 5: ship
@@ -139,6 +139,10 @@ original.mp4
 
 ## Open questions
 
-The two questions in the spec are open: the naming of the short files, and
-whether a trailing short shorter than half the target is dropped. They are
-answered before Task 7 starts, not during it.
+Both are answered, and the answers are in the shipped code.
+
+- **The naming of the short files:** `<stem>_short01.mp4`, `<stem>_short02.mp4`
+  beside the original, and the vertical of each one `<stem>_short01_9x16.mp4`.
+- **A trailing short shorter than half the target:** kept. The clips cover the
+  whole video end to end, so nothing is silently thrown away, and the note the
+  app shows names the shortest and the longest planned length before it cuts.

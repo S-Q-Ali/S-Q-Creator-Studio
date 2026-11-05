@@ -159,19 +159,27 @@ post-download leg in the worker runs the split first, then the reframe on
 each piece.
 
 **Acceptance criteria:**
-- [ ] Both controls are off by default and apply to the whole queue.
-- [ ] The spin box only shows in the *N clips* mode, and the app says the
+- [x] Both controls are off by default and apply to the whole queue.
+- [x] The spin box only shows in the *N clips* mode, and the app says the
       duration it will use.
-- [ ] The split runs before the reframe, and each short gets its own vertical
+- [x] The split runs before the reframe, and each short gets its own vertical
       version.
-- [ ] With the vertical box unticked, the shorts stay 16:9.
-- [ ] The work runs in the worker, not on the UI thread.
-- [ ] A failure in the reframe never fails the download.
+- [x] With the vertical box unticked, the shorts stay 16:9.
+- [x] The work runs in the worker, not on the UI thread.
+- [x] A failure in the reframe never fails the download.
 
-**Verification:** `pytest tests -m "not live" -q` green.
+**Verification:** `pytest tests -m "not live" -q` green (the leg, the two
+controls and the wiring are covered by `tests/test_engine_post_leg.py`,
+`tests/test_settings_page.py` and `tests/test_gui.py`), and the live
+`test_a_real_download_is_cut_into_shorts_and_each_one_turns_vertical` builds a
+real two-minute 320x180 file with ffmpeg: it comes out as three untouched
+original bytes plus three shorts and three 180x320 verticals, each exactly
+9:16 (`out_width * 16 == out_height * 9`), so it fills the frame with no bars.
+The picture is solid colour, so no subject is found and the window stays
+centred; the tracking itself is the owner's live check on real footage.
 
 **Dependencies:** Task 2, Task 4, Task 6 · **Files:** `ui/main_window.py`,
-`engine.py` · **M**
+`ui/settings_page.py`, `engine.py`, `core/reframe.py` · **M**
 
 ## Task 8: the packaging
 
