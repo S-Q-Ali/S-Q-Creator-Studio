@@ -121,14 +121,17 @@ class VerticalStudioPage(QWidget):
         zone_hint.setProperty("role", "hint")
         zone_layout.addWidget(zone_title)
         zone_layout.addWidget(zone_hint)
-        layout.addWidget(zone)
+        # The zone takes the room the list does not: it is the thing the user
+        # aims at, and a thin strip of it is hard to hit.
+        layout.addWidget(zone, 1)
 
         self.files = QListWidget()
         self.files.setSelectionMode(QAbstractItemView.SingleSelection)
         self.files.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.files.setUniformItemSizes(True)
+        self.files.setMaximumHeight(180)
         self.files.itemDoubleClicked.connect(self._remove_row)
-        layout.addWidget(self.files, 1)
+        layout.addWidget(self.files)
 
         options = QHBoxLayout()
         options.setSpacing(8)
