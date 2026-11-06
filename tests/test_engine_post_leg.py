@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import types
+from itertools import pairwise
 
 import pytest
 
@@ -592,6 +593,37 @@ def test_a_real_download_is_cut_into_shorts_and_each_one_turns_vertical(
         out_width, out_height, _ = reframe.frame_size(str(vertical))
         assert out_width * 16 == out_height * 9  # fills the frame: no bars
         assert vertical.stat().st_size > 0
+
+
+@pytest.mark.live
+def test_a_real_reframe_reports_the_film_as_it_is_written(
+    tmp_path, monkeypatch, landscape_video
+):
+    """The offline gate proves where `-progress pipe:1` goes in the command;
+    only real ffmpeg says whether it answers. A bar that sits at zero for the
+    whole file is the bug the owner saw on the packaged build."""
+    directory, source = landscape_video
+    monkeypatch.setattr(engine, "find_ffmpeg", lambda: directory)
+    film = tmp_path / "How to cook.mp4"
+    shutil.copyfile(source, film)
+    told = []
+
+    engine.run_post_leg(
+        str(film),
+        vertical=True,
+        split=engine.DEFAULT_SPLIT,
+        clips=3,
+        ffmpeg=engine.ffmpeg_binary(),
+        duration=120.0,
+        report=lambda line: None,
+        progress=told.append,
+    )
+
+    assert (tmp_path / "How to cook_9x16.mp4").is_file()
+    assert len(told) > 2, told
+    assert all(0.0 <= percent <= 100.0 for percent in told)
+    assert all(after >= before for before, after in pairwise(told))
+    assert told[-1] == 100.0
 
 
 @pytest.fixture(scope="module")
