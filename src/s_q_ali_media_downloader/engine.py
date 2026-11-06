@@ -979,6 +979,96 @@ class _Stopped(Exception):
     pass
 
 
+def run_post_leg(path, *, vertical, split, clips, ffmpeg, duration, report, stage=None, hold=None):
+    """The shorts and the vertical versions of one file that is on disk.
+
+    Nothing here may lose the file it started from: a step that cannot run
+    says why in one sentence and moves on. The download worker hands over its
+    own log, progress and pause; the Vertical Studio hands over the same three
+    for a file nobody downloaded — so the legs exist once, here.
+    """
+    stage_ = stage or (lambda _name: None)
+    hold_ = hold or (lambda: None)
+
+    pieces = [path]
+    if split != DEFAULT_SPLIT:
+        try:
+            pieces = split_pieces(
+                path,
+                split=split,
+                clips=clips,
+                ffmpeg=ffmpeg,
+                duration=duration,
+                report=report,
+                stage=stage_,
+                hold=hold_,
+            )
+        except Exception as exc:
+            logger.warning("The split failed for %s", path, exc_info=True)
+            report(f"The split could not run: {exc}")
+    if vertical:
+        for piece in pieces:
+            try:
+                make_vertical(piece, ffmpeg=ffmpeg, report=report, stage=stage_, hold=hold_)
+            except Exception as exc:
+                logger.warning("The vertical version failed for %s", piece, exc_info=True)
+                report(f"The vertical version could not be made: {exc}")
+
+
+def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold):
+    """Cut the file into shorts at the pauses. The whole file back when there
+    is nothing to cut or nothing to cut it with."""
+    if not duration:
+        report("This file did not report its length, so it was not split.")
+        return [path]
+
+    target = shorts.TARGETS.get(split)
+    wanted = clips if split == SPLIT_CLIPS else None
+    hold()
+    silences = shorts.detect_silences(path, ffmpeg=ffmpeg)
+    scenes = shorts.detect_scene_changes(path, ffmpeg=ffmpeg)
+    plan = shorts.plan_cuts(
+        duration, target=target, silences=silences, scenes=scenes, clips=wanted
+    )
+    if plan.note:
+        report(plan.note)
+    if not plan.segments:
+        return [path]
+
+    stage("splitting")
+    result = shorts.split_video(path, plan, ffmpeg=ffmpeg)
+    if not result.outputs:
+        report(result.note)
+        return [path]
+    report(f"{len(result.outputs)} shorts saved beside the original.")
+    return result.outputs
+
+
+def make_vertical(path, *, ffmpeg, report, stage, hold):
+    """The 9:16 version of one file, beside it, with the subject tracked."""
+    width, height, _fps = reframe.frame_size(path)
+    if not width or not height:
+        report("This file has no picture to reframe.")
+        return
+    if not reframe.is_landscape(width, height):
+        report("This video is already vertical.")
+        return
+
+    hold()
+    stage("vertical 9:16")
+    box, samples = reframe.analyse(path, ffmpeg=ffmpeg)
+    result = reframe.render_vertical(
+        path,
+        reframe.vertical_output_path(path),
+        width,
+        height,
+        samples,
+        ffmpeg=ffmpeg,
+        box=box,
+    )
+    report(result.note)
+
+
 class DownloadThread(QThread):
     """Runs a pool of workers over the queue."""
 
@@ -1194,81 +1284,23 @@ class DownloadThread(QThread):
         """The shorts and the vertical versions, once the download has landed.
 
         The download is already won by the time this runs, so nothing here
-        may fail it: each step says what happened and leaves the original
-        file alone.
+        may fail it. The legs themselves are in run_post_leg, shared with the
+        Vertical Studio; this hands over the worker's own log, progress and
+        pause.
         """
         if self._stop or self.quality == "Audio only":
             return
-        if not self.vertical and self.split == DEFAULT_SPLIT:
-            return
-
-        pieces = [path]
-        if self.split != DEFAULT_SPLIT:
-            try:
-                pieces = self._split_leg(uid, path, info)
-            except Exception as exc:
-                logger.warning("The split failed for %s", path, exc_info=True)
-                self.log.emit(f"The split could not run: {exc}")
-        if self.vertical:
-            for piece in pieces:
-                try:
-                    self._vertical_leg(uid, piece)
-                except Exception as exc:
-                    logger.warning("The vertical version failed for %s", piece, exc_info=True)
-                    self.log.emit(f"The vertical version could not be made: {exc}")
-
-    def _split_leg(self, uid, path, info):
-        """Cut the download into shorts at the pauses. The whole file back
-        when there is nothing to cut or nothing to cut it with."""
-        duration = float(info.get("duration") or 0.0)
-        if not duration:
-            self.log.emit("This download did not report its length, so it was not split.")
-            return [path]
-
-        target = shorts.TARGETS.get(self.split)
-        clips = self.clips if self.split == SPLIT_CLIPS else None
-        self._wait_while_paused()
-        silences = shorts.detect_silences(path, ffmpeg=self._ffmpeg)
-        scenes = shorts.detect_scene_changes(path, ffmpeg=self._ffmpeg)
-        plan = shorts.plan_cuts(
-            duration, target=target, silences=silences, scenes=scenes, clips=clips
-        )
-        if plan.note:
-            self.log.emit(plan.note)
-        if not plan.segments:
-            return [path]
-
-        self.job_progress.emit(uid, 99.0, "—", "splitting")
-        result = shorts.split_video(path, plan, ffmpeg=self._ffmpeg)
-        if not result.outputs:
-            self.log.emit(result.note)
-            return [path]
-        self.log.emit(f"{len(result.outputs)} shorts saved beside the original.")
-        return result.outputs
-
-    def _vertical_leg(self, uid, path):
-        """The 9:16 version of one piece, beside it, with the subject tracked."""
-        width, height, _fps = reframe.frame_size(path)
-        if not width or not height:
-            self.log.emit("This download has no picture to reframe.")
-            return
-        if not reframe.is_landscape(width, height):
-            self.log.emit("This download is already vertical.")
-            return
-
-        self._wait_while_paused()
-        self.job_progress.emit(uid, 99.0, "—", "vertical 9:16")
-        box, samples = reframe.analyse(path, ffmpeg=self._ffmpeg)
-        result = reframe.render_vertical(
+        run_post_leg(
             path,
-            reframe.vertical_output_path(path),
-            width,
-            height,
-            samples,
+            vertical=self.vertical,
+            split=self.split,
+            clips=self.clips,
             ffmpeg=self._ffmpeg,
-            box=box,
+            duration=float(info.get("duration") or 0.0),
+            report=self.log.emit,
+            stage=lambda name: self.job_progress.emit(uid, 99.0, "—", name),
+            hold=self._wait_while_paused,
         )
-        self.log.emit(result.note)
 
     def _wait_while_paused(self):
         """Hold between the ffmpeg passes. A pause never cancels a job whose

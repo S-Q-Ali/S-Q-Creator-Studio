@@ -92,6 +92,86 @@ def _plan_options(seen):
     return next(entry for entry in seen if entry[0] == "plan")[2]
 
 
+def _leg(lines=None, stages=None, **options):
+    """Call the legs over one file that is already on disk, no download thread."""
+    args = {
+        "vertical": True,
+        "split": engine.DEFAULT_SPLIT,
+        "clips": 0,
+        "ffmpeg": "ffmpeg",
+        "duration": 120.0,
+    }
+    args.update(options)
+    engine.run_post_leg(
+        SOURCE,
+        report=(lines if lines is not None else []).append,
+        stage=(stages if stages is not None else []).append,
+        **args,
+    )
+    return lines, stages
+
+
+def test_the_legs_run_on_a_file_that_was_never_downloaded(monkeypatch):
+    """The Vertical Studio drops a local file in and asks for the same two
+    passes the download flow runs - so they live in one place."""
+    seen = []
+    pieces = _install(monkeypatch, seen)
+    lines = []
+
+    _leg(lines, split="60 s")
+
+    assert ("split", SOURCE) in seen
+    assert [entry[1] for entry in seen if entry[0] == "render"] == pieces
+    assert "2 clips → about 1 min each on average." in lines
+
+
+def test_the_legs_do_nothing_when_both_options_are_off(monkeypatch):
+    seen = []
+    _install(monkeypatch, seen)
+    lines = []
+
+    _leg(lines, vertical=False)
+
+    assert seen == []
+    assert lines == []
+
+
+def test_the_stage_names_the_pass_the_file_is_in(monkeypatch):
+    seen = []
+    _install(monkeypatch, seen)
+    stages = []
+
+    _leg(stages=stages, split="60 s")
+
+    assert stages == ["splitting", "vertical 9:16", "vertical 9:16"]
+
+
+def test_a_step_that_blows_up_is_reported_and_never_raises(monkeypatch):
+    seen = []
+    _install(monkeypatch, seen)
+
+    def explode(video):
+        raise RuntimeError("no opencv here")
+
+    monkeypatch.setattr(engine.reframe, "frame_size", explode)
+    lines = []
+
+    _leg(lines)
+
+    assert any("vertical" in line.lower() for line in lines)
+
+
+def test_a_file_that_reports_no_length_is_not_cut(monkeypatch):
+    seen = []
+    _install(monkeypatch, seen)
+    lines = []
+
+    _leg(lines, vertical=False, split="60 s", duration=0.0)
+
+    assert "split" not in [entry[0] for entry in seen]
+    assert any("length" in line.lower() for line in lines)
+
+
 def test_both_options_are_off_by_default(monkeypatch):
     seen = []
     _install(monkeypatch, seen)

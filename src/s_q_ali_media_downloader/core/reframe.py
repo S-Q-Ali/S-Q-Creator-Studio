@@ -353,15 +353,15 @@ def render_vertical(
     runner: Callable[[list[str], str], int] | None = None,
     box: tuple[int, int] | None = None,
 ) -> RenderResult:
-    """Render the vertical version of a download beside it.
+    """Render the vertical version of a video beside it.
 
-    A download that is already vertical, or that has no video at all, is left
+    A file that is already vertical, or that has no video at all, is left
     alone and says why.
     """
     if not source_width or not source_height:
-        return RenderResult(None, "The download has no video, only audio.")
+        return RenderResult(None, "The video has no picture, only audio.")
     if not is_landscape(source_width, source_height):
-        return RenderResult(None, "The download is already vertical.")
+        return RenderResult(None, "The video is already vertical.")
 
     try:
         chain = filter_chain("crop.cmd", source_width, source_height, box)
