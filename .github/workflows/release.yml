@@ -23,6 +23,10 @@ jobs:
     # to arm and not the other way round. macos-15-intel is GitHub's last
     # x86_64 macOS image - it retires in Fall 2027, and an Intel build after
     # that needs a self-hosted runner.
+    #
+    # macos-14 was the arm64 label until GitHub retired the image on 2
+    # November 2026; a job asking for it is cancelled before a runner is
+    # given, which reads as a cancelled release rather than as a dead label.
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +37,7 @@ jobs:
           - os: ubuntu-24.04
             key: linux-x64
             archive: tar.gz
-          - os: macos-14
+          - os: macos-15
             key: macos-arm64
             archive: tar.gz
           - os: macos-15-intel

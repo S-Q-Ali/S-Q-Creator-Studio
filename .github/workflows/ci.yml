@@ -20,7 +20,8 @@ jobs:
     # The images are the floors the wheel spike found (tasks/plan-cross-platform.md,
     # B1): PySide6 6.11 has no wheel for a glibc older than 2.34 on x86_64 or
     # 2.39 on arm64, and none for a macOS older than 13. ubuntu-24.04 is glibc
-    # 2.39, macos-14 is arm64 on macOS 14.
+    # 2.39, macos-15 is arm64 on macOS 15 - macos-14 was that label until
+    # GitHub retired the image on 2 November 2026.
     #
     # macos-15-intel is the Intel half: an Apple Silicon build does not run on
     # an Intel Mac, and Rosetta 2 translates x86 to arm and not the other way
@@ -37,7 +38,7 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             echo 'matrix=[{"os":"ubuntu-24.04","python":"3.14"},{"os":"windows-latest","python":"3.14"}]' >> "$GITHUB_OUTPUT"
           else
-            echo 'matrix=[{"os":"ubuntu-24.04","python":"3.12"},{"os":"ubuntu-24.04","python":"3.14"},{"os":"macos-14","python":"3.12"},{"os":"macos-14","python":"3.14"},{"os":"macos-15-intel","python":"3.12"},{"os":"macos-15-intel","python":"3.14"},{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.14"}]' >> "$GITHUB_OUTPUT"
+            echo 'matrix=[{"os":"ubuntu-24.04","python":"3.12"},{"os":"ubuntu-24.04","python":"3.14"},{"os":"macos-15","python":"3.12"},{"os":"macos-15","python":"3.14"},{"os":"macos-15-intel","python":"3.12"},{"os":"macos-15-intel","python":"3.14"},{"os":"windows-latest","python":"3.12"},{"os":"windows-latest","python":"3.14"}]' >> "$GITHUB_OUTPUT"
           fi
 
   test:

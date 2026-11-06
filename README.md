@@ -84,7 +84,7 @@ the [latest release](https://github.com/S-Q-Ali/S-Q-Creator-Studio/releases):
 **What CI proves, and what it does not.** Each archive is built on its own
 platform's runner, and there the offline suite passes and the frozen app is
 launched and stays up — at Python 3.12 and 3.14, on `windows-latest`,
-Ubuntu 24.04, macOS 14 (Apple Silicon) and macOS 15 Intel. The Linux build
+Ubuntu 24.04, macOS 15 (Apple Silicon) and macOS 15 Intel. The Linux build
 needs glibc 2.34 or newer, which is what the bundled PySide6 wheels support;
 other distributions and older macOS releases are unbuilt and untested. Nothing
 here is signed or notarised, so Windows will warn on the installer's first run

@@ -11,6 +11,7 @@ release actually contains: the name each archive is given, and the list of
 files the publish step insists on finding.
 """
 
+import re
 from pathlib import Path
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
@@ -41,6 +42,19 @@ def _matrix_cells(text: str) -> list[str]:
     start = text.index("include:")
     end = text.index("runs-on:", start)
     return text[start:end].split("- os:")[1:]
+
+
+def _runner_labels(path: Path) -> set[str]:
+    """The images a workflow actually asks GitHub for.
+
+    Both spellings count: ``- os: macos-15`` in the release matrix and
+    ``"os":"macos-15"`` in the JSON that ci.yml builds its matrix from. A
+    comment is free to name a retired image; the matrix is not.
+    """
+    text = path.read_text(encoding="utf-8")
+    yaml = re.findall(r"^\s*-\s+os:\s+(\S+)\s*$", text, re.MULTILINE)
+    json_ = re.findall(r'"os":\s*"([^"]+)"', text)
+    return set(yaml) | set(json_)
 
 
 def test_workflow_defines_one_key_per_platform():
@@ -81,8 +95,19 @@ def test_each_mac_architecture_is_built_on_a_matching_runner():
     intel = [cell for cell in cells if "key: macos-x64" in cell]
     assert arm, "no macos-arm64 cell in the build matrix"
     assert intel, "no macos-x64 cell in the build matrix"
-    assert arm[0].strip().startswith("macos-14")
+    assert arm[0].strip().startswith("macos-15")
     assert intel[0].strip().startswith("macos-15-intel")
+
+
+def test_no_workflow_asks_for_the_retired_macos_14_image():
+    # GitHub retired the macOS 14 image on 2 November 2026. A job that asks
+    # for it is cancelled the second it is queued - no runner, no log - so
+    # the release never publishes and the failure looks like a cancelled
+    # run rather than a dead label. macos-15 is the Apple Silicon label.
+    for path in (WORKFLOW, CI_WORKFLOW):
+        labels = _runner_labels(path)
+        assert labels, f"no runner could be read out of {path.name}"
+        assert "macos-14" not in labels, path.name
 
 
 def test_the_macos_build_sets_a_deployment_target():

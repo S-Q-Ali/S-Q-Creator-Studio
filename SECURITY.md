@@ -54,7 +54,7 @@ Please report security vulnerabilities via email to:
   the key and never the key's value. Both backends hang off your login, so what
   they defend is a copied disk or a lost machine, not an attacker who is already
   running as you. The backend an OS gets is resolved on that OS in CI, where the
-  app is built and launched on Windows, Ubuntu 24.04 and macOS 14; a CI runner is
+  app is built and launched on Windows, Ubuntu 24.04 and macOS 15; a CI runner is
   not a desktop, so the sealed round-trip against a real user keychain is covered
   by tests with a stand-in keychain and is proved on a user's machine. If your
   keychain refuses the app, that is a bug — report it with the OS and desktop.

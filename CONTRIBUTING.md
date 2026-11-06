@@ -22,7 +22,7 @@ ruff check src tests        # lint
 ```
 
 Everything must pass before a PR is merged. Every push to `master` runs the full
-matrix — lint and the offline suite on Windows, Ubuntu 24.04 and macOS 14, at
+matrix — lint and the offline suite on Windows, Ubuntu 24.04 and macOS 15, at
 Python 3.12 and 3.14 — and on each OS's 3.14 cell also runs a `pip-audit`
 dependency scan, builds the portable app and launches it. A pull request gets the
 faster version: Ubuntu and Windows at 3.14. The `live` tests hit the video
