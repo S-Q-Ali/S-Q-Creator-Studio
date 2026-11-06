@@ -141,12 +141,16 @@ def test_a_video_shorter_than_one_target_is_not_split():
     assert plan.segments == []
 
 
-def test_a_short_tail_is_kept_as_its_own_clip():
+def test_a_two_second_tail_merges_into_the_clip_before_it():
     plan = shorts.plan_cuts(122, target=60)
 
-    assert [(s.start, s.end) for s in plan.segments] == [
-        (0.0, 60.0), (60.0, 120.0), (120.0, 122.0),
-    ]
+    assert [(s.start, s.end) for s in plan.segments] == [(0.0, 60.0), (60.0, 122.0)]
+
+
+def test_a_tail_worth_its_own_clip_is_still_kept():
+    plan = shorts.plan_cuts(150, target=60)
+
+    assert [s.end for s in plan.segments] == [60.0, 120.0, 150.0]
 
 
 def test_the_segments_cover_the_whole_video_without_a_gap():
@@ -205,19 +209,38 @@ def test_n_clips_preserves_the_requested_count(duration, count, pauses):
 def test_scene_cuts_are_ordered_unique_and_inside_the_video():
     plan = shorts.plan_cuts(120, scenes=[130, 140, 30, 10, 30, 0, -1, float("nan")])
 
-    assert [(s.start, s.end) for s in plan.segments] == [(0, 10), (10, 30), (30, 120)]
+    assert [(s.start, s.end) for s in plan.segments] == [(0.0, 30), (30, 120)]
 
 
-def test_auto_preserves_close_scene_changes_and_short_tail():
+def test_auto_leaves_a_video_shorter_than_one_clip_alone():
     plan = shorts.plan_cuts(12, scenes=[2, 4, 11])
 
-    assert [s.end for s in plan.segments] == [2, 4, 11, 12]
+    assert plan.segments == []
+    assert "not split" in plan.note.lower()
+
+
+def test_auto_never_plans_a_clip_shorter_than_the_floor():
+    scenes = [float(step) for step in range(3, 300, 3)]
+
+    plan = shorts.plan_cuts(300, scenes=scenes)
+
+    assert all(segment.duration >= shorts.MIN_CLIP for segment in plan.segments)
+    assert plan.segments[0].start == 0.0
+    assert plan.segments[-1].end == 300
+
+
+def test_auto_never_plans_a_clip_longer_than_the_shorts_limit():
+    plan = shorts.plan_cuts(1000, scenes=[200.0])
+
+    assert all(segment.duration <= shorts.SHORTS_LIMIT for segment in plan.segments)
+    assert plan.segments[0].start == 0.0
+    assert plan.segments[-1].end == 1000
 
 
 def test_a_scene_cannot_move_a_target_cut_past_the_video_end():
     plan = shorts.plan_cuts(122, target=60, scenes=[125, 130])
 
-    assert [s.end for s in plan.segments] == [60, 120, 122]
+    assert [s.end for s in plan.segments] == [60.0, 122.0]
 
 
 def test_the_report_warns_if_a_pause_makes_one_clip_exceed_the_limit():
@@ -321,11 +344,11 @@ def test_split_writes_numbered_clips_and_preserves_the_original(tmp_path):
     result = shorts.split_video(str(source), plan, runner=_render_clip)
 
     assert [Path(p).name for p in result.outputs] == [
-        "my movie_short01.mp4", "my movie_short02.mp4", "my movie_short03.mp4",
+        "my movie_short01.mp4", "my movie_short02.mp4",
     ]
     assert all(Path(p).read_bytes() == b"rendered clip" for p in result.outputs)
     assert source.read_bytes() == b"original"
-    assert "3" in result.note
+    assert "2 shorts saved" in result.note
 
 
 def test_split_command_reencodes_video_but_copies_all_audio():

@@ -31,6 +31,10 @@ SILENCE_THRESHOLD = -30
 #: A pause shorter than this is a gap between words, not a pause to cut at.
 SILENCE_MIN = 0.4
 
+#: The shortest clip the app will plan for itself. A two-second short is not a
+#: short: it is a fragment, and scene changes come in runs.
+MIN_CLIP = 15.0
+
 #: How far from the target a pause may sit and still be used.
 CUT_WINDOW = 15.0
 
@@ -179,18 +183,50 @@ def plan_cuts(
     clip_duration = duration / clips if clips is not None else (target or 0.0)
     if clip_duration:
         count = clips if clips is not None else math.ceil(duration / clip_duration)
-        targets = [index * clip_duration for index in range(1, count)]
-        boundaries = _target_boundaries(duration, targets, silences, scenes)
+        planned = _target_boundaries(
+            duration, [index * clip_duration for index in range(1, count)], silences, scenes
+        )
+        # A count the user typed is theirs; the app's own plan is held to what
+        # a short can be.
+        boundaries = planned if clips is not None else _fit(planned, duration)
     else:
-        boundaries = scenes
+        boundaries = _fit(scenes, duration)
 
     if not boundaries:
+        if scenes or silences:
+            return CutPlan(note="No cut point was far enough from the last to fill a clip; not split.")
         return CutPlan(note="No scene changes found; not split.")
     segments = _segments(boundaries, duration)
     note = clip_note(segments, duration)
     if not clip_duration:
         note += " Cut at scene changes."
     return CutPlan(segments, clip_duration, len(segments), note)
+
+
+def _fit(boundaries: Sequence[float], duration: float) -> list[float]:
+    """The chosen cuts, held to lengths a short can be.
+
+    Scene changes come in runs and a target leaves a stub at the end, so the
+    app's own plan needs a floor; a clip over three minutes is not a Short
+    either, so a gap that wide is divided. Only the cuts the app chose — the
+    count the user asked for is theirs, not this function's.
+    """
+    kept: list[float] = []
+    for point in sorted(set(boundaries)):
+        previous = kept[-1] if kept else 0.0
+        if point - previous < MIN_CLIP or duration - point < MIN_CLIP:
+            continue
+        kept.append(point)
+
+    cuts: list[float] = []
+    for start, end in pairwise([0.0, *kept, duration]):
+        if start:
+            cuts.append(start)
+        span = end - start
+        if span > SHORTS_LIMIT:
+            parts = math.ceil(span / SHORTS_LIMIT)
+            cuts.extend(start + span * step / parts for step in range(1, parts))
+    return cuts
 
 
 def _target_boundaries(
