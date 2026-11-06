@@ -627,6 +627,23 @@ def test_a_file_that_holds_no_video_has_no_size(tmp_path):
     assert reframe.frame_size(str(broken)) == (0, 0, 0.0)
 
 
+def test_the_length_of_a_local_file_comes_from_the_file():
+    """The split plans its cuts from a duration. A download got that from the
+    site's metadata; a file nobody downloaded only has what the container
+    says, and the decoder that reads the picture can read the count too."""
+    pytest.importorskip("cv2")
+
+    assert reframe.duration_seconds(str(TRACKER_CLIP)) == pytest.approx(2.0, abs=0.2)
+
+
+def test_a_file_that_holds_no_video_has_no_length(tmp_path):
+    pytest.importorskip("cv2")
+    broken = tmp_path / "broken.mp4"
+    broken.write_bytes(b"not a video")
+
+    assert reframe.duration_seconds(str(broken)) == 0.0
+
+
 def test_a_frame_wider_than_nine_by_sixteen_is_the_one_worth_reframing():
     """The bar is the shape of the output, not whether the source is wide."""
     assert reframe.is_landscape(1920, 1080)

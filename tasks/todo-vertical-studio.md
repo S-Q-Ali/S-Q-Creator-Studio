@@ -12,16 +12,16 @@ so the download flow changes nothing observable.
 
 **Acceptance criteria:**
 
-- [ ] The existing recorder tests pass against the moved functions with their
+- [x] The existing recorder tests pass against the moved functions with their
       expectations unchanged.
-- [ ] A new test proves the moved legs report a failure and keep going
+- [x] A new test proves the moved legs report a failure and keep going
       instead of raising into the job result.
-- [ ] `DownloadThread` reads its own `self.vertical` / `self.split` /
+- [x] `DownloadThread` reads its own `self.vertical` / `self.split` /
       `self.clips` in one place only.
 
 **Verification:**
 
-- [ ] `pytest tests/test_engine_post_leg.py -q`
+- [x] `pytest tests/test_engine_post_leg.py -q`
 - [ ] Offline suite green.
 
 **Dependencies:** none · **Files:** `engine.py`, `tests/test_engine_post_leg.py` · **M**
@@ -33,15 +33,15 @@ yt-dlp info dict, so read the length from the container.
 
 **Acceptance criteria:**
 
-- [ ] `reframe.duration_seconds(path)` returns seconds from the frame count
+- [x] `reframe.duration_seconds(path)` returns seconds from the frame count
       over the frame rate, the same `cv2.VideoCapture` `frame_size` opens.
-- [ ] An unreadable or 0-fps file gives 0.0, not a crash.
-- [ ] `split_pieces` with duration 0 says it did not split, the same sentence
+- [x] An unreadable or 0-fps file gives 0.0, not a crash.
+- [x] `split_pieces` with duration 0 says it did not split, the same sentence
       the download leg uses.
 
 **Verification:**
 
-- [ ] `pytest tests/test_reframe.py -q` over `tests/fixtures/tracker-clip.mp4`.
+- [x] `pytest tests/test_reframe.py -q` over `tests/fixtures/tracker-clip.mp4`.
 - [ ] Offline suite green.
 
 **Dependencies:** none · **Files:** `core/reframe.py`, `tests/test_reframe.py`, `engine.py` · **XS**

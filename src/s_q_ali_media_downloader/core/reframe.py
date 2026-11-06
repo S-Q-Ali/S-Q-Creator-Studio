@@ -478,6 +478,25 @@ def frame_size(video: str) -> tuple[int, int, float]:
         capture.release()
 
 
+def duration_seconds(video: str) -> float:
+    """How long a file runs, in seconds.
+
+    A download gets its length from the site; a file nobody downloaded only
+    has the container. The decoder the tracker already opens can say it.
+    """
+    import cv2
+
+    capture = cv2.VideoCapture(video)
+    try:
+        if not capture.isOpened():
+            return 0.0
+        fps = capture.get(cv2.CAP_PROP_FPS) or 0.0
+        count = capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0.0
+    finally:
+        capture.release()
+    return count / fps if fps else 0.0
+
+
 def is_landscape(source_width: int, source_height: int) -> bool:
     """Whether the frame is wide enough that a 9:16 crop adds something."""
     return source_width * 16 > source_height * 9
