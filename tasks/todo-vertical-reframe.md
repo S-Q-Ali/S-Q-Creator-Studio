@@ -277,6 +277,96 @@ reframe tests cover the chain.
 **Dependencies:** Task 10 · **Files:** `core/reframe.py`, `tests/test_reframe.py`,
 `tasks/spec-vertical-reframe.md` · **S**
 
+## Task 13: the camera holds still
+
+**Description:** the owner watched the 4K renders and the frame never rests.
+Two causes, both measured. `sendcmd` holds a value until the next command -
+proved on a synthetic clip: 50 frames, two distinct window positions, one
+170-column jump at the command - so the window teleports five times a second.
+And the path is a bare rate-limited chase, so a still subject is followed
+anyway: it moves on 58 of 99 keyframes, median step 123 px of a 918-px window.
+This task puts the smoothing in front of the chase and the ramp behind it.
+
+**Acceptance criteria:**
+- [x] The wanted centres are median-filtered over the last reads the shot is
+      still believed in, so a single bad detection moves nothing - and a far
+      read the next one contradicts moves nothing either, rather than dragging
+      the camera a third of the way to it.
+- [x] Inside the deadband the position is frozen and the same value is written
+      again, so a static shot is the same crop from frame to frame. Measured at
+      ±10 % of the window, which beat ±6 % on both stillness and lag.
+- [x] A move past the deadband is a ramp: at least half a second of keyframes
+      at the video's own frame rate, and no frame-to-frame step of a pan over
+      a tenth of the window (measured: median 4 px, max 6 px).
+- [x] A move the read after it agrees with, further across the picture than a
+      cut measured on a real film, is a new shot and is set on that frame -
+      5 of them in the probe, 502 to 1692 px, none of them panned.
+- [x] The command file stays small: a hold is one line, a ramp is however many
+      frames the ramp lasts. Measured: 210 lines for 19.8 s, 10.6 a second.
+- [x] The measured path on the 20 s probe: the target of "under 25 of 99
+      keyframes" is restated as what the frame-rate path actually reports - 209
+      of 1188 frames move (18 %) and 979 are identical to the frame before. At
+      the sample rate it is 30 of 99, against 58 before, with 82 % of frames
+      still, no reversals while panning and one read in 59 with the subject
+      outside the window.
+
+**Verification:** new offline tests on the maths (a static subject with noisy
+centres produces one frozen position; a one-sample spike produces no move; a
+real step produces a monotone ramp of the right length); the probe script in
+`tasks/` reports the numbers before and after; the live reframe test renders
+the probe segment and the owner's eye is the last word on the framing.
+
+**Dependencies:** Task 11 · **Files:** `core/reframe.py`, `tests/test_reframe.py`,
+`tasks/plan-vertical-reframe.md` · **M**
+
+## Task 14: the subject that is followed is the subject that was found
+
+**Description:** the detector takes the biggest box in the frame, so with two
+people the biggest can change hands between samples and the window snaps a
+long way in one command - the worst of the jumps. The tracker keeps the last
+centre and picks the box nearest it, falling back to the biggest when nothing
+is near.
+
+**Acceptance criteria:**
+- [x] With two candidates, the one nearer the last position is taken even when
+      the other is bigger.
+- [x] When nothing is near the last position, the biggest is taken - a new
+      subject is still picked up.
+- [x] The first detection of a clip has no last position and takes the biggest.
+
+**Verification:** offline tests over a fake frame source with two known boxes,
+done. The live before/after on the 20 s probe is not on the table: re-tracking
+to measure this overwrote the cached centres the earlier numbers were taken
+from, and the two are not comparable. What the current cache shows is that of
+58 gaps between detected reads, 7 are cut-sized (over 576 px on a 3840 film)
+and the median is 26 px - the split the cut rule in Task 13 is built on.
+
+**Dependencies:** Task 13 · **Files:** `core/reframe.py`, `tests/test_reframe.py`
+· **S**
+
+## Task 15: the stability fix ships inside 2.14.0
+
+**Description:** the v2.14.0 release run was cancelled before it published and
+its tag deleted, so the fixed camera is what 2.14.0 ships as. The CHANGELOG
+entry gains the stability line, the README's cost numbers are re-measured with
+the denser command file, and the tag is made again on an explicit go.
+
+**Acceptance criteria:**
+- [x] The CHANGELOG says what a user sees: the frame holds still on a static
+      shot and glides when the subject moves, and a cut takes the new framing
+      at once.
+- [x] The README's measured cost is re-measured with the denser keyframes and
+      moved if it moved. Two full passes over the 20 s 4K probe: 3.9 s and
+      4.4 s of work per second of film (the looking at 2.4 s, the encode
+      between 1.5 and 1.9), so the claim moves from 3.6 s and 2¼ h to 4 s and
+      2½ h for a 37-minute film.
+- [x] The version stays 2.14.0 in `pyproject.toml` and `__init__.py`, the
+      entry is dated (`2026-11-06`), and the tag is pushed only on an explicit
+      go — still held.
+
+**Dependencies:** Tasks 13, 14 · **Files:** `CHANGELOG.md`, `README.md`,
+`pyproject.toml`, `src/s_q_ali_media_downloader/__init__.py` · **XS**
+
 ## Checkpoint: after Task 2
 
 - [ ] `ruff check src tests release` clean.

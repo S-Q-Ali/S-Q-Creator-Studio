@@ -13,12 +13,14 @@ All notable changes are documented here. The format follows
   picture itself, so the black bands of a widescreen film do not travel into
   the vertical file, and it follows the person in the frame — a face where
   there is one, a full body where there is not, and the position it had where
-  neither answers. The window moves smoothly, the audio is copied and not
-  re-encoded, and the file is at most 1080×1920: a 4K film's picture is about
+  neither answers. The camera sits still while the subject does and glides
+  when it moves, and a change of scene takes the new framing at once instead
+  of panning across it. The audio is copied and not re-encoded, and the file
+  is at most 1080×1920: a 4K film's picture is about
   a thousand pixels wide, so a taller output is the same picture in four times
   the bytes for rows no phone shows. It is off by default and it is two extra
   passes over the video, so a long one takes its time — measured on a 4K
-  download, a 37-minute film lands in about 2¼ hours. A failure there leaves
+  download, a 37-minute film lands in about 2½ hours. A failure there leaves
   the download exactly as it was.
 - **Long videos split into shorts.** **Split into shorts** in Settings: **Auto**
   cuts at the changes of scene; a fixed length — 30, 45, 60 or 90 seconds —

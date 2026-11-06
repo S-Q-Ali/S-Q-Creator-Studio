@@ -30,9 +30,10 @@ original.mp4
   tracked segments breaks around 100 points. `sendcmd` takes a command file
   of any length and `crop` accepts the `x` command, so the path is written as
   a file the worker writes next to the video.
-- **The crop path is sampled, not per frame.** Detection runs at about 5 fps;
-  between samples the window moves linearly, and the value is smoothed so the
-  camera does not jitter.
+- **The crop path is sampled at 5 fps and written one line per sample.** What
+  it does *between* samples was assumed - ffmpeg's `sendcmd` holds a value
+  until the next command, it does not interpolate, so this premise was wrong
+  and Phase 7 is the correction.
 - **The detectors read a copy, not the file.** A 1920-wide, five-frame-per-
   second copy of the film costs a fifth of what the file itself costs to
   decode. It cannot be much smaller: measured on a 4K download, a 1280-wide
@@ -53,9 +54,12 @@ original.mp4
   594×1056 - the largest whole 16-row band that keeps the ratio exact - and
   scaled to 1080×1920. A window of 608×1080 would be 0.08% off the ratio and
   the scale would stretch the picture by that much.
-- **The window may only travel a quarter of its width per sample.** The
-  movement is bounded rather than smoothed with an EMA, so a detection that
-  jumps cannot snap the camera no matter how the smoothing is tuned.
+- **The window travels at most half its own width in a second, and never less
+  than half a second to a new framing.** The movement is bounded rather than
+  smoothed with an EMA, so no glide is a snap and none is a blur. It was once
+  the only stabiliser in the shipped path, which is why the path still
+  crawled: a bound is not a filter. Phase 7 keeps it as the ceiling of a
+  glide, and takes the glide off anything that measures as a cut.
 - **Cut points come from silence first, scene change second.** A short that
   ends in the middle of a sentence is worse than one that is a few seconds
   off its target length, so `silencedetect` is asked first and the scene
@@ -163,12 +167,104 @@ two things the synthetic tests could not.
       what it costs (time per minute of video, and the ~90 MB the app grows
       by); the version is bumped; the release is tagged.
 
+## Phase 7: the camera holds still (2.14.1)
+
+The owner watched the 4K renders and the window never rests: it crawls and
+twitches on static shots. Measured on 20 s of the same film (3840×2160,
+picture 1646 rows, window 918 px wide, 100 samples at 5 fps):
+
+| Path | moves | still | median step | max step | reversals/s | travel/s |
+|---|---|---|---|---|---|---|
+| what ships today (chase at ¼ window per sample) | 58/99 | 41 % | 123 px (13 % of window) | 228 px | 0.81 | 368 px/s |
+| median 5 + low-pass α=0.1 | 57/99 | 42 % | 48 px | 162 px | 0.30 | 165 px/s |
+| median 5 + low-pass + deadband 0.08 | 41/99 | 59 % | **228 px** | 228 px | 0.30 | 374 px/s |
+
+Three things the table says:
+
+1. **The steps are the twitch.** `sendcmd` values hold until the next command —
+   ffmpeg does not interpolate them (`crop` is not among the filters that
+   accept `slerp`/`lerp`). One keyframe per 0.2 s therefore means the window
+   *teleports* up to 228 px, five times a second. The plan's original
+   assumption that "between samples the window moves linearly" is false, and
+   it is the main defect.
+2. **The chase has no floor.** With only a rate limit and no filter, a subject
+   that stands still is chased anyway, because YuNet's box centre moves a few
+   pixels every sample and the window follows it forever.
+3. **A deadband alone makes it worse.** Holding until the target is outside the
+   band and then chasing at the old rate turns small crawls into 228-px snaps.
+   A deadband is only safe once the move it releases is a *glide*, not a step.
+
+### Decisions
+
+- **Keyframes are written at the frame rate, not the detection rate.** The
+  detection stays at 5 fps (it is the expensive half); the path between two
+  detections is a ramp, emitted as one command per frame the ramp lasts. A
+  stretch where the window does not move emits one line, so the file stays
+  small: 210 lines for the 20 s probe, 10.6 for each second of film, against
+  one a frame at 60.
+- **Median 5, then a low-pass, then a deadband, then a glide.** The shipped
+  filter is the fixed α=0.35 low-pass, not the adaptive one-Euro of Casiez et
+  al. 2012: the adaptive cutoff was the idea worth stealing, and a fixed α
+  measured the same stillness for a third of the code.
+- **A cut is not a pan.** The first version panned everything, and the
+  measurement said the model was wrong: between two samples inside a shot the
+  subject moves a median of 17 px, and a thousand at a cut. A 576 px glide
+  across a cut takes two seconds, so the camera spends most of the film
+  crossing cuts and never settles. Two reads more than `CUT_RATIO` of the
+  source apart, when the read after them agrees, are a new shot: the window is
+  set to the new framing on that frame and the median starts again. A read the
+  next one contradicts is a bad detection and moves nothing at all.
+- **The deadband is ±10 % of the window, not ±6 %.** Swept on the probe at
+  fixed cut and α: 6 % left 72 % of frames still and 3 samples with the
+  subject outside the window, 10 % left 82 % still and 1, for a lag that grew
+  by two pixels. A tenth of the window is still a subject in the middle of a
+  9:16 frame.
+- **The subject is sticky.** `SubjectDetector` today takes the biggest box in
+  the frame, so with two people the biggest can change hands between samples
+  and the camera snaps across the shot. The tracker keeps the last centre and
+  takes the box nearest it (score-gated, with the biggest box as the fallback
+  when nothing is near). This is ordinary nearest-neighbour association, not a
+  new model, and it is likely the source of the largest single jumps.
+- **Rejected: a DP crop path (smart-crop / VideoReforge) and optical-flow
+  tracking.** The DP formulation scores every candidate window at every frame
+  — that is the cost the proxy was introduced to avoid; flow tracking adds a
+  per-frame tracker that drifts and must be re-seeded. Both are better tools
+  for a product whose whole job is reframing; here they are more machine than
+  the feature is worth.
+- **The v2.14.0 tag is held, not patched over.** The release run was cancelled
+  before it published anything and the tag is deleted, so the fix lands inside
+  2.14.0 and no one ever gets the stepped camera. The CHANGELOG entry gains the
+  stability line instead of a new release gaining one.
+
+### Measured, after
+
+The same 20 s of the same film, the path the module now writes:
+
+| | what ships today | now |
+|---|---|---|
+| keyframes | one per 0.2 s | 1189 for 19.8 s (one a frame) |
+| frames identical to the one before | — | **979 of 1188 = 82 %** |
+| a pan step | 123 px median, 228 px max (a teleport) | 4 px median, 6 px max |
+| reversals a second while moving | 0.81 | 0.00 |
+| travel while panning | 368 px/s | 36 px/s |
+| cuts | panned, 2-4 s each | 5 set at once: 502-1692 px in one frame |
+| samples in a run of three with the window in one place | — | 24 of 59 |
+| lag from the subject, median / p90 | — | 117 px / 329 px (window 918) |
+| reads with the subject outside the window | — | 1 of 59 |
+| command file | one line per sample | 210 lines, 10.6 per second of film |
+
+The one remaining lost read is the 8.8 s sample the next read contradicts: the
+camera holds the framing it had, which is the rule working as designed rather
+than a defect - the alternative is a 1833 px snap to whichever detection is
+right, and the detector cannot tell from one read.
+
+
 ## Risks and mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
 | The subject is lost mid-clip | The camera lags or jumps | The path is smoothed, the last known position is held, and a centre crop is the floor |
-| Detection is slow on a long video | A 30-minute clip takes minutes | Measured on a 4K download: 12.75 s of work per s of film tracking the file, 2.30 s through the 1920-wide five-frame copy, and 1.29 s for the render at the 1080×1920 cap - 2¼ h for a 37.6-minute film against 10½ h before both changes. The render is shown as progress |
+| Detection is slow on a long video | A 30-minute clip takes minutes | Measured on a 4K download: 12.75 s of work per s of film tracking the file itself, against 4.2 s through the 1920-wide five-frame copy and the render at the 1080×1920 cap — 2½ h for a 37.6-minute film against 10½ h before both changes. The two runs gave 3.9 s and 4.4 s, the looking half steady at 2.4 s and the encode between 1.5 and 1.9. The render is shown as progress |
 | `opencv-python-headless` adds ~90 MB | A bigger download | It is one wheel, it is headless (no GUI libs), and the build is already 1.4 GB |
 | The app stops starting on a platform | A broken release | The CI matrix runs the built app on all four platforms, and the feature is off by default so a missing OpenCV cannot break a download |
 | A short ends mid-sentence | An unusable clip | Silence is asked for first; the scene change is the fallback |
