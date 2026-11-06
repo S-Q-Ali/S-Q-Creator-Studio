@@ -316,6 +316,16 @@ real step produces a monotone ramp of the right length); the probe script in
 `tasks/` reports the numbers before and after; the live reframe test renders
 the probe segment and the owner's eye is the last word on the framing.
 
+- [x] The live check is done. The owner watched `segment-20s_9x16.mp4` -
+      1080x1920 out of the 4K/60 probe, made by the shipped code path - and
+      the verdict is "kinda fine": good enough to ship in 2.14.0, not perfect.
+      What is left is the two things the rules give up on purpose: the read at
+      8.8 s that the next read contradicts, and the subject inside the deadband
+      the window does not chase. If the framing ever needs to be better than
+      this, the place it comes from is a detector that answers more often, not
+      a smaller deadband - the sweep showed a smaller one buys shake, not
+      framing.
+
 **Dependencies:** Task 11 · **Files:** `core/reframe.py`, `tests/test_reframe.py`,
 `tasks/plan-vertical-reframe.md` · **M**
 
