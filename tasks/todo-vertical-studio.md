@@ -147,3 +147,80 @@ and the measured cost — and the CHANGELOG gains the release entry.
 
 - [ ] Definition of Done: suite green, ruff clean, docs true, live check by
       the owner.
+
+## Live check of the 2.15.0 portable — what the owner found
+
+Dropped one long video with Shorts Auto and got a blank terminal beside the
+window, a bar that never moved, and a plan of 29 clips running from 2 s to
+9 min 19 s. Browse opened nothing at all. Each one is a defect with a root
+cause in the code, not a setting.
+
+## Task 7: stop ffmpeg from opening a window per call
+
+**Description:** a `--windowed` build has no console, so Windows gives every
+ffmpeg child its own. One place spawns ffmpeg and hides the child window.
+
+**Acceptance criteria:**
+
+- [ ] `core/ffmpeg_process.py` owns the spawn and the Windows no-console kwargs.
+- [ ] Both detection passes, the split render and the vertical render go through it.
+- [ ] No `subprocess.run` for ffmpeg is left in `core/reframe.py` or `core/shorts.py`.
+
+**Verification:** `pytest tests/test_ffmpeg_process.py tests/test_shorts.py tests/test_reframe.py -q`
+
+**Dependencies:** Fix from the live check · **Files:** `core/ffmpeg_process.py`, `core/reframe.py`, `core/shorts.py`, `tests/test_ffmpeg_process.py` · **S**
+
+## Task 8: bound the plan the app chooses itself
+
+**Description:** Auto cut at every scene change, so a long film came out as a
+2 s clip beside a 9 min one. When the app picks the cuts it must pick cuts a
+Short can be; when the user asks for a number of clips they still get it.
+
+**Acceptance criteria:**
+
+- [ ] Auto and the 30/45/60/90 targets never plan a clip under `MIN_CLIP` or over
+      `SHORTS_LIMIT`.
+- [ ] The `N clips` mode keeps the requested count whatever the lengths.
+- [ ] The tests that asked for a 2 s tail now ask for it merged into its neighbour.
+
+**Verification:** `pytest tests/test_shorts.py -q`
+
+**Dependencies:** none · **Files:** `core/shorts.py`, `tests/test_shorts.py` · **S**
+
+## Task 9: a bar that moves inside one file
+
+**Description:** the thread reported a constant 99.0 and the bar counted files,
+so a single long video showed nothing for minutes. ffmpeg can say how far it
+got; the app should use it.
+
+**Acceptance criteria:**
+
+- [ ] The passes and the render report how much of the film they have processed.
+- [ ] `run_post_leg` turns those into one percent for the file and says the step.
+- [ ] The studio bar and status show that percent; the file count stays in the text.
+
+**Verification:** `pytest tests/test_engine_post_leg.py tests/test_engine_local_video.py tests/test_vertical_studio_page.py -q`
+
+**Dependencies:** Task 7 · **Files:** `core/ffmpeg_process.py`, `core/reframe.py`, `core/shorts.py`, `engine.py`, `ui/vertical_studio_page.py`, the three tests · **M**
+
+## Task 10: Browse shows a picker
+
+**Description:** the native shell dialog did not appear at all in the packaged
+build, so the picker is Qt's own — the same one on every machine, styled by
+the app's sheet, and one a test can reach.
+
+**Acceptance criteria:**
+
+- [ ] The studio's Browse passes `DontUseNativeDialog`.
+- [ ] Files chosen through it land in the list the same way a drop does.
+
+**Verification:** `pytest tests/test_vertical_studio_page.py -q`
+
+**Dependencies:** none · **Files:** `ui/vertical_studio_page.py`, `tests/test_vertical_studio_page.py` · **S**
+
+## Checkpoint: the four fixes
+
+- [ ] Offline suite green, ruff clean, graph refreshed.
+- [ ] 2.15.0 portable and installer rebuilt, and the frozen bundle carries the fixes.
+- [ ] Owner's live check: no terminal window, the bar moves, the Auto plan is sane,
+      Browse opens a picker.
