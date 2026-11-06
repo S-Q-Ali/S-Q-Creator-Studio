@@ -45,9 +45,10 @@ from s_q_ali_media_downloader.ui.widgets import Job
 PAGES = {
     "download": ("btn_nav_queue", 0),
     "music": ("btn_nav_music", 1),
-    "agent": ("btn_nav_agent", 2),
-    "social": ("btn_nav_agent", 2),
-    "settings": ("btn_nav_settings", 3),
+    "studio": ("btn_nav_studio", 2),
+    "agent": ("btn_nav_agent", 3),
+    "social": ("btn_nav_agent", 3),
+    "settings": ("btn_nav_settings", 4),
 }
 
 #: What the README shows: file -> (page, size, density).

@@ -502,3 +502,30 @@ def test_the_run_carries_nothing_when_both_extra_passes_are_off(
 
     _restore_extra_passes(window)
 
+
+
+def test_the_vertical_studio_section_is_reachable_from_the_nav(
+    qapp, isolated_appdata
+):
+    """The fifth section, its own button, and the way back."""
+    window = MainWindow()
+    window.show()
+
+    window.btn_nav_studio.click()
+    assert window.workspace_stack.currentWidget() is window.vertical_studio_page
+    assert window.btn_nav_studio.isChecked()
+
+    window.btn_nav_queue.click()
+    assert window.workspace_stack.currentWidget() is not window.vertical_studio_page
+    window.close()
+
+
+def test_a_running_studio_job_counts_as_work_under_way(qapp, isolated_appdata):
+    """Closing over a file the app is mid-way through reframeing must ask."""
+    window = MainWindow()
+    window.vertical_studio_page.is_running = lambda: True
+
+    assert window._workers_running() is True
+
+    window.vertical_studio_page.is_running = lambda: False
+    window.close()

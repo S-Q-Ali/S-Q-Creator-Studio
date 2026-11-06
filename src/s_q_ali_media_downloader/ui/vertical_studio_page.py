@@ -116,7 +116,7 @@ class VerticalStudioPage(QWidget):
         zone_layout.setContentsMargins(16, 18, 16, 18)
         zone_layout.setSpacing(2)
         zone_title = QLabel("Drop video files here")
-        zone_title.setProperty("role", "strong")
+        zone_title.setProperty("role", "section")
         zone_hint = QLabel("Or press Browse. Files only — folders and links are named and skipped.")
         zone_hint.setProperty("role", "hint")
         zone_layout.addWidget(zone_title)

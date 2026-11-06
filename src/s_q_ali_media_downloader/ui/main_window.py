@@ -73,6 +73,7 @@ from s_q_ali_media_downloader.theme import DENSITY, STATUS_COLORS, C
 from s_q_ali_media_downloader.ui.agent_tab import AgentTabWidget
 from s_q_ali_media_downloader.ui.music_page import MusicPage
 from s_q_ali_media_downloader.ui.settings_page import SettingsPage
+from s_q_ali_media_downloader.ui.vertical_studio_page import VerticalStudioPage
 from s_q_ali_media_downloader.ui.widgets import (
     WORDMARK_TEXT,
     Backdrop,
@@ -428,11 +429,18 @@ class MainWindow(QMainWindow):
 
         self.btn_nav_queue = QPushButton("📥 Download Queue")
         self.btn_nav_music = QPushButton("🎵 Music")
+        self.btn_nav_studio = QPushButton("📐 Vertical Studio")
         self.btn_nav_agent = QPushButton("🤖 AI Channel Finder && Social Inspector")
         self.btn_nav_settings = QPushButton("⚙️ Settings")
 
         for idx, btn in enumerate(
-            (self.btn_nav_queue, self.btn_nav_music, self.btn_nav_agent, self.btn_nav_settings)
+            (
+                self.btn_nav_queue,
+                self.btn_nav_music,
+                self.btn_nav_studio,
+                self.btn_nav_agent,
+                self.btn_nav_settings,
+            )
         ):
             btn.setCheckable(True)
             btn.setProperty("kind", "tab")
@@ -557,12 +565,16 @@ class MainWindow(QMainWindow):
         self.music_page = MusicPage()
         self.workspace_stack.addWidget(self.music_page)
 
-        # Page 2: AI Agent Container Workspace Page
+        # Page 2: Vertical Studio (local files)
+        self.vertical_studio_page = VerticalStudioPage()
+        self.workspace_stack.addWidget(self.vertical_studio_page)
+
+        # Page 3: AI Agent Container Workspace Page
         self.agent_tab = AgentTabWidget()
         self.agent_tab.send_to_queue_requested.connect(self._handle_agent_urls)
         self.workspace_stack.addWidget(self.agent_tab)
 
-        # Page 3: Settings
+        # Page 4: Settings
         self.workspace_stack.addWidget(self.settings_page)
 
         lay.addWidget(self.workspace_stack, 1)
@@ -1311,10 +1323,12 @@ class MainWindow(QMainWindow):
     def _workers_running(self):
         social = getattr(getattr(self, "agent_tab", None), "social_page", None)
         music = getattr(self, "music_page", None)
+        studio = getattr(self, "vertical_studio_page", None)
         return (
             self.running()
             or self.fetching()
             or (music is not None and music.is_running())
+            or (studio is not None and studio.is_running())
             or (self.expander is not None and self.expander.isRunning())
             or self.settings_page.key_test_running()
             or (
@@ -1354,6 +1368,9 @@ class MainWindow(QMainWindow):
         music = getattr(self, "music_page", None)
         if music is not None:
             music.stop()
+        studio = getattr(self, "vertical_studio_page", None)
+        if studio is not None:
+            studio.stop()
         social = getattr(getattr(self, "agent_tab", None), "social_page", None)
         if social is not None:
             social.cancel()

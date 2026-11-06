@@ -601,8 +601,28 @@ QToolTip {{
     padding: 5px 8px;
 }}
 
-/* ---------- settings, music ---------- */
-#SettingsPage, #SettingsHost, #MusicPage {{ background: transparent; }}
+/* ---------- settings, music, vertical studio ---------- */
+#SettingsPage, #SettingsHost, #MusicPage, #VerticalStudioPage {{ background: transparent; }}
+
+/* The drop target is a well with a dashed edge: it holds nothing yet, and
+   the dashes are what say "put something here". */
+#DropZone {{
+    background: {well};
+    border: 1px dashed {C['border']};
+    border-radius: 10px;
+}}
+QListWidget {{
+    background: {C['panel']};
+    color: {C['text']};
+    border: 1px solid {C['border']};
+    border-radius: 10px;
+    outline: 0;
+}}
+QListWidget::item {{ padding: 6px 8px; }}
+QListWidget::item:selected {{
+    background: {C['accent_deep']};
+    color: {C['text']};
+}}
 
 /* ---------- tables ---------- */
 QTableWidget {{
