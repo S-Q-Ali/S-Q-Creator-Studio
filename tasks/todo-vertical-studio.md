@@ -162,9 +162,9 @@ ffmpeg child its own. One place spawns ffmpeg and hides the child window.
 
 **Acceptance criteria:**
 
-- [ ] `core/ffmpeg_process.py` owns the spawn and the Windows no-console kwargs.
-- [ ] Both detection passes, the split render and the vertical render go through it.
-- [ ] No `subprocess.run` for ffmpeg is left in `core/reframe.py` or `core/shorts.py`.
+- [x] `core/ffmpeg_process.py` owns the spawn and the Windows no-console kwargs.
+- [x] Both detection passes, the split render and the vertical render go through it.
+- [x] No `subprocess.run` for ffmpeg is left in `core/reframe.py` or `core/shorts.py`.
 
 **Verification:** `pytest tests/test_ffmpeg_process.py tests/test_shorts.py tests/test_reframe.py -q`
 
@@ -178,10 +178,10 @@ Short can be; when the user asks for a number of clips they still get it.
 
 **Acceptance criteria:**
 
-- [ ] Auto and the 30/45/60/90 targets never plan a clip under `MIN_CLIP` or over
+- [x] Auto and the 30/45/60/90 targets never plan a clip under `MIN_CLIP` or over
       `SHORTS_LIMIT`.
-- [ ] The `N clips` mode keeps the requested count whatever the lengths.
-- [ ] The tests that asked for a 2 s tail now ask for it merged into its neighbour.
+- [x] The `N clips` mode keeps the requested count whatever the lengths.
+- [x] The tests that asked for a 2 s tail now ask for it merged into its neighbour.
 
 **Verification:** `pytest tests/test_shorts.py -q`
 
@@ -195,9 +195,9 @@ got; the app should use it.
 
 **Acceptance criteria:**
 
-- [ ] The passes and the render report how much of the film they have processed.
-- [ ] `run_post_leg` turns those into one percent for the file and says the step.
-- [ ] The studio bar and status show that percent; the file count stays in the text.
+- [x] The passes and the render report how much of the film they have processed.
+- [x] `run_post_leg` turns those into one percent for the file and says the step.
+- [x] The studio bar and status show that percent; the file count stays in the text.
 
 **Verification:** `pytest tests/test_engine_post_leg.py tests/test_engine_local_video.py tests/test_vertical_studio_page.py -q`
 
@@ -211,8 +211,8 @@ the app's sheet, and one a test can reach.
 
 **Acceptance criteria:**
 
-- [ ] The studio's Browse passes `DontUseNativeDialog`.
-- [ ] Files chosen through it land in the list the same way a drop does.
+- [x] The studio's Browse passes `DontUseNativeDialog`.
+- [x] Files chosen through it land in the list the same way a drop does.
 
 **Verification:** `pytest tests/test_vertical_studio_page.py -q`
 
@@ -220,7 +220,10 @@ the app's sheet, and one a test can reach.
 
 ## Checkpoint: the four fixes
 
-- [ ] Offline suite green, ruff clean, graph refreshed.
-- [ ] 2.15.0 portable and installer rebuilt, and the frozen bundle carries the fixes.
+- [x] Offline suite green, ruff clean, graph refreshed.
+- [x] 2.15.0 portable and installer rebuilt, and the frozen bundle carries the fixes.
+      The old portable was still running when the build started, so the new one is in
+      `release/portable-new` and the installer was compiled from it; close the running
+      app before the next build to get `release/portable` back.
 - [ ] Owner's live check: no terminal window, the bar moves, the Auto plan is sane,
       Browse opens a picker.
