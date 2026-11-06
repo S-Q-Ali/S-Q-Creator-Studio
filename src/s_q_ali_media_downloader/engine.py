@@ -1453,6 +1453,56 @@ class DownloadThread(QThread):
             self.finished_all.emit()
 
 
+class LocalVideoThread(QThread):
+    """The vertical and shorts passes over files the user points at.
+
+    One file at a time: a reframe costs about four seconds of work per second
+    of film, so two at once only make both slower. Stop ends the run after the
+    file in hand - a write started is a write finished.
+    """
+
+    file_started = Signal(int, str)
+    progress = Signal(float, str)
+    log = Signal(str)
+    finished_all = Signal()
+
+    def __init__(self, files, vertical=False, split=DEFAULT_SPLIT, clips=DEFAULT_CLIPS, parent=None):
+        super().__init__(parent)
+        self.files = list(files)
+        self.vertical = bool(vertical)
+        self.split = split if split in SPLIT_OPTIONS else DEFAULT_SPLIT
+        self.clips = max(1, int(clips))
+        self._stop = False
+        self._ffmpeg = ffmpeg_binary()
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        try:
+            for index, path in enumerate(self.files):
+                if self._stop:
+                    self.log.emit(f"{len(self.files) - index} left unworked.")
+                    break
+                self.file_started.emit(index, path)
+                try:
+                    run_post_leg(
+                        path,
+                        vertical=self.vertical,
+                        split=self.split,
+                        clips=self.clips,
+                        ffmpeg=self._ffmpeg,
+                        duration=reframe.duration_seconds(path),
+                        report=self.log.emit,
+                        stage=lambda name: self.progress.emit(99.0, name),
+                    )
+                except Exception as exc:
+                    logger.warning("Nothing could be read from %s", path, exc_info=True)
+                    self.log.emit(f"This file could not be read: {exc}")
+        finally:
+            self.finished_all.emit()
+
+
 class MusicResolveThread(QThread):
     """Expand pasted music links into a flat list of downloadable tracks."""
 
