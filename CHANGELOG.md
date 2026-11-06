@@ -3,6 +3,33 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.14.0] — 2026-11-06
+
+### Added
+
+- **A vertical 9:16 version of any download.** Tick **Also make a vertical
+  9:16 version** in Settings and each video also lands as `<name>_9x16.mp4`
+  beside the original, filled edge to edge: the crop window is cut out of the
+  picture itself, so the black bands of a widescreen film do not travel into
+  the vertical file, and it follows the person in the frame — a face where
+  there is one, a full body where there is not, and the position it had where
+  neither answers. The window moves smoothly, the audio is copied and not
+  re-encoded, and the file is at most 1080×1920: a 4K film's picture is about
+  a thousand pixels wide, so a taller output is the same picture in four times
+  the bytes for rows no phone shows. It is off by default and it is two extra
+  passes over the video, so a long one takes its time — measured on a 4K
+  download, a 37-minute film lands in about 2¼ hours. A failure there leaves
+  the download exactly as it was.
+- **Long videos split into shorts.** **Split into shorts** in Settings: **Auto**
+  cuts at the changes of scene; a fixed length — 30, 45, 60 or 90 seconds —
+  cuts at the nearest pause in the speech to it; **N clips** divides the length
+  by the number you pick, from 2 to 30, and the app names the length each clip
+  gets before it starts cutting. Each clip lands as `<name>_short01.mp4` and,
+  with the vertical version ticked, gets its own `<name>_short01_9x16.mp4`.
+- **The build is about 110 MB larger.** The two extra passes need OpenCV for
+  the face and body detectors — the models themselves are 1.3 MB; the runtime
+  is the rest.
+
 ## [2.13.0] — 2026-11-05
 
 ### Added

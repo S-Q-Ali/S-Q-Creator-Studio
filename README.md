@@ -52,6 +52,8 @@ Download the latest release and start downloading videos in seconds:
 - **Worker pool** — 1–3 parallel downloads with per-worker pacing delays.
 - **Automatic retries** — 4 tries per video on the spot, plus optional end passes over the stragglers.
 - **Quality presets** — **Best up to 4K** by default (the best the source really offers, capped at 2160p), then 1440p/1080p/720p/480p, **Best available** (no cap), plus **Audio only** (MP3 via bundled ffmpeg). A 4K stream is VP9 or AV1, so it is muxed into an **MKV** — an MP4 that carries them is refused by half the players — and the queue card names the resolution and codec that came down.
+- **Vertical 9:16 that follows the subject** — tick **Also make a vertical 9:16 version** and every download also lands as `<name>_9x16.mp4` beside the original: a 9:16 window cut out of the *picture*, so the black bands of a letterboxed film stay out, and the window tracks the person in the frame — a face if there is one, a body if there is no face, and where neither answers it holds the position it had. It moves at a steady pace and never snaps, the output is at most 1080×1920, and the audio is the original track copied, so it cannot drift out of step. It is two extra passes over the video, and they are measured: on a 4K download the whole pass costs about 3.6 s of work per second of film, so a 37-minute one lands in roughly 2¼ hours. Off by default, and a reframe that fails leaves the download as it is.
+- **Long videos into shorts** — **Split into shorts** cuts each download at the pauses in the speech, or at a change of scene where no pause is near. **Auto** uses the scene changes; **30 s / 45 s / 60 s / 90 s** use that length; **N clips** takes the number you want (2–30), divides the length by it and moves each cut to the nearest pause — the app names the length it will use before it starts. Clips land as `<name>_short01.mp4`, and with the vertical box ticked each clip gets its own `_9x16` too.
 - **Account based** — paste a public TikTok profile and pull its newest video URLs for review. The same button takes an Instagram profile or a Facebook page.
 - **Browser impersonation** — TikTok requests are signed with a real Chrome identity so rate-limit failures are far less likely.
 - **AI Channel Finder & Social Inspector** — one tab with three modes: **YouTube → Socials**, **TikTok → YouTube / Facebook / Instagram**, and **Social Discovery**, which takes a channel URL, a handle or a name and finds the creator's other accounts. Uses a keyless yt-dlp search by default; an optional YouTube Data API key lifts quota walls.
@@ -178,6 +180,8 @@ Each link is tried 4 times on the spot (2–5 s apart). Stills-failing links are
 
 YouTube and TikTok links are handled separately: TikTok uses Chrome impersonation, YouTube skips it and uses native format selection. Instagram and Facebook post links go through yt-dlp's own extractors, without the per-platform tuning TikTok gets. `Audio only` post-processes to MP3 with the bundled ffmpeg.
 
+Two optional passes run over a video after it lands. **Split into shorts** finds the pauses in the speech and the changes of scene, then cuts at whichever sits nearest the point the maths asked for. **Also make a vertical 9:16 version** looks for the subject in the frame — a face first, a full body when there is no face to find, and where neither answers the window holds the position it had. The looking runs on a 1920-wide, five-frames-a-second copy of the film rather than the file itself, which costs a fifth of the work; the window is placed back in the file's own size, and the audio is copied, not re-encoded. Measured on a 4K download, the whole vertical pass is about 3.6 s of work per second of film — a 37-minute film in roughly 2¼ hours.
+
 Music works the same way in its own tab: the links are resolved into tracks first — yt-dlp for YouTube, YouTube Music and SoundCloud, spotipyFree for Spotify metadata — then each track takes the best audio stream and converts it to the chosen codec with the bundled ffmpeg. Tracks are pulled one after another, and the tags and whatever artwork the source carries are embedded before each file moves. A collection link (album, playlist or YouTube set) files its tracks in that collection's folder; a single track link files under `Artist/Album/`.
 
 ## Settings
@@ -191,6 +195,8 @@ Everything is in the **Settings** tab of the app.
 | **YouTube API key** | Optional. Without it the search runs keyless through yt-dlp; with it the results carry exact view and subscriber counts. |
 | **Cookies file** | Optional. A Netscape `cookies.txt` exported from a signed-in browser — the way around YouTube's "confirm you are not a bot". |
 | **Save to / Quality / Pace / Workers / End passes** | Where the videos land and how hard the app works. |
+| **Also make a vertical 9:16 version** | Each download gets a `<name>_9x16.mp4` beside it, the crop window following the person in the frame. Two extra passes over the video, so a long one takes its time. |
+| **Split into shorts** | **Off** by default; **Auto** cuts at the scene changes, a fixed length cuts at the nearest pause to it, and **N clips** divides the length by the number you pick and says what each clip will be before it starts. |
 | **Compact layout** | Follows the window by default: below 1500×850 the interface tightens itself so nothing is clipped on a small laptop. Tick the box to choose it yourself. |
 
 On Windows the API keys are sealed at rest with DPAPI — stored encrypted and tied to your Windows account, not to the machine — and no key is ever written to a URL or to the log. Off Windows the store asks the machine's own keychain (the login keychain, GNOME Keyring, KWallet) through `keyring` and keeps only the item's name in the database. Where no secret store answers, the row is marked `plain:` and the Settings page says so instead of pretending the key is safe.
@@ -203,6 +209,7 @@ What has actually run where: the store resolves its backend on Linux and macOS i
 - **yt-dlp** — extraction and download engine
 - **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.16`)
 - **instaloader** — lists an Instagram profile's posts (yt-dlp's own Instagram extractor is broken upstream)
+- **opencv-python-headless** — the face and body detectors behind the vertical 9:16 version; two ONNX models of about 1.3 MB, in a wheel of roughly 110 MB unpacked
 - **mutagen** — artwork and tag embedding for the music files
 - **spotipyFree** — anonymous Spotify metadata for the Music tab: no login, no client ID
 - **httpx / pydantic / beautifulsoup4** — discovery HTTP, typed schemas, bio scraping
