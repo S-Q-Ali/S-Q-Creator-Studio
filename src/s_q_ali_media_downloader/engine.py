@@ -21,6 +21,7 @@ import logging
 import os
 import random
 import re
+import shutil
 import threading
 import time
 import unicodedata
@@ -1025,6 +1026,38 @@ class _Meter:
             self._report(100.0)
 
 
+def stage_for_folder(path, folder, report):
+    """The file the legs work on: a copy of the source, inside the folder.
+
+    The legs write every output beside the file they were given, so putting
+    the file there puts its results there too - and the source the user
+    dropped stays exactly where it was. None means this file is skipped and
+    ``report`` has already said why; a copy that died halfway is not a
+    result and is taken back out.
+    """
+    source = os.path.abspath(path)
+    destination = os.path.abspath(folder)
+    name = os.path.basename(source)
+    if os.path.normcase(os.path.dirname(source)) == os.path.normcase(destination):
+        return source
+    target = None
+    try:
+        os.makedirs(destination, exist_ok=True)
+        base, ext = os.path.splitext(name)
+        with _NAME_LOCK:
+            target = os.path.join(destination, unique_basename(destination, base) + ext)
+            shutil.copyfile(source, target)
+    except OSError as exc:
+        if target is not None:
+            try:
+                os.remove(target)
+            except OSError:
+                pass
+        report(f"{name} could not be copied to the results folder: {exc}")
+        return None
+    return target
+
+
 def run_post_leg(
     path, *, vertical, split, clips, ffmpeg, duration, report, stage=None, hold=None, progress=None
 ):
@@ -1549,6 +1582,11 @@ class LocalVideoThread(QThread):
 
     ``progress`` is the file in hand: how far its priced work has got, and the
     name of the pass doing it.
+
+    ``out_dir`` is the results folder the Studio was shown: each file is
+    copied into it and worked on there, so the folder ends up holding the
+    film, its vertical and its shorts. Empty means leave the files where the
+    user put them.
     """
 
     file_started = Signal(int, str)
@@ -1556,12 +1594,21 @@ class LocalVideoThread(QThread):
     log = Signal(str)
     finished_all = Signal()
 
-    def __init__(self, files, vertical=False, split=DEFAULT_SPLIT, clips=DEFAULT_CLIPS, parent=None):
+    def __init__(
+        self,
+        files,
+        vertical=False,
+        split=DEFAULT_SPLIT,
+        clips=DEFAULT_CLIPS,
+        out_dir=None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.files = list(files)
         self.vertical = bool(vertical)
         self.split = split if split in SPLIT_OPTIONS else DEFAULT_SPLIT
         self.clips = max(1, int(clips))
+        self.out_dir = (out_dir or "").strip() or None
         self._stop = False
         self._percent = 0.0
         self._stage = ""
@@ -1579,14 +1626,20 @@ class LocalVideoThread(QThread):
                 self._percent = 0.0
                 self._stage = ""
                 self.file_started.emit(index, path)
+                work = path
+                if self.out_dir:
+                    self._named("copying to the folder")
+                    work = stage_for_folder(path, self.out_dir, self.log.emit)
+                    if work is None:
+                        continue
                 try:
                     run_post_leg(
-                        path,
+                        work,
                         vertical=self.vertical,
                         split=self.split,
                         clips=self.clips,
                         ffmpeg=self._ffmpeg,
-                        duration=reframe.duration_seconds(path),
+                        duration=reframe.duration_seconds(work),
                         report=self.log.emit,
                         stage=self._named,
                         progress=self._count,
