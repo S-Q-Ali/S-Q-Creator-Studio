@@ -54,17 +54,17 @@ progress and a log line per file. Stop finishes the file in hand.
 
 **Acceptance criteria:**
 
-- [ ] Signals the page can draw: `file_started(index, path)`,
+- [x] Signals the page can draw: `file_started(index, path)`,
       `progress(percent, stage)`, `log(text)`, `finished_all()`.
-- [ ] A non-video, an unreadable file and an already-vertical file each get
+- [x] A non-video, an unreadable file and an already-vertical file each get
       one sentence and the run continues.
-- [ ] `stop()` ends the list after the current file, never mid-write.
+- [x] `stop()` ends the list after the current file, never mid-write.
 
 **Verification:**
 
-- [ ] New `tests/test_engine_local_video.py` with the Task 1 recorders — no
+- [x] New `tests/test_engine_local_video.py` with the Task 1 recorders — no
       ffmpeg, no OpenCV.
-- [ ] Offline suite green.
+- [x] Offline suite green.
 
 **Dependencies:** Tasks 1, 2 · **Files:** `engine.py`, `tests/test_engine_local_video.py` · **M**
 
@@ -76,17 +76,17 @@ three run options seeded from settings, Run and Stop, and a log line.
 
 **Acceptance criteria:**
 
-- [ ] Files only (regular files whose suffix is in the video set); a folder
+- [x] Files only (regular files whose suffix is in the video set); a folder
       or a URL in the drop is refused with a sentence.
-- [ ] Drops are accepted only while this page is the visible one.
-- [ ] Browse adds to the list, double-click or Remove takes an entry out.
-- [ ] Run disables itself while a worker is running; Stop returns it.
+- [x] Drops are accepted only while this page is the visible one.
+- [x] Browse adds to the list, double-click or Remove takes an entry out.
+- [x] Run disables itself while a worker is running; Stop returns it.
 
 **Verification:**
 
-- [ ] `pytest tests/test_vertical_studio_page.py -q` — a synthesized
+- [x] `pytest tests/test_vertical_studio_page.py -q` — a synthesized
       `QMimeData` drop, a monkeypatched `QFileDialog`, a faked worker.
-- [ ] Offline suite green.
+- [x] Offline suite green.
 
 **Dependencies:** Task 3 · **Files:** `ui/vertical_studio_page.py`, `tests/test_vertical_studio_page.py` · **L**
 
@@ -98,15 +98,15 @@ like the other four.
 
 **Acceptance criteria:**
 
-- [ ] `btn_nav_studio` joins `work_tab_group` with the id matching the page's
+- [x] `btn_nav_studio` joins `work_tab_group` with the id matching the page's
       index in `workspace_stack`.
-- [ ] The offscreen `MainWindow` smoke test reaches the section and back.
-- [ ] The theme sheet styles the new controls — no raw colours in the page.
+- [x] The offscreen `MainWindow` smoke test reaches the section and back.
+- [x] The theme sheet styles the new controls — no raw colours in the page.
 
 **Verification:**
 
-- [ ] `pytest tests/test_gui.py -q`
-- [ ] `pytest tests -m "not live" -q` and `ruff check src tests release`.
+- [x] `pytest tests/test_gui.py -q`
+- [x] `pytest tests -m "not live" -q` and `ruff check src tests release`.
 
 **Dependencies:** Task 4 · **Files:** `ui/main_window.py`, `tests/test_gui.py`, `ui/theme.py` if needed · **S**
 
