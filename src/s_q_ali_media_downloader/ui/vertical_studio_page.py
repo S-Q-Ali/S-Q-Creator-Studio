@@ -38,6 +38,7 @@ from s_q_ali_media_downloader.engine import (
     SPLIT_CLIPS,
     SPLIT_OPTIONS,
     LocalVideoThread,
+    default_output_dir,
 )
 from s_q_ali_media_downloader.theme import C
 from s_q_ali_media_downloader.ui.settings_page import (
@@ -247,9 +248,19 @@ class VerticalStudioPage(QWidget):
         return added
 
     def browse(self):
-        start = os.path.dirname(self.paths[-1]) if self.paths else ""
+        """The app's own picker, in this window.
+
+        The native Windows one is a separate top-level window, and on a
+        packaged build it can open behind the app - a Browse that shows
+        nothing is not a Browse.
+        """
+        start = os.path.dirname(self.paths[-1]) if self.paths else default_output_dir()
         picked, _ = QFileDialog.getOpenFileNames(
-            self, "Choose videos to reframe", start, PICKER
+            self,
+            "Choose videos to reframe",
+            start,
+            PICKER,
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         self.add_paths(picked)
 

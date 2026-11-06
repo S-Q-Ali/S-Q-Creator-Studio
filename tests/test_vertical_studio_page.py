@@ -7,6 +7,8 @@ and that the page hands the list and its options to the worker.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from PySide6.QtCore import QMimeData, QPoint, QSettings, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
@@ -142,14 +144,42 @@ def test_the_same_file_dropped_twice_is_listed_once(page, tmp_path):
 
 
 def test_browse_adds_what_the_picker_returns(page, tmp_path, monkeypatch):
+    """The picker is the app's own widget rather than the native Windows
+    window, which on a packaged build can open where the app cannot see it -
+    a Browse that appears to do nothing."""
     video = _videos(tmp_path, "one.mp4")[0]
-    monkeypatch.setattr(
-        QFileDialog, "getOpenFileNames", classmethod(lambda cls, *a, **k: ([video], ""))
-    )
+    asked = {}
+
+    def picker(cls, *args, **kwargs):
+        asked["args"] = args
+        asked["kwargs"] = kwargs
+        return [video], ""
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileNames", classmethod(picker))
 
     page.browse()
 
     assert page.paths == [video]
+    assert asked["args"][1] == "Choose videos to reframe"
+    assert asked["kwargs"]["options"] == QFileDialog.Option.DontUseNativeDialog
+
+
+def test_browse_starts_where_the_last_file_came_from(page, tmp_path, monkeypatch):
+    """The studio works on files from anywhere, so the picker opens at the
+    folder of the last one in the list instead of somewhere the user has to
+    find again."""
+    asked = []
+    monkeypatch.setattr(
+        QFileDialog,
+        "getOpenFileNames",
+        classmethod(lambda cls, *args, **kwargs: asked.append(args) or ([], "")),
+    )
+    video = _videos(tmp_path, "one.mp4")[0]
+    _drop_on(page, local=[video])
+
+    page.browse()
+
+    assert asked[0][2] == os.path.dirname(video)
 
 
 def test_the_options_are_seeded_from_the_saved_settings(tmp_path, monkeypatch):
