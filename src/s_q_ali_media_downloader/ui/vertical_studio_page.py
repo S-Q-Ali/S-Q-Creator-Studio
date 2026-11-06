@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
@@ -58,10 +59,32 @@ VIDEO_SUFFIXES = (
 
 PICKER = "Videos (" + " ".join(f"*{suffix}" for suffix in VIDEO_SUFFIXES) + ")"
 
+# The download options above are borrowed and read only; this key is the
+# Studio's own, and the Studio is the only place that writes it.
+RESULTS_KEY = "studio_output_dir"
+
 
 def is_video_file(path: str) -> bool:
     """A regular file whose container the reframe can read."""
     return os.path.isfile(path) and os.path.splitext(path)[1].lower() in VIDEO_SUFFIXES
+
+
+def can_write_to(folder: str) -> bool:
+    """Whether a file can be made in this folder and taken out again.
+
+    The run does exactly that, so the answer is worth having before ffmpeg
+    starts on work that could never have landed: a read-only share, a path
+    that is a file, a disk with nothing on it all say no here.
+    """
+    probe = os.path.join(folder, ".sq-studio-probe")
+    try:
+        os.makedirs(folder, exist_ok=True)
+        with open(probe, "wb"):
+            pass
+        os.remove(probe)
+    except OSError:
+        return False
+    return True
 
 
 class VerticalStudioPage(QWidget):
@@ -163,6 +186,33 @@ class VerticalStudioPage(QWidget):
         self.split.currentTextChanged.connect(self._show_clip_count)
         layout.addLayout(options)
 
+        # The file is copied into this folder and worked on there, so the
+        # folder ends up holding the film, its vertical and its shorts.
+        where = QHBoxLayout()
+        where.setSpacing(8)
+        where.addWidget(QLabel("Save results to"))
+        self.results = QLineEdit()
+        self.results.setPlaceholderText("Beside each file")
+        self.results.setToolTip(
+            "The folder the vertical and the shorts go into, with a copy of "
+            "each video beside them. Empty leaves everything where the video "
+            "already is."
+        )
+        self.results.textChanged.connect(self._show_results_reset)
+        where.addWidget(self.results, 1)
+        self.btn_results = QPushButton("Change…")
+        self.btn_results.setProperty("kind", "ghost")
+        self.btn_results.clicked.connect(self.change_results_folder)
+        where.addWidget(self.btn_results)
+        self.btn_results_beside = QPushButton("Beside each file")
+        self.btn_results_beside.setProperty("kind", "ghost")
+        self.btn_results_beside.setToolTip(
+            "Put the results back beside each video instead of in one folder."
+        )
+        self.btn_results_beside.clicked.connect(self.beside_each_file)
+        where.addWidget(self.btn_results_beside)
+        layout.addLayout(where)
+
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self.btn_browse = QPushButton("Browse…")
@@ -210,19 +260,62 @@ class VerticalStudioPage(QWidget):
 
     # ------------------------------------------------------------- options
     def _load_options(self):
-        """The saved download options, read only — the studio never writes them."""
+        """The saved download options, read only — the studio never writes them.
+
+        The results folder is the exception: it is this section's own choice,
+        and empty means the outputs stay beside the file they came from.
+        """
         stored = make_settings()
         self.vertical.setChecked(_is_true(stored.value("vertical")))
         split = stored.value("split")
         self.split.setCurrentText(split if split in SPLIT_OPTIONS else DEFAULT_SPLIT)
         self.clips.setValue(_clip_count(stored.value("clips")))
         self._show_clip_count(self.split.currentText())
+        folder = str(stored.value(RESULTS_KEY, "") or "").strip()
+        self.results.setText(folder)
+        self._show_results_reset(folder)
 
     def _show_clip_count(self, choice: str):
         """The clip count only means something in the N clips mode."""
         counting = choice == SPLIT_CLIPS
         self.clips_label.setVisible(counting)
         self.clips.setVisible(counting)
+
+    def _show_results_reset(self, choice=""):
+        """The way back is only worth a button once there is something to undo."""
+        self.btn_results_beside.setVisible(bool(str(choice).strip()))
+
+    # -------------------------------------------------------- results folder
+    def change_results_folder(self):
+        """The app's own folder picker, for the reason Browse uses one.
+
+        The native dialog is a separate top-level window: on a packaged build
+        it can open where the app cannot see it.
+        """
+        start = self.results.text().strip() or default_output_dir()
+        picked = QFileDialog.getExistingDirectory(
+            self,
+            "Choose where the results go",
+            start,
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
+        if picked:
+            self._set_results_folder(picked)
+
+    def beside_each_file(self):
+        self._set_results_folder("")
+
+    def _set_results_folder(self, folder: str):
+        """The choice, shown and remembered where it was made."""
+        self.results.setText(folder)
+        stored = make_settings()
+        if folder:
+            stored.setValue(RESULTS_KEY, folder)
+        else:
+            stored.remove(RESULTS_KEY)
+        self._say(
+            f"Results go to {folder}." if folder else "Results stay beside each file."
+        )
 
     # ----------------------------------------------------------- files in
     def add_paths(self, candidates):
@@ -319,6 +412,10 @@ class VerticalStudioPage(QWidget):
         if not self.paths:
             self._say("Drop videos here, or press Browse, then Run.")
             return
+        folder = self.results.text().strip()
+        if folder and not can_write_to(folder):
+            self._say(f"Nothing could be written to {folder}.", error=True)
+            return
         self._total = len(self.paths)
         self._index = 0
         self.progress.setRange(0, 100)
@@ -334,6 +431,7 @@ class VerticalStudioPage(QWidget):
             vertical=self.vertical.isChecked(),
             split=self.split.currentText(),
             clips=self.clips.value(),
+            out_dir=folder,
         )
         self._thread.file_started.connect(self._on_file_started)
         self._thread.progress.connect(self._on_progress)
@@ -358,6 +456,9 @@ class VerticalStudioPage(QWidget):
         self.vertical.setEnabled(not running)
         self.split.setEnabled(not running)
         self.clips.setEnabled(not running)
+        self.results.setEnabled(not running)
+        self.btn_results.setEnabled(not running)
+        self.btn_results_beside.setEnabled(not running)
 
     def _on_file_started(self, index, path):
         self._current = os.path.basename(path)

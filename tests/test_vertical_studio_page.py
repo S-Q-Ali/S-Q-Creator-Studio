@@ -236,7 +236,12 @@ def test_run_hands_the_list_and_the_options_to_the_worker(page, tmp_path, monkey
 
     page.run()
 
-    assert seen["calls"] == [([first, second], {"vertical": True, "split": "N clips", "clips": 4})]
+    assert seen["calls"] == [
+        (
+            [first, second],
+            {"vertical": True, "split": "N clips", "clips": 4, "out_dir": ""},
+        )
+    ]
     assert page.btn_run.isEnabled() is False
     assert page.btn_stop.isEnabled() is True
 
@@ -302,3 +307,146 @@ def test_stop_asks_the_worker_and_says_the_file_in_hand_finishes(page, tmp_path,
 
     assert seen["threads"][0].stopped is True
     assert "Stopping" in page.status.text()
+
+
+# ------------------------------------------------------------- results folder
+
+
+@pytest.fixture()
+def stored(tmp_path, monkeypatch):
+    """A preferences file of the test's own, and the page built on it.
+
+    The page writes the results folder the moment it is picked, so these
+    tests may not touch the owner's real preferences.
+    """
+    store = str(tmp_path / "prefs.ini")
+    monkeypatch.setenv("SQ_SETTINGS_FILE", store)
+    return QSettings(store, QSettings.IniFormat)
+
+
+def _picker(monkeypatch, reply):
+    asked = {}
+
+    def choose(cls, *args, **kwargs):
+        asked["args"] = args
+        asked["kwargs"] = kwargs
+        return reply
+
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", classmethod(choose))
+    return asked
+
+
+def test_an_empty_field_promises_the_files_own_folder(stored, qapp):
+    page = VerticalStudioPage()
+    page.show()
+
+    assert page.results.text() == ""
+    assert page.results.placeholderText() == "Beside each file"
+    assert page.btn_results_beside.isHidden()
+
+
+def test_a_saved_results_folder_is_back_where_it_was_left(tmp_path, monkeypatch):
+    """The folder is chosen once and remembered, so a creator who works in
+    one place does not point the app at it every session."""
+    store = str(tmp_path / "prefs.ini")
+    monkeypatch.setenv("SQ_SETTINGS_FILE", store)
+    QSettings(store, QSettings.IniFormat).setValue("studio_output_dir", str(tmp_path / "results"))
+    QSettings(store, QSettings.IniFormat).sync()
+
+    page = VerticalStudioPage()
+    page.show()
+
+    assert page.results.text() == str(tmp_path / "results")
+    assert page.btn_results_beside.isHidden() is False
+
+
+def test_choosing_a_folder_shows_it_and_stores_it(page, tmp_path, monkeypatch, stored):
+    folder = tmp_path / "results"
+    folder.mkdir()
+    asked = _picker(monkeypatch, str(folder))
+
+    page.change_results_folder()
+
+    assert page.results.text() == str(folder)
+    assert stored.value("studio_output_dir") == str(folder)
+    assert asked["args"][1] == "Choose where the results go"
+    assert asked["kwargs"]["options"] == QFileDialog.Option.DontUseNativeDialog
+
+    page.beside_each_file()
+
+    assert page.results.text() == ""
+    assert stored.value("studio_output_dir", "") == ""
+    assert page.btn_results_beside.isHidden()
+
+
+def test_canceling_the_folder_picker_leaves_the_choice_alone(
+    page, tmp_path, monkeypatch, stored
+):
+    folder = tmp_path / "results"
+    folder.mkdir()
+    page.results.setText(str(folder))
+    _picker(monkeypatch, "")
+
+    page.change_results_folder()
+
+    assert page.results.text() == str(folder)
+
+
+def test_the_folder_reaches_the_worker_with_the_rest_of_the_options(
+    page, tmp_path, monkeypatch
+):
+    seen = _fake_worker(monkeypatch)
+    folder = tmp_path / "results"
+    folder.mkdir()
+    _drop_on(page, local=_videos(tmp_path, "one.mp4"))
+    page.vertical.setChecked(True)
+    page.split.setCurrentText("Off")
+    page.clips.setValue(3)
+    page.results.setText(str(folder))
+
+    page.run()
+
+    assert seen["calls"][0][1] == {
+        "vertical": True,
+        "split": "Off",
+        "clips": 3,
+        "out_dir": str(folder),
+    }
+
+
+def test_a_folder_that_cannot_hold_a_file_stops_the_run_before_it_starts(
+    page, tmp_path, monkeypatch, stored
+):
+    """A path that is a file is not a folder, and a read-only share refuses a
+    write: either way the owner is told before ffmpeg starts work that could
+    never have landed anywhere."""
+    seen = _fake_worker(monkeypatch)
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a folder")
+    _drop_on(page, local=_videos(tmp_path, "one.mp4"))
+    page.results.setText(str(blocker))
+
+    page.run()
+
+    assert seen["calls"] == []
+    assert page.status.text() == f"Nothing could be written to {blocker}."
+    assert blocker.is_file()
+
+
+def test_the_results_row_is_locked_while_a_run_is_underway(
+    page, tmp_path, monkeypatch
+):
+    seen = _fake_worker(monkeypatch)
+    folder = tmp_path / "results"
+    folder.mkdir()
+    _drop_on(page, local=_videos(tmp_path, "one.mp4"))
+    page.results.setText(str(folder))
+
+    page.run()
+
+    assert page.results.isEnabled() is False
+    assert page.btn_results.isEnabled() is False
+
+    seen["threads"][0].finished_all.emit()
+
+    assert page.results.isEnabled() is True
