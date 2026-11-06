@@ -371,11 +371,17 @@ the denser command file, and the tag is made again on an explicit go.
       between 1.5 and 1.9), so the claim moves from 3.6 s and 2¼ h to 4 s and
       2½ h for a 37-minute film.
 - [x] The version stays 2.14.0 in `pyproject.toml` and `__init__.py`, the
-      entry is dated (`2026-11-06`), and the tag is pushed only on an explicit
-      go — still held.
+      entry is dated (`2026-11-06`), and the tag was pushed on the explicit go.
+- [ ] The tagged release run publishes. The first one did not: GitHub retired
+      the `macos-14` runner image on 2 November 2026, so the Apple Silicon job
+      was cancelled the second it was queued — no runner, no log, nothing
+      published — and re-running that job reads the workflow from the tag,
+      which still names the dead label. `v2.14.0` has to move onto the fixed
+      commit, which needs an explicit go.
 
 **Dependencies:** Tasks 13, 14 · **Files:** `CHANGELOG.md`, `README.md`,
-`pyproject.toml`, `src/s_q_ali_media_downloader/__init__.py` · **XS**
+`pyproject.toml`, `src/s_q_ali_media_downloader/__init__.py`,
+`.github/workflows/release.yml`, `.github/workflows/ci.yml` · **XS**
 
 ## Checkpoint: after Task 2
 

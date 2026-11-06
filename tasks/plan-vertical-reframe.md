@@ -138,7 +138,7 @@ original.mp4
 ### Checkpoint: Phase 4
 
 - [x] `ruff` clean, the offline suite green, `graphify update .` refreshed.
-- [ ] The Windows installer builds and the app starts.
+- [x] The Windows installer builds and the app starts.
 
 ### Phase 5: on real film
 
@@ -231,10 +231,15 @@ Three things the table says:
   per-frame tracker that drifts and must be re-seeded. Both are better tools
   for a product whose whole job is reframing; here they are more machine than
   the feature is worth.
-- **The v2.14.0 tag is held, not patched over.** The release run was cancelled
-  before it published anything and the tag is deleted, so the fix lands inside
-  2.14.0 and no one ever gets the stepped camera. The CHANGELOG entry gains the
-  stability line instead of a new release gaining one.
+- **The stability fix ships inside 2.14.0, not as a patch.** The first release
+  run was cancelled before it published anything, so the fix and the tag were
+  cut together and no one ever gets the stepped camera. The CHANGELOG entry
+  carries the stability line instead of a new release carrying one. The run
+  died on a label, not on the build: GitHub retired the `macos-14` image on 2
+  November 2026, and a job that names it is cancelled before it is given a
+  runner — no log, no failure, no release. Both workflows ask for `macos-15`
+  now, and a test reads the runner labels out of each matrix so the retired
+  name cannot come back unnoticed.
 
 ### Measured, after
 
