@@ -11,15 +11,15 @@ under a unique name and hands that copy to the legs, so `run_post_leg`,
 
 **Acceptance criteria:**
 
-- [ ] `engine.stage_for_folder(path, folder, report)` returns the copy's path,
+- [x] `engine.stage_for_folder(path, folder, report)` returns the copy's path,
       names it uniquely when the name is taken, and returns `None` with one
       logged reason when the copy cannot be made.
-- [ ] A file that already sits in that folder is not copied.
-- [ ] `LocalVideoThread(files, ..., out_dir=None)`: with `out_dir` it works on
+- [x] A file that already sits in that folder is not copied.
+- [x] `LocalVideoThread(files, ..., out_dir=None)`: with `out_dir` it works on
       the copy, without it the run is exactly today's run.
-- [ ] A file whose copy failed is skipped and the rest of the list still runs;
+- [x] A file whose copy failed is skipped and the rest of the list still runs;
       no half-written copy is left behind.
-- [ ] `run_post_leg`, `core/reframe.py` and `core/shorts.py` are not modified.
+- [x] `run_post_leg`, `core/reframe.py` and `core/shorts.py` are not modified.
 
 **Verification:** `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe -m pytest tests/test_engine_local_video.py tests/test_engine_post_leg.py -m "not live" -q -p no:warnings`
 
@@ -33,14 +33,14 @@ and checked before a run starts.
 
 **Acceptance criteria:**
 
-- [ ] The field shows the stored `studio_output_dir`, empty meaning "beside
+- [x] The field shows the stored `studio_output_dir`, empty meaning "beside
       each file", and `Change…` writes the picked folder to that key at once.
-- [ ] `Beside each file` clears the field and the key.
-- [ ] `Run` passes the field to `LocalVideoThread`; an empty field starts the
+- [x] `Beside each file` clears the field and the key.
+- [x] `Run` passes the field to `LocalVideoThread`; an empty field starts the
       old behaviour.
-- [ ] A folder that cannot be created or written stops the run with its own
+- [x] A folder that cannot be created or written stops the run with its own
       status line, before any ffmpeg starts.
-- [ ] The picker is non-native, like the file Browse row.
+- [x] The picker is non-native, like the file Browse row.
 
 **Verification:** `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe -m pytest tests/test_vertical_studio_page.py -m "not live" -q -p no:warnings`
 
@@ -53,11 +53,11 @@ and checked before a run starts.
 
 **Acceptance criteria:**
 
-- [ ] The hint says both cases in one sentence, no filenames.
-- [ ] `Working: file · copying to the folder` appears before a long copy.
-- [ ] `Done.` names the folder when one was used, and keeps "beside each file"
+- [x] The hint says both cases in one sentence, no filenames.
+- [x] `Working: file · copying to the folder` appears before a long copy.
+- [x] `Done.` names the folder when one was used, and keeps "beside each file"
       when one was not.
-- [ ] One `@pytest.mark.live` test: a real file, a real folder — the copy, its
+- [x] One `@pytest.mark.live` test: a real file, a real folder — the copy, its
       `_9x16.mp4` and its shorts all in the folder, the source folder clean.
 
 **Verification:** `pytest tests/test_vertical_studio_page.py -q` then the live
@@ -67,7 +67,7 @@ test with the venv python.
 
 ## Checkpoint: the feature is done
 
-- [ ] Full offline suite green, ruff clean, `graphify update .` in its own
+- [x] Full offline suite green, ruff clean, `graphify update .` in its own
       commit.
 - [ ] Owner's go before the version bump, the rebuild and any
       README/CHANGELOG wording (the 2.15.0 docs task is still unauthorised).
