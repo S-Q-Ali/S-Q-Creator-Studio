@@ -12,12 +12,13 @@ import math
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path
+
+from . import ffmpeg_process
 
 logger = logging.getLogger(__name__)
 
@@ -336,7 +337,7 @@ def _publish_clip(staged: Path, destination: Path) -> None:
 
 
 def _run_split(command: list[str]) -> int:
-    result = subprocess.run(command, capture_output=True, check=False)
+    result = ffmpeg_process.run(command)
     if result.returncode:
         logger.warning("ffmpeg short render failed (exit %s).", result.returncode)
     return result.returncode
@@ -344,13 +345,7 @@ def _run_split(command: list[str]) -> int:
 
 def _run_ffmpeg(command: list[str]) -> str:
     try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            errors="replace",
-            check=False,
-        )
+        result = ffmpeg_process.run(command)
     except OSError:
         logger.warning("Could not start ffmpeg cut-point detection.")
         return ""

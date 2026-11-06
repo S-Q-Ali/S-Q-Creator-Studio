@@ -12,12 +12,13 @@ import math
 import os
 import re
 import statistics
-import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+from . import ffmpeg_process
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +267,7 @@ def _picture_rows(
 
 def detect_picture(video: str, ffmpeg: str = "ffmpeg") -> tuple[int, int] | None:
     """Where the picture is inside the frame, as ffmpeg's cropdetect sees it."""
-    result = subprocess.run(
+    result = ffmpeg_process.run(
         [
             ffmpeg,
             "-hide_banner",
@@ -282,10 +283,6 @@ def detect_picture(video: str, ffmpeg: str = "ffmpeg") -> tuple[int, int] | None
             "null",
             "-",
         ],
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
     )
     return detect_picture_text(result.stderr or "")
 
@@ -380,14 +377,7 @@ def render_vertical(
 
 
 def _run_ffmpeg(command: list[str], cwd: str) -> int:
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        errors="replace",
-        check=False,
-    )
+    result = ffmpeg_process.run(command, cwd=cwd)
     if result.returncode != 0:
         logger.error("ffmpeg failed: %s", (result.stderr or "").strip()[-800:])
     return result.returncode

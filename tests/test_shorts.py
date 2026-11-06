@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from s_q_ali_media_downloader.core import shorts
+from s_q_ali_media_downloader.core import ffmpeg_process, shorts
 
 # What ffmpeg's silencedetect prints on stderr.
 SILENCE_OUTPUT = """
@@ -254,13 +254,13 @@ def test_missing_ffmpeg_returns_no_detections(monkeypatch):
     def missing(*args, **kwargs):
         raise FileNotFoundError("missing binary")
 
-    monkeypatch.setattr(shorts.subprocess, "run", missing)
+    monkeypatch.setattr(ffmpeg_process.subprocess, "run", missing)
     assert shorts.detect_silences("movie.mp4") == []
     assert shorts.detect_scene_changes("movie.mp4") == []
 
 
 def test_failed_ffmpeg_does_not_use_partial_detections(monkeypatch):
-    monkeypatch.setattr(shorts.subprocess, "run", lambda *a, **kw:
+    monkeypatch.setattr(ffmpeg_process.subprocess, "run", lambda *a, **kw:
                         subprocess.CompletedProcess(a, 1, "", SILENCE_OUTPUT))
     assert shorts.detect_silences("movie.mp4") == []
 
