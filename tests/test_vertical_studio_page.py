@@ -450,3 +450,39 @@ def test_the_results_row_is_locked_while_a_run_is_underway(
     seen["threads"][0].finished_all.emit()
 
     assert page.results.isEnabled() is True
+
+
+def test_a_run_with_a_folder_says_so_at_the_start_and_at_the_end(
+    page, tmp_path, monkeypatch
+):
+    """A creator who comes back in ten minutes wants to know where to look
+    without scrolling for it: the folder is named when the run starts and
+    again when it ends."""
+    seen = _fake_worker(monkeypatch)
+    folder = tmp_path / "results"
+    folder.mkdir()
+    _drop_on(page, local=_videos(tmp_path, "one.mp4"))
+    page.results.setText(str(folder))
+
+    page.run()
+
+    assert str(folder) in page.log.toPlainText()
+
+    seen["threads"][0].finished_all.emit()
+
+    assert page.status.text() == f"Done. The versions are in {folder}."
+
+
+def test_a_run_without_a_folder_still_sends_them_back_to_their_own_files(
+    page, tmp_path, monkeypatch
+):
+    seen = _fake_worker(monkeypatch)
+    _drop_on(page, local=_videos(tmp_path, "one.mp4"))
+
+    page.run()
+
+    assert "into" not in page.log.toPlainText()
+
+    seen["threads"][0].finished_all.emit()
+
+    assert page.status.text() == "Done. The versions are beside each file."

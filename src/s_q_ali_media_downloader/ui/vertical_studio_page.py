@@ -6,7 +6,9 @@ from the edits folder, one downloaded last week. The work itself is the same
 code the download worker runs (`engine.run_post_leg`), reached through the
 same options the Settings page holds.
 
-Nothing here touches a source file: every output lands beside it.
+Nothing here touches a source file. The outputs land beside it, or - when a
+results folder is named - a copy of the file goes into that folder and its
+outputs land beside the copy.
 """
 
 from __future__ import annotations
@@ -98,6 +100,7 @@ class VerticalStudioPage(QWidget):
         self._current = ""
         self._index = 0
         self._total = 0
+        self._results = ""
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -119,9 +122,10 @@ class VerticalStudioPage(QWidget):
         title.setProperty("role", "pageTitle")
         hint = QLabel(
             "Drop videos here — or Browse to them — and the app makes the vertical 9:16 "
-            "version and the shorts it would have made after a download. The outputs land "
-            "beside each file and the source is never touched. Allow about four seconds "
-            "of work per second of video."
+            "version and the shorts it would have made after a download. Name a results "
+            "folder and everything lands there together with a copy of the video; leave "
+            "it empty and each file keeps its own results beside it. The source is never "
+            "touched. Allow about four seconds of work per second of video."
         )
         hint.setProperty("role", "hint")
         hint.setWordWrap(True)
@@ -418,6 +422,7 @@ class VerticalStudioPage(QWidget):
             return
         self._total = len(self.paths)
         self._index = 0
+        self._results = folder
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self._set_running(True)
@@ -425,6 +430,7 @@ class VerticalStudioPage(QWidget):
             f"Running {len(self.paths)} file{'s' if len(self.paths) != 1 else ''}: "
             f"{'vertical 9:16' if self.vertical.isChecked() else 'no vertical'}"
             f" · shorts {self.split.currentText()}"
+            + (f" · into {folder}" if folder else "")
         )
         self._thread = LocalVideoThread(
             list(self.paths),
@@ -480,7 +486,8 @@ class VerticalStudioPage(QWidget):
         self._current = ""
         self._total = 0
         self._set_running(False)
-        self._say("Done. The versions are beside each file.")
+        where = f"in {self._results}." if self._results else "beside each file."
+        self._say(f"Done. The versions are {where}")
 
     # ------------------------------------------------------------ feedback
     def _say(self, text, error=False):

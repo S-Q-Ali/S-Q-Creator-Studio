@@ -16,7 +16,7 @@ import pytest
 
 from s_q_ali_media_downloader import engine
 from s_q_ali_media_downloader.core import reframe, shorts
-from s_q_ali_media_downloader.engine import DownloadThread
+from s_q_ali_media_downloader.engine import DownloadThread, LocalVideoThread
 
 SOURCE = "out/How to cook.mp4"
 
@@ -510,6 +510,40 @@ def test_the_download_still_reports_its_size_when_the_leg_blows_up(monkeypatch, 
     assert size != "—"
     assert os.path.isfile(tmp_path / "How to cook.mp4")
     assert not os.path.isfile(tmp_path / "How to cook_9x16.mp4")
+
+
+@pytest.mark.live
+def test_a_real_run_with_a_results_folder_leaves_the_source_where_it_was(
+    tmp_path, monkeypatch, landscape_video
+):
+    """The folder's whole promise on real media: the film is copied in, the
+    vertical is made beside that copy - which only a real ffmpeg proves is a
+    file the tracker can read - and the folder the user dropped it in gains
+    nothing at all."""
+    directory, source = landscape_video
+    monkeypatch.setattr(engine, "find_ffmpeg", lambda: directory)
+    desktop = tmp_path / "Desktop"
+    desktop.mkdir()
+    film = desktop / "How to cook.mp4"
+    shutil.copyfile(source, film)
+    original_bytes = film.read_bytes()
+    where = tmp_path / "results"
+    lines = []
+
+    thread = LocalVideoThread(
+        [str(film)], vertical=True, split=engine.DEFAULT_SPLIT, clips=3,
+        out_dir=str(where),
+    )
+    thread.log.connect(lines.append)
+
+    thread.run()
+
+    assert sorted(path.name for path in where.glob("*")) == [
+        "How to cook.mp4",
+        "How to cook_9x16.mp4",
+    ]
+    assert film.read_bytes() == original_bytes
+    assert [path.name for path in desktop.glob("*")] == ["How to cook.mp4"]
 
 
 @pytest.fixture(scope="module")
