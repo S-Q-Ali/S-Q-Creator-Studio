@@ -96,15 +96,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1793903481.1845622,
-    "seen": 1793906907.8108861,
-    "ast_hash": "af959b636c52ba7bc900fcb4cf1ba2af",
+    "mtime": 1793975896.6471295,
+    "seen": 1793978626.7808378,
+    "ast_hash": "91673c9f0844ef7d0f2f0142a19d6d1d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
-    "mtime": 1793792799.7253296,
-    "seen": 1793793188.9449942,
-    "ast_hash": "ff45d9bed08042af1e762af2f121429a",
+    "mtime": 1793976919.1285439,
+    "seen": 1793978626.7808416,
+    "ast_hash": "8ebc1c4341c68643e68940fc473d8814",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/__init__.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793891354.103649,
-    "seen": 1793892224.257118,
-    "ast_hash": "b8060944ef57adc633266b57353b9ed7",
+    "mtime": 1793976908.1987388,
+    "seen": 1793978626.78086,
+    "ast_hash": "5ce3cb955ea68f2e4bddc3f0c2a700ad",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "tests/test_gui.py": {
-    "mtime": 1793891398.0394685,
-    "seen": 1793892224.257176,
-    "ast_hash": "6087109f0d7065dd452661938add67bc",
+    "mtime": 1793978124.2849858,
+    "seen": 1793978626.7809792,
+    "ast_hash": "bfe896d572181e9fd10fbdc92b1ba704",
     "semantic_hash": ""
   },
   "tests/test_link_parser.py": {
@@ -2256,9 +2256,9 @@
     "semantic_hash": ""
   },
   "tests/render_glass_screenshots.py": {
-    "mtime": 1793761222.132178,
-    "seen": 1793762136.9397101,
-    "ast_hash": "8eadff10967946ce06a81e1bf52611da",
+    "mtime": 1793976952.5732598,
+    "seen": 1793978626.7808952,
+    "ast_hash": "924e8d127108e35a9eccf58c445eb73a",
     "semantic_hash": ""
   },
   "tests/test_glass_theme_qt.py": {
@@ -2334,9 +2334,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1793965463.8101516,
-    "seen": 1793969994.7351112,
-    "ast_hash": "7ace811dcf586e382a3862629200ba01",
+    "mtime": 1793975709.254212,
+    "seen": 1793978626.7808192,
+    "ast_hash": "06d31a7db959dd1feb113119740abe31",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "tests/test_reframe.py": {
-    "mtime": 1793965566.3634286,
-    "seen": 1793969994.7352767,
-    "ast_hash": "82bdeb340d2b9b4f66e5170846e26fa5",
+    "mtime": 1793975686.340021,
+    "seen": 1793978626.7810054,
+    "ast_hash": "baf6477a69149c8938da683108675496",
     "semantic_hash": ""
   },
   "tests/test_shorts.py": {
@@ -2400,9 +2400,9 @@
     "semantic_hash": ""
   },
   "tests/test_engine_post_leg.py": {
-    "mtime": 1793903507.1062596,
-    "seen": 1793906907.8109522,
-    "ast_hash": "6fdb38f2268ba428021f3a83357bbd3d",
+    "mtime": 1793975546.8127384,
+    "seen": 1793978626.7809706,
+    "ast_hash": "0ededd9c2baab920b935c908100f44e1",
     "semantic_hash": ""
   },
   "tests/fixtures/TRACKER_CLIP.txt": {
@@ -2415,6 +2415,42 @@
     "mtime": 1793893987.4102404,
     "seen": 1793894788.234389,
     "ast_hash": "f59dcbb420960c9b501a23d5c5d480cb",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/ui/vertical_studio_page.py": {
+    "mtime": 1793976942.416398,
+    "seen": 1793978626.7808778,
+    "ast_hash": "0d25e2382d8ae2a50d1500c0dcb6eb7b",
+    "semantic_hash": ""
+  },
+  "tests/test_engine_local_video.py": {
+    "mtime": 1793975877.9855433,
+    "seen": 1793978626.780967,
+    "ast_hash": "ecee4e89c8e46dab02212e226da0efde",
+    "semantic_hash": ""
+  },
+  "tests/test_vertical_studio_page.py": {
+    "mtime": 1793976567.444837,
+    "seen": 1793978626.7810423,
+    "ast_hash": "e14a27ba01b077ff7120f594eec2221d",
+    "semantic_hash": ""
+  },
+  "tasks/plan-vertical-studio.md": {
+    "mtime": 1793975051.8766887,
+    "seen": 1793978626.782039,
+    "ast_hash": "5918ed42eb2086bdaaa9f89a9e18aa28",
+    "semantic_hash": ""
+  },
+  "tasks/spec-vertical-studio.md": {
+    "mtime": 1793975023.4954214,
+    "seen": 1793978626.782093,
+    "ast_hash": "ec1e11d9fc103063ba66e7ea08162663",
+    "semantic_hash": ""
+  },
+  "tasks/todo-vertical-studio.md": {
+    "mtime": 1793978580.9613547,
+    "seen": 1793978626.7821186,
+    "ast_hash": "881a404a19ff40143619f228f92f415d",
     "semantic_hash": ""
   }
 }
