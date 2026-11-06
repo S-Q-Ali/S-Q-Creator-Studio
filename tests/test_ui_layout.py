@@ -194,6 +194,31 @@ def test_the_window_can_be_narrower_than_a_small_laptop(window):
     assert window.minimumSizeHint().width() <= 1280
 
 
+def test_the_studio_buttons_stay_on_screen_at_the_smallest_window(window):
+    """The window may not go below its own minimum, so that size is the worst
+    case the studio page has to survive: if the drop zone or the log ever
+    grows past it, Browse and Run fall off the bottom and this page has no
+    scroll to reach them with.
+    """
+    shortest = window.minimumSize()
+    window.resize(shortest.width(), shortest.height())
+    window.show()
+    for _ in range(40):
+        qapp_process()
+    window.btn_nav_studio.click()
+    for _ in range(40):
+        qapp_process()
+
+    page = window.vertical_studio_page
+    for name in ("btn_browse", "btn_run", "btn_stop"):
+        button = getattr(page, name)
+        bottom = button.mapTo(window, button.rect().bottomLeft()).y()
+        assert button.isVisible(), name
+        assert bottom <= window.height(), (
+            f"{name} ends at {bottom}px in a {window.height()}px window"
+        )
+
+
 def _bare_stylesheets(window: MainWindow) -> list[str]:
     """Widgets whose stylesheet cascades to their children.
 
