@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1793826753.414525,
-    "seen": 1793827897.8213363,
-    "ast_hash": "7517c086daac57bad6a980c465106f59",
+    "mtime": 1793972386.5584898,
+    "seen": 1793972810.9400468,
+    "ast_hash": "2cc4c32c1245d63aca3d95cb1a358cbb",
     "semantic_hash": ""
   },
   ".opencode/references/accessibility-checklist.md": {
@@ -1374,21 +1374,21 @@
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
-    "mtime": 1793797730.9019363,
-    "seen": 1793799484.7971754,
-    "ast_hash": "e25b3418722f4582dfe792453c8ae2f7",
+    "mtime": 1793972250.2098496,
+    "seen": 1793972810.9418387,
+    "ast_hash": "a2a81ea8092fe568c5c82ac74b229f43",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793967644.714052,
-    "seen": 1793969994.7361202,
-    "ast_hash": "2ed1790f0f797e992b8aa0b2f1a23dd7",
+    "mtime": 1793972249.9611979,
+    "seen": 1793972810.941844,
+    "ast_hash": "40e7b49b4f5c2e715024455f5ebda810",
     "semantic_hash": ""
   },
   "SECURITY.md": {
-    "mtime": 1793798404.5891647,
-    "seen": 1793799484.79718,
-    "ast_hash": "04083041fea6a6657243eb64c98e8f69",
+    "mtime": 1793972250.4455347,
+    "seen": 1793972810.9418485,
+    "ast_hash": "24d3ecdd040cf6d4e68bb8ec14ddb7f6",
     "semantic_hash": ""
   },
   "requirements-dev.txt": {
@@ -1614,9 +1614,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1793832114.5472183,
-    "seen": 1793832533.3805256,
-    "ast_hash": "1ea8263821f2158f6c4082733e9ac6c4",
+    "mtime": 1793972123.4913504,
+    "seen": 1793972810.9400556,
+    "ast_hash": "a630fd4a4ffc3180e85f7daff0ac5b1f",
     "semantic_hash": ""
   },
   ".opencode/command/ponytail-audit.md": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "tests/test_release_workflow.py": {
-    "mtime": 1793829490.3863049,
-    "seen": 1793832533.3802366,
-    "ast_hash": "ed48a34813a48c839a278d281793cdbf",
+    "mtime": 1793972702.112703,
+    "seen": 1793972810.939781,
+    "ast_hash": "0b0f6e9c3b37532ffb801737763eac4d",
     "semantic_hash": ""
   },
   "tasks/plan-download-quality.md": {
@@ -2370,9 +2370,9 @@
     "semantic_hash": ""
   },
   "tasks/plan-vertical-reframe.md": {
-    "mtime": 1793967653.47986,
-    "seen": 1793969994.7362669,
-    "ast_hash": "10127e7a9eb2800cf84bb315f3d76273",
+    "mtime": 1793972754.957014,
+    "seen": 1793972810.9420636,
+    "ast_hash": "ee9a4795b5e24d89cc176f36019e7fe7",
     "semantic_hash": ""
   },
   "tasks/spec-vertical-reframe.md": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-vertical-reframe.md": {
-    "mtime": 1793969716.020854,
-    "seen": 1793969994.736369,
-    "ast_hash": "63c48783e10fb6de9875984bd4005f8e",
+    "mtime": 1793972738.4303916,
+    "seen": 1793972810.9422643,
+    "ast_hash": "a3c4aa354ef0a3570e7de89c962ded1b",
     "semantic_hash": ""
   },
   "tests/fixtures/PORTRAIT.txt": {
