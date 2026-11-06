@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import os
 import sys
+from itertools import pairwise
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -95,49 +97,161 @@ def test_the_crop_x_is_clamped_inside_the_frame():
     assert reframe.clamp_x(600, 1920, 594) == 600
 
 
-def test_a_jump_in_the_detection_does_not_snap_the_camera():
-    """A detector that moves the subject across the frame in one sample must
-    not move the window with it in one step."""
-    path = reframe.crop_path([100, 1000], 1920, 594, max_step=100)
+def test_a_single_bad_detection_does_not_move_the_window():
+    """One sample that points at something else is the median of the five
+    around it, and the next sample disagrees with it, so it never becomes
+    the position the window is asked for."""
+    positions = reframe.smooth_positions([662, 662, 1300, 662, 662, 662], 1920)
 
-    assert path == [100, 200]
-
-
-def test_a_sample_without_a_detection_keeps_the_previous_position():
-    path = reframe.crop_path([100, None, 300], 1920, 594, max_step=1000)
-
-    assert path == [100, 100, 300]
+    assert positions == [662] * 6
 
 
-def test_the_path_stays_inside_the_frame():
-    path = reframe.crop_path([-40, 4000], 1920, 594, max_step=10_000)
+def test_a_cut_gives_the_filter_a_new_position_at_once():
+    """A sample the next one agrees with, far across the picture from where
+    the camera points, is the shot changing. Half-way across a cut is a
+    framing that shows neither shot, so the filter goes to it in one read."""
+    positions = reframe.smooth_positions([662] * 4 + [1300] * 4, 1920)
 
-    assert path == [0, 1920 - 594]
-    assert all(0 <= x <= 1920 - 594 for x in path)
-
-
-def test_the_crop_x_is_always_even():
-    """An odd offset shifts the chroma by half a pixel."""
-    path = reframe.crop_path([101, 202], 1920, 594)
-
-    assert path == [100, 202]
+    assert positions[:4] == [662] * 4
+    assert positions[4:] == [1300] * 4
 
 
-def test_the_window_travels_at_most_a_quarter_of_its_width_per_sample():
-    assert reframe.max_step_for(594) == 148
+def test_a_far_detection_the_next_one_contradicts_does_not_move_at_all():
+    """After the detectors lose the subject the median window can hold two
+    reads and pick the wrong one; a read the next one contradicts is one
+    detection pointing elsewhere, so the camera keeps the framing it had."""
+    positions = reframe.smooth_positions(
+        [2065, None, None, None, 227, 2065, 2065], 3840
+    )
+
+    assert positions == [2065, None, None, None, 2065, 2065, 2065]
 
 
-def test_the_command_file_holds_one_line_per_sample_in_time_order(tmp_path):
+def test_a_walk_within_a_shot_still_survives_the_filter():
+    """Steps smaller than a cut are a subject that really moved, and the
+    filter has to follow them or the camera stops tracking."""
+    positions = reframe.smooth_positions([662, 700, 760, 840, 920, 1000], 1920)
+
+    assert all(after >= before for before, after in pairwise(positions))
+    assert positions[-1] > 700
+
+
+def test_a_frame_with_no_detection_is_not_a_position():
+    assert reframe.smooth_positions([662, None, 662, 662], 1920) == [662, None, 662, 662]
+
+
+def test_a_move_never_finishes_in_less_than_half_a_second():
+    assert reframe.glide_seconds(20, 594) == reframe.MIN_GLIDE_SECONDS
+    assert reframe.glide_seconds(594, 594) == 2.0
+
+
+def test_the_path_has_a_keyframe_for_every_frame_of_the_video():
+    """``sendcmd`` holds a value until the next command and does not
+    interpolate, so a path written at the five-frames-a-second rate the
+    centres were read at is a staircase of teleports."""
+    path = reframe.path_from_centres(
+        [(0.0, 960), (1.0, 960)], 1920, 594, fps=25.0
+    )
+
+    assert len(path) == 26
+    assert path[0].time == 0.0
+    assert path[-1].time == pytest.approx(1.0)
+
+
+def test_a_walk_across_the_picture_moves_the_window_a_few_pixels_a_frame():
+    """Inside one shot the way from one framing to the next is every position
+    in between: no frame of a pan is more than a tenth of the window."""
+    path = reframe.path_from_centres(
+        [(0.0, 300), (0.2, 500), (0.4, 700), (2.0, 900)], 1920, 594, fps=30.0
+    )
+    steps = [after.x - before.x for before, after in pairwise(path)]
+
+    assert all(abs(step) <= 594 // 10 for step in steps)
+    assert all(0 <= sample.x <= 1920 - 594 for sample in path)
+
+
+def test_a_cut_sets_the_new_framing_the_frame_it_is_read():
+    """Measured on a 4K film, the subject moves 17 pixels between two samples
+    inside a shot and a thousand at a cut. Panning across a cut is the camera
+    that never settles; the new framing the moment the picture changes is the
+    one the shot was composed for."""
+    path = reframe.path_from_centres(
+        [(0.0, 300), (0.2, 300), (0.4, 1700), (0.6, 1700), (0.8, 1700)],
+        1920,
+        594,
+        fps=25.0,
+    )
+
+    assert {sample.x for sample in path if sample.time < 0.4} == {2}
+    assert {sample.x for sample in path if sample.time >= 0.4} == {1326}
+    assert {sample.x for sample in path} == {2, 1326}
+
+
+def test_a_cut_near_the_edge_of_the_picture_still_sets_at_once():
+    """The cut is read from where the subject is, not from how far the window
+    is allowed to go: pinned against the edge, a cut looks like a short
+    move, and a pan that short is the camera drifting off the new shot."""
+    path = reframe.path_from_centres(
+        [(0.0, 1397), (0.2, 1397), (0.4, 1747), (0.6, 1747)], 1920, 594, fps=25.0
+    )
+
+    assert {sample.x for sample in path if sample.time < 0.4} == {1100}
+    assert {sample.x for sample in path if sample.time >= 0.4} == {1326}
+
+
+def test_a_subject_that_wanders_leaves_the_camera_still():
+    """Inside the deadband the position is frozen and the same value is
+    written again: a static shot is the same crop from frame to frame."""
+    centres = [(index * 0.2, 960 + (index % 2) * 20) for index in range(10)]
+    path = reframe.path_from_centres(centres, 1920, 594, fps=25.0)
+
+    assert {sample.x for sample in path} == {662}
+
+
+def test_a_walk_within_a_shot_pans_and_does_not_take_the_shortcut():
+    """A subject that walks is followed by a glide that runs for its own time,
+    so the way there is every position in between, not one jump."""
+    path = reframe.path_from_centres(
+        [(0.0, 960), (0.5, 1060), (1.0, 1160), (1.5, 1260), (2.0, 1360)],
+        1920,
+        594,
+        fps=25.0,
+    )
+    steps = [after.x - before.x for before, after in pairwise(path)]
+    between = {sample.x for sample in path if 662 < sample.x < path[-1].x}
+
+    assert max(abs(step) for step in steps) <= 594 // 10
+    assert len(between) > 4
+    assert path[-1].x == 770
+
+
+def test_a_glide_still_running_after_the_last_detection_is_finished():
+    """The detectors stop with the last sampled frame; the camera does not
+    freeze half-way to where it was going."""
+    centres = [(index * 0.2, 960 + 80 * index) for index in range(6)]
+    path = reframe.path_from_centres(centres, 1920, 594, fps=25.0)
+    last_centre = [sample for sample in path if sample.time <= 1.0][-1]
+
+    assert path[-1].time > last_centre.time
+    assert path[-1].x == max(sample.x for sample in path) > last_centre.x
+
+
+def test_the_command_file_writes_a_line_only_when_the_window_moves(tmp_path):
     command_file = tmp_path / "crop.cmd"
 
     reframe.write_command_file(
         command_file,
-        [reframe.Sample(0.0, 100), reframe.Sample(1.5, 400)],
+        [
+            reframe.Sample(0.0, 100),
+            reframe.Sample(0.04, 100),
+            reframe.Sample(0.08, 400),
+            reframe.Sample(0.12, 400),
+        ],
     )
 
     assert command_file.read_text(encoding="utf-8").splitlines() == [
         "0.000 crop@c x 100;",
-        "1.500 crop@c x 400;",
+        "0.080 crop@c x 400;",
     ]
 
 
@@ -307,25 +421,75 @@ def test_a_face_is_preferred_over_the_body():
     assert detector.detect(frame) == detector.face_centre(frame)
 
 
-def test_a_jump_in_the_subject_does_not_snap_the_camera():
-    path = reframe.path_from_centres([(0.0, 960), (0.5, 1600)], 1920, 594)
+def two_faces():
+    """The faces a stubbed YuNet hands back, one list per frame."""
+    small = [800.0, 500.0, 80.0, 80.0] + [0.0] * 11
+    big = [200.0, 500.0, 300.0, 300.0] + [0.0] * 11
+    return small, big
 
-    assert path[0].x == 662
-    assert path[1].x - path[0].x == reframe.max_step_for(594)
+
+def stub_faces(detector, frames):
+    """Give the detector faces to find, one set per call, and no model."""
+    np = pytest.importorskip("numpy")
+    queue = list(frames)
+
+    def detect(_frame):
+        return 0, np.array(queue.pop(0), dtype=np.float32)
+
+    detector._face = SimpleNamespace(setInputSize=lambda size: None, detect=detect)
+
+
+def test_the_camera_keeps_the_person_it_was_showing():
+    """Two people in the frame and the other one is bigger: the window stays
+    on the face it had, because that is the one that was there last frame."""
+    np = pytest.importorskip("numpy")
+    detector = reframe.SubjectDetector()
+    small, big = two_faces()
+    frame = np.zeros((1080, 1920, 3), dtype="uint8")
+    stub_faces(detector, [[small], [small, big]])
+
+    assert detector.detect(frame) == (840, 540)
+    assert detector.detect(frame) == (840, 540)
+
+
+def test_the_first_face_the_camera_sees_is_the_biggest_one():
+    np = pytest.importorskip("numpy")
+    detector = reframe.SubjectDetector()
+    small, big = two_faces()
+    frame = np.zeros((1080, 1920, 3), dtype="uint8")
+    stub_faces(detector, [[small, big]])
+
+    assert detector.detect(frame) == (350, 650)
+
+
+def test_a_cut_to_a_different_person_is_followed():
+    """Nothing is near the last centre after a cut, so the biggest box in the
+    new shot is the subject and the camera pans to it."""
+    np = pytest.importorskip("numpy")
+    detector = reframe.SubjectDetector()
+    frame = np.zeros((1080, 1920, 3), dtype="uint8")
+    new = [1200.0, 400.0, 300.0, 300.0] + [0.0] * 11
+    near_but_not = [660.0, 500.0, 80.0, 80.0] + [0.0] * 11
+    stub_faces(detector, [[[200.0, 500.0, 80.0, 80.0] + [0.0] * 11], [new, near_but_not]])
+
+    assert detector.detect(frame) == (240, 540)
+    assert detector.detect(frame) == (1350, 550)
 
 
 def test_a_frame_with_no_detection_keeps_the_previous_position():
     path = reframe.path_from_centres(
-        [(0.0, 960), (0.5, None), (1.0, 960)], 1920, 594
+        [(0.0, 960), (0.8, None), (1.6, 960)], 1920, 594, fps=25.0
     )
 
-    assert [sample.x for sample in path] == [662, 662, 662]
+    assert {sample.x for sample in path} == {662}
 
 
 def test_a_video_with_no_detection_falls_back_to_the_centred_crop():
-    path = reframe.path_from_centres([(0.0, None), (0.5, None)], 1920, 594)
+    path = reframe.path_from_centres(
+        [(0.0, None), (1.0, None)], 1920, 594, fps=25.0
+    )
 
-    assert [sample.x for sample in path] == [662, 662]
+    assert {sample.x for sample in path} == {662}
 
 
 def test_the_tracker_reads_the_frames_of_a_video():
@@ -373,7 +537,13 @@ def test_the_analysis_reads_the_copy_and_hands_back_a_path_for_the_file(tmp_path
     monkeypatch.setattr(
         reframe,
         "track_centres",
-        lambda video, **kwargs: [(0.0, 663), (0.2, 1200)],
+        lambda video, **kwargs: [
+            (0.0, 663),
+            (0.2, 723),
+            (0.4, 783),
+            (0.6, 843),
+            (0.8, 903),
+        ],
     )
     read = []
 
@@ -385,10 +555,18 @@ def test_the_analysis_reads_the_copy_and_hands_back_a_path_for_the_file(tmp_path
 
     assert box == (256, 1901)
     # 663 in the copy is 1326 in the file, and the 918-wide window is placed
-    # with its middle under it. The next centre is far off to the right, so the
-    # window travels the most it is allowed between two samples - a quarter of
-    # its own width - and lands on 866 + 229, made even.
-    assert [sample.x for sample in samples] == [866, 1094]
+    # with its middle under it: 866, made even. The camera is set to that
+    # framing on the first frame - the middle of the film is not a shot it was
+    # ever in - and then holds until the subject has moved enough to be worth
+    # a pan, and pans it: a keyframe for every one of the file's sixty frames
+    # a second.
+    assert samples[0].x == 866
+    assert samples[-1].x == 996
+    assert len(samples) > 6
+    assert all(
+        abs(after.x - before.x) <= 918 // 10
+        for before, after in pairwise(samples)
+    )
     assert read and read[0].endswith("proxy.mp4")
 
 

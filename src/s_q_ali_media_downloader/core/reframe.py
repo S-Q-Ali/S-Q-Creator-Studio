@@ -8,8 +8,10 @@ and the path in a real file; ``render_vertical`` writes the vertical version.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -45,10 +47,6 @@ CROP_HEIGHT_STEP = 32
 #: phone ever shows.
 MAX_OUTPUT_UNITS = 60
 
-#: The window may travel at most this much of its own width between two
-#: samples, so a detection that jumps does not snap the camera.
-MAX_STEP_RATIO = 0.25
-
 #: The detectors do not need the file at its own size. This is the copy they
 #: read, and it cannot be much smaller: at 1280 the subject of a 4K film is a
 #: few pixels and the path misses the one read at full size by over half a
@@ -56,6 +54,39 @@ MAX_STEP_RATIO = 0.25
 #: work.
 PROXY_WIDTH = 1920
 PROXY_FPS = 5.0
+
+#: One bad detection is one read in ``MEDIAN_WINDOW``, so the position the
+#: window is asked for is the median of the last reads it believed in.
+MEDIAN_WINDOW = 5
+
+#: Of the distance the median leaves, the window is asked for this much per
+#: sample. Chasing every sample exactly is what made the camera crawl.
+SMOOTH_ALPHA = 0.35
+
+#: A position this close to where the window already sits is not chased at
+#: all, so a subject that only wanders leaves the camera still. On a 4K probe
+#: this tenth of the window was the point past which chasing more bought a
+#: camera that never settled and no framing worth having: the measured lag
+#: from the subject went from 115 to 117 pixels and the still frames from 72
+#: to 82 per cent.
+DEADBAND_RATIO = 0.10
+
+#: The window never travels more than half its own width in a second, and no
+#: pan is over in less than half a second. A cut is not a pan and obeys
+#: neither: see ``CUT_RATIO``.
+MAX_SPEED_RATIO = 0.5
+MIN_GLIDE_SECONDS = 0.5
+
+#: Two reads this far apart across the picture are a different shot, not a
+#: move within this one. Measured on a 4K film: the subject moves 17 pixels
+#: between two samples inside a shot and a thousand at a cut. A pan across a
+#: cut is the unsteady camera; a new framing the moment the picture changes
+#: is not.
+CUT_RATIO = 0.15
+
+#: A box this far across the picture from where the subject last was is a
+#: different subject: a cut to another shot, or someone bigger walking in.
+STICKY_RATIO = 0.2
 
 
 @dataclass(frozen=True)
@@ -86,46 +117,86 @@ def clamp_x(x: int, source_width: int, crop_width: int) -> int:
     return max(0, min(x, source_width - crop_width))
 
 
-def max_step_for(crop_width: int) -> int:
-    """How far the window may travel between two samples."""
-    return _even(int(crop_width * MAX_STEP_RATIO))
+def smooth_positions(
+    positions: Sequence[int | None], source_width: int
+) -> list[int | None]:
+    """The positions the window is asked for, with the spikes taken out.
 
+    The median is over the last few reads this shot is still believed to be
+    in, so the first detection is the position it reads and nothing arrives
+    before it happens. A position of None is a frame with nothing in it: it is
+    passed through, and the window keeps the position it had.
 
-def crop_path(
-    positions: Sequence[int | None],
-    source_width: int,
-    crop_width: int,
-    max_step: int | None = None,
-    start: int = 0,
-) -> list[int]:
-    """The legal path of the crop window.
-
-    The wanted positions are clamped into the frame and then moved towards at
-    most ``max_step`` per sample. A sample with no detection keeps the
-    position it had; ``start`` is where the window sits until the first
-    detection.
+    A read further across the picture than the cut measured on a real film is
+    either the shot changing or one detection pointing elsewhere, and the
+    sample after it tells them apart. A cut the next read agrees with is the
+    new position at once and starts the median again, because a median taken
+    across a cut frames a picture that is in neither shot; a far read nobody
+    agrees with is not a position at all, and moves nothing.
     """
-    step = max_step_for(crop_width) if max_step is None else max_step
-    path: list[int] = []
-    current: int | None = None
+    out: list[int | None] = []
+    smoothed: int | None = None
+    previous: int | None = None
+    seen: list[int] = []
+    cut = CUT_RATIO * source_width
 
-    for wanted in positions:
+    for index, wanted in enumerate(positions):
         if wanted is None:
-            path.append(current if current is not None else start)
+            out.append(None)
             continue
-        target = _even(clamp_x(wanted, source_width, crop_width))
-        if current is None:
-            current = target
-        else:
-            current = _towards(current, target, step)
-        path.append(current)
+        if previous is not None and abs(wanted - previous) > cut:
+            if _next_sample_agrees(positions, index, wanted, previous):
+                smoothed = wanted
+                seen = [wanted]
+                previous = wanted
+            out.append(smoothed)
+            continue
+        seen.append(wanted)
+        middle = round(statistics.median_low(seen[-MEDIAN_WINDOW:]))
+        smoothed = (
+            middle
+            if smoothed is None
+            else round(smoothed + SMOOTH_ALPHA * (middle - smoothed))
+        )
+        out.append(smoothed)
+        previous = wanted
 
-    return path
+    return out
+
+
+def _next_sample_agrees(
+    positions: Sequence[int | None],
+    index: int,
+    wanted: int,
+    previous: int,
+) -> bool:
+    """Whether the sample after this one is nearer the new position than the
+    old: the picture changed, rather than one detection pointing elsewhere."""
+    for value in positions[index + 1 : index + MEDIAN_WINDOW + 1]:
+        if value is not None:
+            return abs(value - wanted) <= abs(value - previous)
+    return False
+
+
+def glide_seconds(distance: int, crop_width: int) -> float:
+    """How long the window takes to travel ``distance`` pixels."""
+    return max(MIN_GLIDE_SECONDS, distance / (MAX_SPEED_RATIO * crop_width))
 
 
 def write_command_file(path: Path | str, samples: Iterable[Sample]) -> None:
-    """Write the path out in the format ffmpeg's ``sendcmd`` reads."""
-    lines = [f"{sample.time:.3f} crop@c x {sample.x};" for sample in samples]
+    """Write the path out in the format ffmpeg's ``sendcmd`` reads.
+
+    ``sendcmd`` holds the value until the next command, so a frame that keeps
+    the position needs no line: a film that pans ten times is ten lines, not
+    one a frame.
+    """
+    lines: list[str] = []
+    last: int | None = None
+    for sample in samples:
+        if sample.x != last:
+            lines.append(f"{sample.time:.3f} crop@c x {sample.x};")
+            last = sample.x
+
     Path(path).write_text(
         "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
     )
@@ -326,20 +397,64 @@ def path_from_centres(
     centres: Sequence[tuple[float, int | None]],
     source_width: int,
     crop_width: int,
+    fps: float,
 ) -> list[Sample]:
-    """The crop path from the sampled subject centres.
+    """The crop path as ffmpeg should read it: a keyframe for every frame.
 
-    A centre of None means nothing was found in that frame; the window keeps
-    the position it had. With no detection at all the window stays centred.
+    The centres were read five times a second and ``sendcmd`` holds a value
+    until the next command, so a path written at that rate is a staircase of
+    teleports. Here the window holds still inside the deadband and pans
+    between the positions it is asked for, except across a cut: there it is
+    set to the new framing on the frame that read it, because a pan across a
+    cut is the camera that never settles. A pan still running when the last
+    centre was read runs on to its end.
     """
+    if not centres:
+        return []
     times = [time for time, _ in centres]
     wanted = [
         None if centre is None else centre - crop_width // 2
-        for _, centre in centres
+        for _time, centre in centres
     ]
-    start = _even((source_width - crop_width) // 2)
-    path = crop_path(wanted, source_width, crop_width, start=start)
-    return [Sample(time, x) for time, x in zip(times, path)]
+    targets = smooth_positions(wanted, source_width)
+    last_frame = round(times[-1] * fps)
+    deadband = DEADBAND_RATIO * crop_width
+    cut = CUT_RATIO * source_width
+
+    current = _even((source_width - crop_width) // 2)
+    glide_from = glide_to = current
+    glide_left = glide_total = 0.0
+    index = 0
+    path: list[Sample] = []
+    frame = -1
+
+    while frame < last_frame or glide_left > 0:
+        frame += 1
+        time = frame / fps
+        while index + 1 < len(times) and times[index + 1] <= time:
+            index += 1
+        if targets[index] is not None:
+            target = _even(clamp_x(targets[index], source_width, crop_width))
+            where = glide_to if glide_left > 0 else current
+            if abs(target - where) > deadband:
+                # the cut is read from where the subject is, not from how far
+                # the window is allowed to go: near an edge a cut is a shorter
+                # move than it looks.
+                if abs(_even(targets[index]) - current) > cut:
+                    glide_left = 0.0
+                    current = target
+                else:
+                    glide_from = current
+                    glide_to = target
+                    glide_total = glide_seconds(abs(target - current), crop_width)
+                    glide_left = glide_total
+        if glide_left > 0:
+            glide_left = max(0.0, glide_left - 1.0 / fps)
+            done = 1.0 if glide_left == 0.0 else 1.0 - glide_left / glide_total
+            current = _even(round(glide_from + done * (glide_to - glide_from)))
+        path.append(Sample(time, current))
+
+    return path
 
 
 def frame_size(video: str) -> tuple[int, int, float]:
@@ -450,7 +565,7 @@ def analyse(
     and five frames a second costs a fifth of that, which is why the centres
     are read there and scaled back - and why that width is not free to shrink.
     """
-    width, height, _fps = frame_size(video)
+    width, height, fps = frame_size(video)
     box = detect_picture(video, ffmpeg=ffmpeg)
     _top, picture_height = _picture_rows(width, height, box)
     crop_width, _height = crop_window(width, picture_height)
@@ -474,7 +589,7 @@ def analyse(
             # which is slow but correct.
             centres = track_centres(video, sample_fps=sample_fps, detector=detector)
 
-    return box, path_from_centres(centres, width, crop_width)
+    return box, path_from_centres(centres, width, crop_width, fps or 30.0)
 
 
 def model_path(name: str) -> Path:
@@ -487,11 +602,39 @@ def model_path(name: str) -> Path:
     return Path(__file__).resolve().parents[1] / "models" / name
 
 
+def pick_subject(
+    boxes: Sequence[Sequence[float]],
+    last: tuple[float, float] | None,
+    frame_width: int,
+) -> Sequence[float]:
+    """The box the camera is shown: the one nearest where the subject was.
+
+    The biggest box in every frame is a different person whenever somebody
+    closer to the camera walks in, and the window jumps with it. A box
+    nothing like the last subject - after a cut - is the new subject, so the
+    biggest box wins there.
+    """
+    biggest = max(boxes, key=lambda box: box[2] * box[3])
+    if last is None:
+        return biggest
+    limit = STICKY_RATIO * frame_width
+    near = [box for box in boxes if math.dist(_centre(box), last) <= limit]
+    if not near:
+        return biggest
+    return min(near, key=lambda box: math.dist(_centre(box), last))
+
+
+def _centre(box: Sequence[float]) -> tuple[float, float]:
+    return float(box[0]) + float(box[2]) / 2, float(box[1]) + float(box[3]) / 2
+
+
 class SubjectDetector:
     """Finds the subject in a frame: a face if there is one, a body if not.
 
     The models are loaded once and kept - loading them per frame would cost
-    more than the detection itself.
+    more than the detection itself. ``last`` is where the subject was in the
+    frame before, which is how the same person is followed from frame to
+    frame instead of the biggest box in each one.
     """
 
     def __init__(self) -> None:
@@ -502,13 +645,16 @@ class SubjectDetector:
             str(model_path(FACE_MODEL)), "", (320, 320), 0.6, 0.3, 5000
         )
         self._body = cv2.dnn.readNet(str(model_path(BODY_MODEL)))
+        self.last: tuple[int, int] | None = None
 
     def detect(self, frame) -> tuple[int, int] | None:
         """The centre of the subject in the frame, or None if there is none."""
         centre = self.face_centre(frame)
+        if centre is None:
+            centre = self.body_centre(frame)
         if centre is not None:
-            return centre
-        return self.body_centre(frame)
+            self.last = centre
+        return centre
 
     def face_centre(self, frame) -> tuple[int, int] | None:
         height, width = frame.shape[:2]
@@ -516,8 +662,9 @@ class SubjectDetector:
         _, faces = self._face.detect(frame)
         if faces is None or len(faces) == 0:
             return None
-        biggest = max(faces, key=lambda face: float(face[2]) * float(face[3]))
-        x, y, box_width, box_height = (float(value) for value in biggest[:4])
+        x, y, box_width, box_height = (
+            float(value) for value in pick_subject(faces, self.last, width)[:4]
+        )
         return int(x + box_width / 2), int(y + box_height / 2)
 
     def body_centre(self, frame) -> tuple[int, int] | None:
@@ -529,9 +676,12 @@ class SubjectDetector:
         boxes = self._person_boxes(outputs)
         if not boxes:
             return None
-        x, y, box_width, box_height = max(
-            boxes, key=lambda box: box[2] * box[3]
+        last = (
+            None
+            if self.last is None
+            else (self.last[0] * BODY_SIZE / width, self.last[1] * BODY_SIZE / height)
         )
+        x, y, box_width, box_height = pick_subject(boxes, last, BODY_SIZE)
         return (
             int((x + box_width / 2) * width / BODY_SIZE),
             int((y + box_height / 2) * height / BODY_SIZE),
@@ -597,9 +747,3 @@ def _even(value: int) -> int:
     """Round down to the nearest even number - an odd offset shifts the
     chroma by half a pixel."""
     return value - value % 2
-
-
-def _towards(current: int, target: int, step: int) -> int:
-    if abs(target - current) <= step:
-        return target
-    return _even(current + step if target > current else current - step)
