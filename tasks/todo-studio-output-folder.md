@@ -69,7 +69,9 @@ test with the venv python.
 
 - [x] Full offline suite green, ruff clean, `graphify update .` in its own
       commit.
-- [ ] Owner's go before the version bump, the rebuild and any
-      README/CHANGELOG wording (the 2.15.0 docs task is still unauthorised).
-- [ ] Owner's live check: set a folder, run one file, everything in it;
+- [x] Owner's go for the version bump and the rebuild, taken 2026-11-07; the
+      release went to 2.16.0.
+- [ ] Owner's go before any README/CHANGELOG wording (the 2.15.0 docs task is
+      still unauthorised).
+- [ ] Owner's live check on the new build: set a folder, run one file, everything in it;
       clear it, run again, everything beside the source.
