@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793958435.136831,
-    "seen": 1793958863.9870925,
-    "ast_hash": "1e3c9ab234e8467954580321b589e30d",
+    "mtime": 1793967644.8426425,
+    "seen": 1793969994.7361083,
+    "ast_hash": "15872dbcc058f6a77f496ffaf4f9e457",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793958484.08488,
-    "seen": 1793958863.9871,
-    "ast_hash": "ccf34f2f03ca712b70a020f46fe69e42",
+    "mtime": 1793967644.714052,
+    "seen": 1793969994.7361202,
+    "ast_hash": "2ed1790f0f797e992b8aa0b2f1a23dd7",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -2334,9 +2334,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1793907283.0648298,
-    "seen": 1793907992.9287057,
-    "ast_hash": "854da14b22f17c07bb60eaffbfcbf2b7",
+    "mtime": 1793965463.8101516,
+    "seen": 1793969994.7351112,
+    "ast_hash": "7ace811dcf586e382a3862629200ba01",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "tests/test_reframe.py": {
-    "mtime": 1793907240.4052997,
-    "seen": 1793907992.9288042,
-    "ast_hash": "07af48a7e28abc502f93108d1bfe8aaa",
+    "mtime": 1793965566.3634286,
+    "seen": 1793969994.7352767,
+    "ast_hash": "82bdeb340d2b9b4f66e5170846e26fa5",
     "semantic_hash": ""
   },
   "tests/test_shorts.py": {
@@ -2370,9 +2370,9 @@
     "semantic_hash": ""
   },
   "tasks/plan-vertical-reframe.md": {
-    "mtime": 1793907964.6940708,
-    "seen": 1793907992.9292474,
-    "ast_hash": "7add14e419a262f170d14eb729090bec",
+    "mtime": 1793967653.47986,
+    "seen": 1793969994.7362669,
+    "ast_hash": "10127e7a9eb2800cf84bb315f3d76273",
     "semantic_hash": ""
   },
   "tasks/spec-vertical-reframe.md": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "tasks/todo-vertical-reframe.md": {
-    "mtime": 1793907959.6052985,
-    "seen": 1793907992.9292912,
-    "ast_hash": "8f334409a1a2f9141336c2ec91650e86",
+    "mtime": 1793969716.020854,
+    "seen": 1793969994.736369,
+    "ast_hash": "63c48783e10fb6de9875984bd4005f8e",
     "semantic_hash": ""
   },
   "tests/fixtures/PORTRAIT.txt": {
