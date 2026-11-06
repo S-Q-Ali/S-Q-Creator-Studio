@@ -92,7 +92,7 @@ def _plan_options(seen):
     return next(entry for entry in seen if entry[0] == "plan")[2]
 
 
-def _leg(lines=None, stages=None, **options):
+def _leg(lines=None, stages=None, ticks=None, **options):
     """Call the legs over one file that is already on disk, no download thread."""
     args = {
         "vertical": True,
@@ -106,6 +106,7 @@ def _leg(lines=None, stages=None, **options):
         SOURCE,
         report=(lines if lines is not None else []).append,
         stage=(stages if stages is not None else []).append,
+        progress=(ticks if ticks is not None else []).append,
         **args,
     )
     return lines, stages
@@ -143,7 +144,85 @@ def test_the_stage_names_the_pass_the_file_is_in(monkeypatch):
 
     _leg(stages=stages, split="60 s")
 
-    assert stages == ["splitting", "vertical 9:16", "vertical 9:16"]
+    assert stages == [
+        "finding the pauses",
+        "finding the scenes",
+        "splitting",
+        "finding the subject",
+        "writing the vertical",
+        "finding the subject",
+        "writing the vertical",
+    ]
+
+
+def test_the_bar_counts_the_reads_of_the_film(monkeypatch):
+    """The passes are priced before any of them runs - three reads of the
+    whole file, then four reads of each of the two clips it became - so a
+    five-minute film spends the same shape of bar on it as a one-minute one,
+    and the number is never a step count dressed up as a percent."""
+    _install(monkeypatch, [])
+
+    def scan(video, **kwargs):
+        kwargs["progress"](1.0)
+        return [40.0]
+
+    def analyse(video, **kwargs):
+        kwargs["progress"](1.0)
+        return None, []
+
+    def render(source, output, width, height, samples, **kwargs):
+        kwargs["progress"](1.0)
+        return reframe.RenderResult(output=output, note="The vertical version is beside it.")
+
+    def split(source, cut_plan, **kwargs):
+        kwargs["progress"](1.0)
+        return shorts.SplitResult(
+            outputs=["out/How to cook_short01.mp4", "out/How to cook_short02.mp4"],
+            note="2 shorts saved beside the original.",
+        )
+
+    monkeypatch.setattr(engine.shorts, "detect_silences", scan)
+    monkeypatch.setattr(engine.shorts, "detect_scene_changes", scan)
+    monkeypatch.setattr(engine.shorts, "split_video", split)
+    monkeypatch.setattr(engine.reframe, "analyse", analyse)
+    monkeypatch.setattr(engine.reframe, "render_vertical", render)
+    ticks = []
+
+    _leg(ticks=ticks, split="60 s")
+
+    # Three reads of the whole 120 s file, then four reads of each of the two
+    # 60 s clips it became: 840 priced seconds, so the first read of the file
+    # is worth a seventh of the bar and one read of a clip a fourteenth.
+    assert ticks == [14.3, 28.6, 42.9, 64.3, 71.4, 92.9, 100.0]
+
+
+def test_work_found_late_fills_the_bar_instead_of_pushing_it_back(monkeypatch):
+    """The clips are only counted once the split has run, but the whole of
+    the file's work was priced before it started - so the bar that had shown
+    a half is not asked to show a fifth by a pass nobody had named."""
+    ticks = []
+    meter = engine._Meter(ticks.append, 120.0)
+
+    first = meter.price(60.0)
+    first(1.0)
+    later = meter.price(60.0)
+    later(0.0)
+    first(0.5)
+
+    assert ticks == [50.0]
+    later(1.0)
+    assert ticks == [50.0, 100.0]
+    meter.finish()
+
+
+def test_a_run_nobody_is_watching_priced_nothing():
+    """The download worker asks for no bar over the legs, and the passes it
+    hands to ffmpeg stay exactly as they were: no listener, no callback, and
+    the file is worked on as it always was."""
+    meter = engine._Meter()
+
+    assert meter.price(60.0) is None
+    meter.finish()
 
 
 def test_a_step_that_blows_up_is_reported_and_never_raises(monkeypatch):

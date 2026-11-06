@@ -72,7 +72,8 @@ class VerticalStudioPage(QWidget):
         self.paths: list[str] = []
         self._thread = None
         self._current = ""
-        self._done = 0
+        self._index = 0
+        self._total = 0
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -307,8 +308,9 @@ class VerticalStudioPage(QWidget):
         if not self.paths:
             self._say("Drop videos here, or press Browse, then Run.")
             return
-        self._done = 0
-        self.progress.setRange(0, len(self.paths))
+        self._total = len(self.paths)
+        self._index = 0
+        self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self._set_running(True)
         self._log(
@@ -348,15 +350,23 @@ class VerticalStudioPage(QWidget):
 
     def _on_file_started(self, index, path):
         self._current = os.path.basename(path)
-        self.progress.setValue(index)
-        self._say(f"Working: {self._current}")
+        self._index = index
+        self.progress.setValue(0)
+        self._working()
 
-    def _on_progress(self, _percent, stage):
-        self._say(f"Working: {self._current} · {stage}")
+    def _on_progress(self, percent, stage):
+        self.progress.setValue(int(percent))
+        self._working(stage)
+
+    def _working(self, stage=""):
+        """The file in hand, which one of the list it is, and the pass on it."""
+        where = f" ({self._index + 1} of {self._total})" if self._total > 1 else ""
+        self._say(f"Working: {self._current}{where}" + (f" · {stage}" if stage else ""))
 
     def _on_finished(self):
         self._thread = None
         self._current = ""
+        self._total = 0
         self._set_running(False)
         self._say("Done. The versions are beside each file.")
 

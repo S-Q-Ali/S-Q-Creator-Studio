@@ -65,10 +65,10 @@ def _thread(files, **options):
     args.update(options)
     thread = LocalVideoThread(files, **args)
     thread.started = []
-    thread.stages = []
+    thread.ticks = []
     thread.lines = []
     thread.file_started.connect(lambda index, path: thread.started.append((index, path)))
-    thread.progress.connect(lambda percent, stage: thread.stages.append(stage))
+    thread.progress.connect(lambda percent, stage: thread.ticks.append((percent, stage)))
     thread.log.connect(thread.lines.append)
     thread.finished_all.connect(lambda: thread.lines.append("__done__"))
     return thread
@@ -147,7 +147,41 @@ def test_the_shorts_are_cut_first_and_each_one_turns_vertical(qapp, monkeypatch)
 
     assert seen["split"] == [ONE]
     assert [entry[0] for entry in seen["render"]] == TWO_SHORTS
-    assert thread.stages == ["splitting", "vertical 9:16", "vertical 9:16"]
+    assert thread.ticks == [
+        (0.0, "finding the pauses"),
+        (0.0, "finding the scenes"),
+        (0.0, "splitting"),
+        (0.0, "finding the subject"),
+        (0.0, "writing the vertical"),
+        (0.0, "finding the subject"),
+        (0.0, "writing the vertical"),
+        (100.0, "writing the vertical"),
+    ]
+
+
+def test_the_percent_travels_with_the_pass_it_belongs_to(qapp, monkeypatch):
+    """One file, four reads of it: the bar is the share of the priced reads
+    reported done, and the name handed with a number is the pass that number
+    came out of - the page never has to guess which is which."""
+    _fake_legs(monkeypatch)
+
+    def analyse(video, **kwargs):
+        kwargs["progress"](0.5)
+        return None, []
+
+    monkeypatch.setattr(engine.reframe, "analyse", analyse)
+    thread = _thread([ONE])
+
+    thread.run()
+
+    # Three reads of the file for the subject, one for the write: half the
+    # subject is 180 of 480 priced seconds.
+    assert thread.ticks == [
+        (0.0, "finding the subject"),
+        (37.5, "finding the subject"),
+        (37.5, "writing the vertical"),
+        (100.0, "writing the vertical"),
+    ]
 
 
 def test_both_options_off_leaves_the_files_alone(qapp, monkeypatch):

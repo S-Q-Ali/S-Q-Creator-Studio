@@ -56,6 +56,10 @@ MAX_OUTPUT_UNITS = 60
 PROXY_WIDTH = 1920
 PROXY_FPS = 5.0
 
+#: The reads of the film an analysis makes: the picture, the copy it detects
+#: on, and the subject.
+ANALYSIS_PASSES = 3
+
 #: One bad detection is one read in ``MEDIAN_WINDOW``, so the position the
 #: window is asked for is the median of the last reads it believed in.
 MEDIAN_WINDOW = 5
@@ -265,9 +269,14 @@ def _picture_rows(
     return 0, source_height
 
 
-def detect_picture(video: str, ffmpeg: str = "ffmpeg") -> tuple[int, int] | None:
+def detect_picture(
+    video: str,
+    ffmpeg: str = "ffmpeg",
+    duration: float = 0.0,
+    progress: Callable[[float], None] | None = None,
+) -> tuple[int, int] | None:
     """Where the picture is inside the frame, as ffmpeg's cropdetect sees it."""
-    result = ffmpeg_process.run(
+    result = ffmpeg_process.watch(
         [
             ffmpeg,
             "-hide_banner",
@@ -283,8 +292,12 @@ def detect_picture(video: str, ffmpeg: str = "ffmpeg") -> tuple[int, int] | None
             "null",
             "-",
         ],
+        duration=duration,
+        on_progress=progress,
     )
-    return detect_picture_text(result.stderr or "")
+    # Running the scan with a listener merges its two streams into stdout, so
+    # the report is read from whichever of them is holding it.
+    return detect_picture_text(result.stderr or result.stdout or "")
 
 
 def detect_picture_text(report: str) -> tuple[int, int] | None:
@@ -349,6 +362,8 @@ def render_vertical(
     ffmpeg: str = "ffmpeg",
     runner: Callable[[list[str], str], int] | None = None,
     box: tuple[int, int] | None = None,
+    duration: float = 0.0,
+    progress: Callable[[float], None] | None = None,
 ) -> RenderResult:
     """Render the vertical version of a video beside it.
 
@@ -366,7 +381,8 @@ def render_vertical(
         return RenderResult(None, str(exc))
 
     command = build_command(ffmpeg, os.path.abspath(source), os.path.abspath(output), chain)
-    run = runner or _run_ffmpeg
+    length = duration or (duration_seconds(source) if progress else 0.0)
+    run = runner or _ffmpeg_runner(length, progress)
     with tempfile.TemporaryDirectory() as work:
         write_command_file(os.path.join(work, "crop.cmd"), samples)
         code = run(command, work)
@@ -376,11 +392,20 @@ def render_vertical(
     return RenderResult(output, "The vertical version is beside the original.")
 
 
-def _run_ffmpeg(command: list[str], cwd: str) -> int:
-    result = ffmpeg_process.run(command, cwd=cwd)
-    if result.returncode != 0:
-        logger.error("ffmpeg failed: %s", (result.stderr or "").strip()[-800:])
-    return result.returncode
+def _ffmpeg_runner(duration: float, progress: Callable[[float], None] | None):
+    """An ffmpeg call that says how far over the film it has got, if asked."""
+
+    def run(command: list[str], cwd: str) -> int:
+        result = ffmpeg_process.watch(
+            command, duration=duration, on_progress=progress, cwd=cwd
+        )
+        if result.returncode != 0:
+            logger.error(
+                "ffmpeg failed: %s", (result.stderr or result.stdout or "").strip()[-800:]
+            )
+        return result.returncode
+
+    return run
 
 
 def path_from_centres(
@@ -532,6 +557,7 @@ def track_centres(
     video: str,
     sample_fps: float = PROXY_FPS,
     detector: SubjectDetector | None = None,
+    progress: Callable[[float], None] | None = None,
 ) -> list[tuple[float, int | None]]:
     """When the subject is in a video and where, as that video is measured."""
     import cv2
@@ -542,6 +568,9 @@ def track_centres(
     try:
         fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
         step = max(1, round(fps / sample_fps))
+        #: The frames still to come, as the file gives them - and nothing when
+        #: it will not say, which leaves the bar where it is instead of lying.
+        frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
 
         finder = detector or SubjectDetector()
         centres: list[tuple[float, int | None]] = []
@@ -553,11 +582,22 @@ def track_centres(
             if index % step == 0:
                 found = finder.detect(frame)
                 centres.append((index / fps, None if found is None else found[0]))
+                if progress is not None and frames:
+                    progress(index / frames)
             index += 1
     finally:
         capture.release()
 
     return centres
+
+
+def _share(
+    progress: Callable[[float], None] | None, index: int, total: int
+) -> Callable[[float], None] | None:
+    """One of a pass's equal shares of the progress it was told to report."""
+    if progress is None:
+        return None
+    return lambda fraction: progress(min((index + fraction) / total, 1.0))
 
 
 def analyse(
@@ -566,6 +606,8 @@ def analyse(
     sample_fps: float = PROXY_FPS,
     runner: Callable[[list[str], str], int] | None = None,
     detector: SubjectDetector | None = None,
+    duration: float = 0.0,
+    progress: Callable[[float], None] | None = None,
 ) -> tuple[tuple[int, int] | None, list[Sample]]:
     """The picture inside the frame, and the crop path for the window.
 
@@ -573,30 +615,43 @@ def analyse(
     twelve seconds of work for every second of film. A copy at PROXY_WIDTH
     and five frames a second costs a fifth of that, which is why the centres
     are read there and scaled back - and why that width is not free to shrink.
+
+    ``progress`` is told the share of this reading that is done: three passes
+    over the film - the picture, the copy, the subject - and each one gets a
+    third of the bar it is given.
     """
     width, height, fps = frame_size(video)
-    box = detect_picture(video, ffmpeg=ffmpeg)
+    length = duration or (duration_seconds(video) if progress else 0.0)
+    box = detect_picture(
+        video,
+        ffmpeg=ffmpeg,
+        duration=length,
+        progress=_share(progress, 0, ANALYSIS_PASSES),
+    )
     _top, picture_height = _picture_rows(width, height, box)
     crop_width, _height = crop_window(width, picture_height)
 
-    run = runner or _run_ffmpeg
+    run = runner or _ffmpeg_runner(length, _share(progress, 1, ANALYSIS_PASSES))
     proxy_width = 0
     with tempfile.TemporaryDirectory() as work:
         proxy = os.path.join(work, "proxy.mp4")
         if run(proxy_command(ffmpeg, os.path.abspath(video), proxy), work) == 0:
             proxy_width = frame_size(proxy)[0]
+        track = _share(progress, 2, ANALYSIS_PASSES)
         if proxy_width:
             ratio = width / proxy_width
             centres = [
                 (time, None if x is None else round(x * ratio))
                 for time, x in track_centres(
-                    proxy, sample_fps=sample_fps, detector=detector
+                    proxy, sample_fps=sample_fps, detector=detector, progress=track
                 )
             ]
         else:
             # shortcut: a file that gives no proxy is tracked at its own size,
             # which is slow but correct.
-            centres = track_centres(video, sample_fps=sample_fps, detector=detector)
+            centres = track_centres(
+                video, sample_fps=sample_fps, detector=detector, progress=track
+            )
 
     return box, path_from_centres(centres, width, crop_width, fps or 30.0)
 

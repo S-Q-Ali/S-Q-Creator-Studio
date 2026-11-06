@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 
 _PROGRESS_TIME = re.compile(r"out_time_(?:us|ms)=(\d+)")
 _CLOCK_TIME = re.compile(r"out_time=(\d+):(\d+):([\d.]+)")
@@ -75,3 +76,44 @@ def out_time_seconds(line: str) -> float | None:
         hours, minutes, rest = clock.groups()
         return int(hours) * 3600 + int(minutes) * 60 + float(rest)
     return None
+
+
+def progress_hook(
+    seconds: float, on_progress: Callable[[float], None] | None
+) -> Callable[[str], None] | None:
+    """The line hook that reads ffmpeg's own report as a fraction of a pass.
+
+    With no length to divide by, or nobody listening, there is no hook and the
+    job runs exactly as it did: ``-progress pipe:1`` costs nothing either way.
+    """
+    if on_progress is None or not seconds:
+        return None
+
+    def report(line: str) -> None:
+        done = out_time_seconds(line)
+        if done is not None:
+            on_progress(min(done / seconds, 1.0))
+
+    return report
+
+
+def watch(
+    command: list[str],
+    *,
+    duration: float = 0.0,
+    on_progress: Callable[[float], None] | None = None,
+    cwd: str | None = None,
+) -> subprocess.CompletedProcess:
+    """A pass over a film, with how far it has got read out as it runs.
+
+    ``-progress pipe:1`` makes ffmpeg write its counters to stdout instead of
+    hiding them in a stats line, and the output file is always the last
+    argument, so the option goes before it. With nothing to read - no length,
+    or nobody listening - the command runs as :func:`run` has always run it.
+    """
+    hook = progress_hook(duration, on_progress)
+    if hook is None:
+        return run(command, cwd=cwd)
+    return stream(
+        [*command[:-1], "-progress", "pipe:1", command[-1]], cwd=cwd, on_line=hook
+    )

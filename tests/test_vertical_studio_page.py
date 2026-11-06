@@ -228,16 +228,39 @@ def test_the_worker_talks_and_the_page_shows_it(page, tmp_path, monkeypatch):
     page.run()
     thread = seen["threads"][0]
     thread.file_started.emit(0, video)
-    thread.progress.emit(99.0, "vertical 9:16")
+    thread.progress.emit(40.0, "finding the subject")
     thread.log.emit("The vertical version is beside it.")
 
     assert "one.mp4" in page.status.text()
-    assert "vertical 9:16" in page.status.text()
+    assert "finding the subject" in page.status.text()
+    assert page.progress.value() == 40
     assert "The vertical version is beside it." in page.log.toPlainText()
 
     thread.finished_all.emit()
     assert page.btn_run.isEnabled() is True
     assert page.is_running() is False
+
+
+def test_the_bar_is_the_file_in_hand_and_the_line_says_which(page, tmp_path, monkeypatch):
+    """A ten-file list is ten separate jobs, and one of them can be an hour
+    of film: the bar measures the file being worked on, and the line names it
+    with its place in the list, so a run that has only reached the second
+    file never looks like it has finished the tenth."""
+    seen = _fake_worker(monkeypatch)
+    first, second = _videos(tmp_path, "one.mp4", "two.mp4")
+    _drop_on(page, local=[first, second])
+
+    page.run()
+    thread = seen["threads"][0]
+    thread.file_started.emit(1, second)
+
+    assert page.progress.maximum() == 100
+    assert page.progress.value() == 0
+
+    thread.progress.emit(37.5, "writing the vertical")
+
+    assert page.progress.value() == 37
+    assert page.status.text() == "Working: two.mp4 (2 of 2) · writing the vertical"
 
 
 def test_stop_asks_the_worker_and_says_the_file_in_hand_finishes(page, tmp_path, monkeypatch):

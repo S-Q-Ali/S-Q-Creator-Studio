@@ -9,6 +9,7 @@ committed file instead of one the test writes.
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from itertools import pairwise
 from pathlib import Path
@@ -64,6 +65,29 @@ def test_a_frame_that_is_all_picture_reports_the_whole_frame():
 
 def test_no_cropdetect_report_is_no_picture():
     assert reframe.detect_picture_text("ffmpeg said nothing useful") is None
+
+
+def test_the_picture_scan_says_how_far_over_the_film_it_has_read(monkeypatch):
+    """cropdetect is the first read of the file and the first minutes of a
+    long job; with a bar to fill it is watched, and its report is read from
+    whichever stream ffmpeg left it in."""
+    asked = {}
+
+    def watch(command, *, duration=0.0, on_progress=None, cwd=None):
+        asked.update(duration=duration, command=command)
+        on_progress(0.25)
+        return subprocess.CompletedProcess(
+            command, 0, "[cropdetect_0 @ 0x1] crop=3840:1646:0:256\n", ""
+        )
+
+    monkeypatch.setattr(reframe.ffmpeg_process, "watch", watch)
+    told = []
+
+    box = reframe.detect_picture("Film.mp4", duration=60.0, progress=told.append)
+
+    assert box == (256, 1901)
+    assert told == [0.25]
+    assert asked["duration"] == 60.0
 
 
 def test_the_window_is_cut_from_the_picture_and_sits_inside_it():
@@ -586,6 +610,73 @@ def test_a_file_that_refuses_to_give_up_a_proxy_is_still_tracked(tmp_path, monke
     reframe.analyse(str(tmp_path / "Film.mp4"), runner=lambda command, cwd: 1)
 
     assert read == [str(tmp_path / "Film.mp4")]
+
+
+def test_the_three_reads_of_an_analysis_share_the_bar_it_is_given(
+    tmp_path, monkeypatch
+):
+    """The picture, the copy it is detected on, and the subject are three
+    reads of the film, and the bar handed to an analysis is split between
+    them - so half way through the tracking is a sixth of the file's work
+    left, not half of one step."""
+    monkeypatch.setattr(reframe, "frame_size", lambda video: (1920, 1080, 30.0))
+    told = []
+
+    def picture(video, ffmpeg="ffmpeg", duration=0.0, progress=None):
+        progress(1.0)
+        return (0, 1079)
+
+    def encode(duration, progress):
+        def run(command, cwd):
+            assert command[-1].endswith("proxy.mp4")
+            progress(1.0)
+            return 0
+
+        return run
+
+    def centres(video, sample_fps=5.0, detector=None, progress=None):
+        progress(0.5)
+        return [(0.0, 500)]
+
+    monkeypatch.setattr(reframe, "detect_picture", picture)
+    monkeypatch.setattr(reframe, "track_centres", centres)
+    monkeypatch.setattr(reframe, "_ffmpeg_runner", encode)
+
+    reframe.analyse(str(tmp_path / "Film.mp4"), duration=60.0, progress=told.append)
+
+    assert [round(value, 3) for value in told] == [0.333, 0.667, 0.833]
+
+
+def test_the_write_of_the_vertical_reports_the_film_it_has_written(
+    tmp_path, monkeypatch
+):
+    """The last pass is an encode, and ffmpeg counts the seconds it has
+    written: with a length to divide by, that is the bar."""
+    (tmp_path / "in.mp4").write_bytes(b"x")
+    asked = {}
+
+    def watch(command, *, duration=0.0, on_progress=None, cwd=None):
+        asked.update(duration=duration)
+        on_progress(0.5)
+        Path(command[-1]).write_bytes(b"made")
+        return subprocess.CompletedProcess(command, 0, "out_time_ms=1000000\n", "")
+
+    monkeypatch.setattr(reframe.ffmpeg_process, "watch", watch)
+    told = []
+
+    result = reframe.render_vertical(
+        source=str(tmp_path / "in.mp4"),
+        output=str(tmp_path / "in_9x16.mp4"),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        duration=20.0,
+        progress=told.append,
+    )
+
+    assert result.output == str(tmp_path / "in_9x16.mp4")
+    assert asked["duration"] == 20.0
+    assert told == [0.5]
 
 
 def test_the_vertical_size_is_nine_by_sixteen_and_even():

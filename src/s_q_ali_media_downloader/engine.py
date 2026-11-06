@@ -979,16 +979,71 @@ class _Stopped(Exception):
     pass
 
 
-def run_post_leg(path, *, vertical, split, clips, ffmpeg, duration, report, stage=None, hold=None):
+class _Meter:
+    """One file's bar, priced in reads of the film before the first of them runs.
+
+    The work is the passes the run has said it will make, each worth the
+    length of the file it reads: a five-minute film takes the same shape of
+    bar as a one-minute one, just longer. Every pass reports the share of
+    itself it has finished against that priced whole, so work found late -
+    the pieces of a split, which only exist once it has cut - fills the bar
+    instead of pushing it back.
+    """
+
+    def __init__(self, report=None, seconds=0.0):
+        self._report = report
+        self._total = max(seconds, 0.0)
+        self._weights = []
+        self._done = []
+        self._shown = 0.0
+
+    def price(self, seconds):
+        """The callback one pass over ``seconds`` of film calls with how far
+        over itself it has got. With nobody listening for the bar there is no
+        callback, and the pass runs exactly as it always did."""
+        if self._report is None:
+            return None
+        self._weights.append(max(seconds, 0.0))
+        self._done.append(0.0)
+        leg = len(self._weights) - 1
+        return lambda fraction: self._tick(leg, fraction)
+
+    def _tick(self, leg, fraction):
+        self._done[leg] = max(self._done[leg], min(max(fraction, 0.0), 1.0))
+        if not self._total:
+            return
+        done = sum(w * d for w, d in zip(self._weights, self._done, strict=True))
+        share = min(done / self._total, 1.0)
+        if share > self._shown:
+            self._shown = share
+            self._report(round(share * 100, 1))
+
+    def finish(self):
+        """The file is as done as it is going to get."""
+        if self._report is not None and self._shown < 1.0:
+            self._shown = 1.0
+            self._report(100.0)
+
+
+def run_post_leg(
+    path, *, vertical, split, clips, ffmpeg, duration, report, stage=None, hold=None, progress=None
+):
     """The shorts and the vertical versions of one file that is on disk.
 
     Nothing here may lose the file it started from: a step that cannot run
     says why in one sentence and moves on. The download worker hands over its
     own log, progress and pause; the Vertical Studio hands over the same three
     for a file nobody downloaded — so the legs exist once, here.
+
+    ``progress`` is told the percent of this file's work that is done, priced
+    here as the three reads of a split plus the four of a reframe. It is worth
+    handing over: minutes of ffmpeg say nothing on their own, and a bar that
+    only moves between the passes looks broken.
     """
     stage_ = stage or (lambda _name: None)
     hold_ = hold or (lambda: None)
+    reads = 3 * (split != DEFAULT_SPLIT) + (reframe.ANALYSIS_PASSES + 1) * bool(vertical)
+    meter = _Meter(progress, reads * duration)
 
     pieces = [path]
     if split != DEFAULT_SPLIT:
@@ -1002,41 +1057,60 @@ def run_post_leg(path, *, vertical, split, clips, ffmpeg, duration, report, stag
                 report=report,
                 stage=stage_,
                 hold=hold_,
+                meter=meter,
             )
         except Exception as exc:
             logger.warning("The split failed for %s", path, exc_info=True)
             report(f"The split could not run: {exc}")
     if vertical:
+        share = duration / len(pieces)
         for piece in pieces:
             try:
-                make_vertical(piece, ffmpeg=ffmpeg, report=report, stage=stage_, hold=hold_)
+                make_vertical(
+                    piece,
+                    ffmpeg=ffmpeg,
+                    report=report,
+                    stage=stage_,
+                    hold=hold_,
+                    meter=meter,
+                    share=share,
+                )
             except Exception as exc:
                 logger.warning("The vertical version failed for %s", piece, exc_info=True)
                 report(f"The vertical version could not be made: {exc}")
+    meter.finish()
 
 
-def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold):
+def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold, meter=None):
     """Cut the file into shorts at the pauses. The whole file back when there
     is nothing to cut or nothing to cut it with."""
+    meter = meter or _Meter()
     if not duration:
         report("This file did not report its length, so it was not split.")
         return [path]
 
+    # The three reads are priced together: a plan that turns out to need no
+    # cut is told about by the sentence, not by a bar stuck at two thirds.
+    pauses = meter.price(duration)
+    scan = meter.price(duration)
+    cutting = meter.price(duration)
+
     target = shorts.TARGETS.get(split)
     wanted = clips if split == SPLIT_CLIPS else None
     hold()
-    silences = shorts.detect_silences(path, ffmpeg=ffmpeg)
-    scenes = shorts.detect_scene_changes(path, ffmpeg=ffmpeg)
-    plan = shorts.plan_cuts(
-        duration, target=target, silences=silences, scenes=scenes, clips=wanted
-    )
+    stage("finding the pauses")
+    silences = shorts.detect_silences(path, ffmpeg=ffmpeg, duration=duration, progress=pauses)
+    hold()
+    stage("finding the scenes")
+    scenes = shorts.detect_scene_changes(path, ffmpeg=ffmpeg, duration=duration, progress=scan)
+    plan = shorts.plan_cuts(duration, target=target, silences=silences, scenes=scenes, clips=wanted)
     if plan.note:
         report(plan.note)
     if not plan.segments:
         return [path]
 
     stage("splitting")
-    result = shorts.split_video(path, plan, ffmpeg=ffmpeg)
+    result = shorts.split_video(path, plan, ffmpeg=ffmpeg, progress=cutting)
     if not result.outputs:
         report(result.note)
         return [path]
@@ -1044,8 +1118,15 @@ def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold):
     return result.outputs
 
 
-def make_vertical(path, *, ffmpeg, report, stage, hold):
-    """The 9:16 version of one file, beside it, with the subject tracked."""
+def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0):
+    """The 9:16 version of one file, beside it, with the subject tracked.
+
+    ``share`` is how much of the parent film's length this file is, so the two
+    passes here - three reads of it to find the subject, one to write the
+    vertical - are priced into the same bar the split spent itself on. Each
+    pass measures its own file for how far over it has got.
+    """
+    meter = meter or _Meter()
     width, height, _fps = reframe.frame_size(path)
     if not width or not height:
         report("This file has no picture to reframe.")
@@ -1054,9 +1135,14 @@ def make_vertical(path, *, ffmpeg, report, stage, hold):
         report("This video is already vertical.")
         return
 
+    read = meter.price(reframe.ANALYSIS_PASSES * share)
+    write = meter.price(share)
+
     hold()
-    stage("vertical 9:16")
-    box, samples = reframe.analyse(path, ffmpeg=ffmpeg)
+    stage("finding the subject")
+    box, samples = reframe.analyse(path, ffmpeg=ffmpeg, progress=read)
+    hold()
+    stage("writing the vertical")
     result = reframe.render_vertical(
         path,
         reframe.vertical_output_path(path),
@@ -1065,6 +1151,7 @@ def make_vertical(path, *, ffmpeg, report, stage, hold):
         samples,
         ffmpeg=ffmpeg,
         box=box,
+        progress=write,
     )
     report(result.note)
 
@@ -1459,6 +1546,9 @@ class LocalVideoThread(QThread):
     One file at a time: a reframe costs about four seconds of work per second
     of film, so two at once only make both slower. Stop ends the run after the
     file in hand - a write started is a write finished.
+
+    ``progress`` is the file in hand: how far its priced work has got, and the
+    name of the pass doing it.
     """
 
     file_started = Signal(int, str)
@@ -1473,6 +1563,8 @@ class LocalVideoThread(QThread):
         self.split = split if split in SPLIT_OPTIONS else DEFAULT_SPLIT
         self.clips = max(1, int(clips))
         self._stop = False
+        self._percent = 0.0
+        self._stage = ""
         self._ffmpeg = ffmpeg_binary()
 
     def stop(self):
@@ -1484,6 +1576,8 @@ class LocalVideoThread(QThread):
                 if self._stop:
                     self.log.emit(f"{len(self.files) - index} left unworked.")
                     break
+                self._percent = 0.0
+                self._stage = ""
                 self.file_started.emit(index, path)
                 try:
                     run_post_leg(
@@ -1494,13 +1588,24 @@ class LocalVideoThread(QThread):
                         ffmpeg=self._ffmpeg,
                         duration=reframe.duration_seconds(path),
                         report=self.log.emit,
-                        stage=lambda name: self.progress.emit(99.0, name),
+                        stage=self._named,
+                        progress=self._count,
                     )
                 except Exception as exc:
                     logger.warning("Nothing could be read from %s", path, exc_info=True)
                     self.log.emit(f"This file could not be read: {exc}")
         finally:
             self.finished_all.emit()
+
+    def _named(self, name):
+        """A pass has started: the bar keeps the place it had reached."""
+        self._stage = name
+        self.progress.emit(self._percent, name)
+
+    def _count(self, percent):
+        """A pass has moved: the name it belongs to is already known."""
+        self._percent = percent
+        self.progress.emit(percent, self._stage)
 
 
 class MusicResolveThread(QThread):

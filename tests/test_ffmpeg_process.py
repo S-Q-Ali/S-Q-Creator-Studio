@@ -30,6 +30,30 @@ def _force_platform(monkeypatch, name):
     monkeypatch.setattr(ffmpeg_process.sys, "platform", name)
 
 
+class _FakeProcess:
+    """An ffmpeg child whose output is a list of lines, drained on close."""
+
+    def __init__(self, lines):
+        self._lines = iter(lines)
+        self.stdout = self
+        self.returncode = None
+
+    def __iter__(self):
+        return self._lines
+
+    def __next__(self):
+        return next(self._lines)
+
+    def wait(self):
+        return 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 def test_windows_gets_a_child_with_no_console(monkeypatch):
     _force_platform(monkeypatch, "win32")
 
@@ -122,3 +146,65 @@ def test_stream_reports_each_line_as_it_lands(monkeypatch):
 )
 def test_the_progress_line_gives_seconds_of_film(line, seconds):
     assert ffmpeg_process.out_time_seconds(line) == seconds
+
+
+def test_the_hook_divides_the_film_read_by_the_film_there_is():
+    """ffmpeg counts in seconds of film, the bar counts in shares of a pass,
+    and the length is what turns one into the other."""
+    told = []
+
+    hook = ffmpeg_process.progress_hook(10.0, told.append)
+    hook("out_time_ms=2500000\n")
+    hook("out_time_ms=45000000\n")
+
+    assert told == [0.25, 1.0]
+
+
+@pytest.mark.parametrize("seconds, listener", [(0.0, None), (0.0, print), (10.0, None)])
+def test_a_pass_with_nothing_to_read_reports_no_hook(seconds, listener):
+    assert ffmpeg_process.progress_hook(seconds, listener) is None
+
+
+def test_watching_asks_ffmpeg_for_its_counters_before_the_output(monkeypatch, fake_run):
+    """``-progress pipe:1`` is an output option, and the output file is always
+    the last argument, so the pair goes in front of it - after the filters and
+    before the file ffmpeg is writing."""
+
+    watched = []
+
+    def popen(command, **kwargs):
+        watched.append(command)
+        return _FakeProcess(["out_time_ms=5000000\n"])
+
+    monkeypatch.setattr(ffmpeg_process.subprocess, "Popen", popen)
+    told = []
+
+    result = ffmpeg_process.watch(
+        ["ffmpeg", "-i", "a.mp4", "-vf", "crop=1", "-y", "b.mp4"],
+        duration=10.0,
+        on_progress=told.append,
+    )
+
+    assert watched[0] == [
+        "ffmpeg",
+        "-i",
+        "a.mp4",
+        "-vf",
+        "crop=1",
+        "-y",
+        "-progress",
+        "pipe:1",
+        "b.mp4",
+    ]
+    assert told == [0.5]
+    assert result.returncode == 0
+
+
+def test_a_pass_nobody_watches_runs_exactly_as_before(monkeypatch, fake_run):
+    result = ffmpeg_process.watch(["ffmpeg", "-i", "a.mp4", "-y", "b.mp4"], duration=10.0)
+
+    command, kwargs = fake_run[0]
+    assert command == ["ffmpeg", "-i", "a.mp4", "-y", "b.mp4"]
+    assert "-progress" not in command
+    assert kwargs["capture_output"] is True
+    assert result.returncode == 0

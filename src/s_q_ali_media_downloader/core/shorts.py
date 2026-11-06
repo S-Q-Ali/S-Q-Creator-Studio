@@ -49,6 +49,7 @@ _SCENE_TIME = re.compile(r"pts_time:\s*([\d.]+)")
 _SCENE_SCORE = re.compile(r"lavfi\.scene_score=([\d.]+)")
 
 Runner = Callable[[list[str]], str]
+Progress = Callable[[float], None]
 
 
 @dataclass(frozen=True)
@@ -258,9 +259,17 @@ def _segments(boundaries: Sequence[float], duration: float) -> list[Segment]:
 
 
 def detect_silences(
-    video: str, ffmpeg: str = "ffmpeg", runner: Runner | None = None
+    video: str,
+    ffmpeg: str = "ffmpeg",
+    runner: Runner | None = None,
+    duration: float = 0.0,
+    progress: Progress | None = None,
 ) -> list[float]:
-    """The pauses in the speech of a video."""
+    """The pauses in the speech of a video.
+
+    ``progress`` is told how much of ``duration`` ffmpeg has read, so a scan
+    of a long film does not look like a hung app.
+    """
     command = [
         ffmpeg,
         "-hide_banner",
@@ -279,14 +288,19 @@ def detect_silences(
         "null",
         "-",
     ]
-    run = runner or _run_ffmpeg
+    run = runner or _detect_runner(duration, progress)
     return parse_silences(run(command))
 
 
 def detect_scene_changes(
-    video: str, ffmpeg: str = "ffmpeg", runner: Runner | None = None
+    video: str,
+    ffmpeg: str = "ffmpeg",
+    runner: Runner | None = None,
+    duration: float = 0.0,
+    progress: Progress | None = None,
 ) -> list[float]:
-    """The changes of scene in a video."""
+    """The changes of scene in a video, with the same progress report as the
+    pause scan - this one reads every frame, so it is the slower of the two."""
     command = [
         ffmpeg,
         "-hide_banner",
@@ -303,7 +317,7 @@ def detect_scene_changes(
         "null",
         "-",
     ]
-    run = runner or _run_ffmpeg
+    run = runner or _detect_runner(duration, progress)
     return parse_scene_changes(run(command))
 
 
@@ -328,6 +342,7 @@ def split_video(
     plan: CutPlan,
     ffmpeg: str = "ffmpeg",
     runner: Callable[[list[str]], int] | None = None,
+    progress: Progress | None = None,
 ) -> SplitResult:
     if not plan.segments:
         return SplitResult(note=plan.note)
@@ -340,6 +355,8 @@ def split_video(
         return SplitResult(note="A short output already exists; nothing was overwritten.")
     outputs: list[str] = []
     run = runner or _run_split
+    total = sum(segment.duration for segment in plan.segments)
+    done = 0.0
     try:
         if not original.is_file():
             return SplitResult(note="The source could not be opened; no shorts made.")
@@ -352,6 +369,11 @@ def split_video(
                     return SplitResult(outputs, "The split could not finish; original kept.")
                 _publish_clip(staged, destination)
                 outputs.append(str(destination))
+                # A clip is one clip: the bar moves when it is on disk, which
+                # is the only moment this pass is certainly worth its share.
+                done += segment.duration
+                if progress is not None and total:
+                    progress(done / total)
     except OSError:
         logger.warning("Could not finish writing shorts; original kept.")
         return SplitResult(outputs, "The split could not finish; original kept.")
@@ -377,6 +399,28 @@ def _run_split(command: list[str]) -> int:
     if result.returncode:
         logger.warning("ffmpeg short render failed (exit %s).", result.returncode)
     return result.returncode
+
+
+def _detect_runner(duration: float, progress: Progress | None) -> Runner:
+    """The scan's own ffmpeg call, reading its progress when there is a bar
+    to read it for."""
+    if progress is None:
+        return _run_ffmpeg
+
+    def run(command: list[str]) -> str:
+        try:
+            result = ffmpeg_process.watch(
+                command, duration=duration, on_progress=progress
+            )
+        except OSError:
+            logger.warning("Could not start ffmpeg cut-point detection.")
+            return ""
+        if result.returncode != 0:
+            logger.warning("ffmpeg cut-point detection failed (exit %s).", result.returncode)
+            return ""
+        return f"{result.stdout}\n{result.stderr}"
+
+    return run
 
 
 def _run_ffmpeg(command: list[str]) -> str:
