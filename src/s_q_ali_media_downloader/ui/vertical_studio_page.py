@@ -43,7 +43,6 @@ from s_q_ali_media_downloader.engine import (
     LocalVideoThread,
     default_output_dir,
 )
-from s_q_ali_media_downloader.theme import C
 from s_q_ali_media_downloader.ui.settings_page import (
     MAX_CLIPS,
     MIN_CLIPS,
@@ -72,20 +71,25 @@ def is_video_file(path: str) -> bool:
 
 
 def can_write_to(folder: str) -> bool:
-    """Whether a file can be made in this folder and taken out again.
+    """Whether a file can be made in this folder.
 
     The run does exactly that, so the answer is worth having before ffmpeg
     starts on work that could never have landed: a read-only share, a path
-    that is a file, a disk with nothing on it all say no here.
+    that is a file, a disk with nothing on it all say no here. Taking the
+    probe back out is not part of the answer - another program can be holding
+    it for a moment, and the next run writes over it without asking.
     """
     probe = os.path.join(folder, ".sq-studio-probe")
     try:
         os.makedirs(folder, exist_ok=True)
         with open(probe, "wb"):
             pass
-        os.remove(probe)
     except OSError:
         return False
+    try:
+        os.remove(probe)
+    except OSError:
+        pass
     return True
 
 
@@ -194,8 +198,10 @@ class VerticalStudioPage(QWidget):
         # folder ends up holding the film, its vertical and its shorts.
         where = QHBoxLayout()
         where.setSpacing(8)
-        where.addWidget(QLabel("Save results to"))
+        results_label = QLabel("Save results to")
         self.results = QLineEdit()
+        results_label.setBuddy(self.results)
+        where.addWidget(results_label)
         self.results.setPlaceholderText("Beside each file")
         self.results.setToolTip(
             "The folder the vertical and the shorts go into, with a copy of "
@@ -416,6 +422,11 @@ class VerticalStudioPage(QWidget):
         if not self.paths:
             self._say("Drop videos here, or press Browse, then Run.")
             return
+        if not self.vertical.isChecked() and self.split.currentText() == DEFAULT_SPLIT:
+            # A run with nothing chosen makes no version, and the closing line
+            # would still say where the versions are.
+            self._say("Tick the vertical box or pick a shorts length, then Run.")
+            return
         folder = self.results.text().strip()
         if folder and not can_write_to(folder):
             self._say(f"Nothing could be written to {folder}.", error=True)
@@ -491,8 +502,14 @@ class VerticalStudioPage(QWidget):
 
     # ------------------------------------------------------------ feedback
     def _say(self, text, error=False):
+        """The one line the user reads, coloured by the theme's own roles."""
         self.status.setText(text)
-        self.status.setStyleSheet(f"color: {C['failed']};" if error else "")
+        role = "error" if error else "meta"
+        if self.status.property("role") != role:
+            self.status.setProperty("role", role)
+            style = self.status.style()
+            style.unpolish(self.status)
+            style.polish(self.status)
 
     def _log(self, text):
         if text:
