@@ -1,8 +1,8 @@
 """The Vertical Studio page: files in, options set, the passes run.
 
 The worker is faked: nothing here decodes a video. What is proved is that
-files get in by drop and by Browse, that junk gets refused with a sentence,
-and that the page hands the list and its options to the worker.
+files get in by drop and by the well's button, that junk gets refused with a
+sentence, and that the page hands the list and its options to the worker.
 """
 
 from __future__ import annotations
@@ -411,7 +411,7 @@ def test_stop_with_no_run_underway_says_nothing(page):
     promise a stop that is not happening."""
     page.stop()
 
-    assert page.status.text() == "Drop videos here, or press Browse, then Run."
+    assert page.status.text() == "Drop videos here or click Choose video files, then Run."
 
 
 def test_a_second_run_press_starts_no_second_worker(page, tmp_path, monkeypatch):

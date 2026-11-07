@@ -126,7 +126,7 @@ class VerticalStudioPage(QWidget):
         title = QLabel("📐 Vertical Studio")
         title.setProperty("role", "pageTitle")
         hint = QLabel(
-            "Drop videos here — or Browse to them — and the app makes the vertical 9:16 "
+            "Click Choose video files or drop videos here — the app makes the vertical 9:16 "
             "version and the shorts it would have made after a download. Name a results "
             "folder and everything lands there together with a copy of the video; leave "
             "it empty and each file keeps its own results beside it. The source is never "
@@ -151,7 +151,9 @@ class VerticalStudioPage(QWidget):
         zone_layout.setSpacing(2)
         zone_title = QLabel("Drop video files here")
         zone_title.setProperty("role", "section")
-        zone_hint = QLabel("Or press Browse. Files only — folders and links are named and skipped.")
+        zone_hint = QLabel(
+            "Click Choose video files or drop files here. Files only — folders and links are named and skipped."
+        )
         zone_hint.setProperty("role", "hint")
         zone_layout.addWidget(zone_title)
         zone_layout.addWidget(zone_hint)
@@ -252,7 +254,7 @@ class VerticalStudioPage(QWidget):
         ):
             actions.addWidget(button)
         actions.addStretch(1)
-        self.status = QLabel("Drop videos here, or press Browse, then Run.")
+        self.status = QLabel("Drop videos here or click Choose video files, then Run.")
         self.status.setProperty("role", "meta")
         actions.addWidget(self.status)
         layout.addLayout(actions)
@@ -422,7 +424,7 @@ class VerticalStudioPage(QWidget):
         if self.is_running():
             return
         if not self.paths:
-            self._say("Drop videos here, or press Browse, then Run.")
+            self._say("Drop videos here or click Choose video files, then Run.")
             return
         if not self.vertical.isChecked() and self.split.currentText() == DEFAULT_SPLIT:
             # A run with nothing chosen makes no version, and the closing line

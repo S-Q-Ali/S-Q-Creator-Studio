@@ -38,9 +38,10 @@ and the plan's README/CHANGELOG wording is approved.
 
 ## Task 3: the well says what it now does
 
-- [ ] The page hint names the click, not a `Browse` button that no longer exists.
-- [ ] No user-visible string still says "press Browse" (grep in the same commit).
-- [ ] README Studio bullet — **owner's go needed** for wording and version.
+- [x] The page hint names the click, not a `Browse` button that no longer exists.
+- [x] No user-visible string still says "press Browse" (grep in the same commit).
+- [x] README Studio bullet — **owner's go needed** for wording and version.
+      (Given 2026-11-08: "click the well or drop files on the page", 2.18.0.)
 - [ ] Offline suite green, ruff clean, `graphify update .` in its own commit.
 - [ ] Owner's live check on the built app: click the well, pick two files, drag
       one more, `Tab` to the button and press Enter.

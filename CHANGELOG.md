@@ -3,6 +3,19 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.18.0] — 2026-11-08
+
+### Changed
+
+- **The Studio's drop well is a door you can click.** The dashed well now
+  carries a **Choose video files** button that opens the same picker the
+  row's **Browse…** used to open, and the row's Browse is gone — one door
+  by pointer, one by drag, the same files-in either way. The button is a
+  real button: `Tab` reaches it, `Space` and `Enter` press it, and a screen
+  reader announces it; the old well offered a keyboard user nothing.
+  Dropping files anywhere on the page works exactly as before, and the
+  hint now names the click instead of a button that no longer exists.
+
 ## [2.17.0] — 2026-11-07
 
 ### Changed
