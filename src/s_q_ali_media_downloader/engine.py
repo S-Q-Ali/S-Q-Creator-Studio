@@ -1144,11 +1144,8 @@ def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold, m
 
     stage("splitting")
     result = shorts.split_video(path, plan, ffmpeg=ffmpeg, progress=cutting)
-    if not result.outputs:
-        report(result.note)
-        return [path]
-    report(f"{len(result.outputs)} shorts saved beside the original.")
-    return result.outputs
+    report(result.note)
+    return result.outputs or [path]
 
 
 def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0):

@@ -17,7 +17,7 @@ ONE = "out/one.mp4"
 TWO = "out/two.mp4"
 THREE = "out/three.mp4"
 
-TWO_SHORTS = ["out/one_short01.mp4", "out/one_short02.mp4"]
+TWO_SHORTS = ["out/one Part 1.mp4", "out/one Part 2.mp4"]
 
 
 def _plan():
@@ -91,7 +91,7 @@ def test_the_vertical_file_lands_beside_the_one_the_user_dropped(qapp, monkeypat
     seen = _fake_legs(monkeypatch)
     _thread([ONE]).run()
 
-    assert seen["render"] == [(ONE, "out/one_9x16.mp4")]
+    assert seen["render"] == [(ONE, os.path.join("out", "one_9x16.mp4"))]
 
 
 def test_a_file_that_cannot_be_read_does_not_stop_the_list(qapp, monkeypatch):

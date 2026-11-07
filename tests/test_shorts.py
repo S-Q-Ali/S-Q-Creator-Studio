@@ -336,7 +336,7 @@ def _render_clip(command):
     return 0
 
 
-def test_split_writes_numbered_clips_and_preserves_the_original(tmp_path):
+def test_split_writes_the_parts_and_preserves_the_original(tmp_path):
     source = tmp_path / "my movie.mkv"
     source.write_bytes(b"original")
     plan = shorts.plan_cuts(122, target=60)
@@ -344,11 +344,11 @@ def test_split_writes_numbered_clips_and_preserves_the_original(tmp_path):
     result = shorts.split_video(str(source), plan, runner=_render_clip)
 
     assert [Path(p).name for p in result.outputs] == [
-        "my movie_short01.mp4", "my movie_short02.mp4",
+        "my movie Part 1.mp4", "my movie Part 2.mp4",
     ]
     assert all(Path(p).read_bytes() == b"rendered clip" for p in result.outputs)
     assert source.read_bytes() == b"original"
-    assert "2 shorts saved" in result.note
+    assert "2 shorts made" in result.note
 
 
 def test_split_command_reencodes_video_but_copies_all_audio():
@@ -373,19 +373,21 @@ def test_no_split_plan_does_not_run_ffmpeg(tmp_path):
     assert list(tmp_path.iterdir()) == [source]
 
 
-def test_existing_clip_aborts_before_writing_any_files(tmp_path):
+def test_a_second_cut_continues_past_the_parts_on_disk(tmp_path):
+    """The audit's second Critical: this leg refused the run while the vertical
+    leg went ahead over the top of it. Both now make a new name."""
     source = tmp_path / "movie.mp4"
     source.write_bytes(b"original")
-    existing = tmp_path / "movie_short02.mp4"
-    existing.write_bytes(b"user file")
+    kept = tmp_path / "movie Part 2.mp4"
+    kept.write_bytes(b"user file")
 
     result = shorts.split_video(str(source), shorts.plan_cuts(120, target=60),
-                                runner=lambda cmd: pytest.fail("unexpected render"))
+                                runner=_render_clip)
 
-    assert result.outputs == []
-    assert existing.read_bytes() == b"user file"
-    assert "already exists" in result.note
-    assert not (tmp_path / "movie_short01.mp4").exists()
+    assert [Path(p).name for p in result.outputs] == [
+        "movie Part 3.mp4", "movie Part 4.mp4",
+    ]
+    assert kept.read_bytes() == b"user file"
 
 
 @pytest.mark.parametrize("failure", ["exit", "missing", "empty", "launch"])
@@ -413,22 +415,22 @@ def test_failed_second_clip_keeps_the_completed_first_clip(tmp_path):
     source.write_bytes(b"original")
 
     def render(command):
-        if (tmp_path / "movie_short01.mp4").exists():
+        if (tmp_path / "movie Part 1.mp4").exists():
             Path(command[-1]).write_bytes(b"partial")
             return 1
         return _render_clip(command)
 
     result = shorts.split_video(str(source), shorts.plan_cuts(120, target=60), runner=render)
 
-    assert [Path(p).name for p in result.outputs] == ["movie_short01.mp4"]
+    assert [Path(p).name for p in result.outputs] == ["movie Part 1.mp4"]
     assert "could not" in result.note.lower()
-    assert not (tmp_path / "movie_short02.mp4").exists()
+    assert not (tmp_path / "movie Part 2.mp4").exists()
 
 
 def test_file_created_during_render_is_not_overwritten(tmp_path):
     source = tmp_path / "movie.mp4"
     source.write_bytes(b"original")
-    collision = tmp_path / "movie_short01.mp4"
+    collision = tmp_path / "movie Part 1.mp4"
 
     def render(command):
         collision.write_bytes(b"another writer")

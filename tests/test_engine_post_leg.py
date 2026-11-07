@@ -39,7 +39,7 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
             note="2 clips → about 1 min each on average.",
         )
     if pieces is None:
-        pieces = ["out/How to cook_short01.mp4", "out/How to cook_short02.mp4"]
+        pieces = ["out/How to cook Part 1.mp4", "out/How to cook Part 2.mp4"]
 
     def detect_silences(video, **kwargs):
         seen.append(("silences", video))
@@ -56,7 +56,7 @@ def _install(monkeypatch, seen, *, plan=None, pieces=None):
     def split_video(source, cut_plan, **kwargs):
         seen.append(("split", source))
         return shorts.SplitResult(
-            outputs=list(pieces), note="2 shorts saved beside the original."
+            outputs=list(pieces), note="2 shorts made."
         )
 
     def frame_size(video):
@@ -178,8 +178,8 @@ def test_the_bar_counts_the_reads_of_the_film(monkeypatch):
     def split(source, cut_plan, **kwargs):
         kwargs["progress"](1.0)
         return shorts.SplitResult(
-            outputs=["out/How to cook_short01.mp4", "out/How to cook_short02.mp4"],
-            note="2 shorts saved beside the original.",
+            outputs=["out/How to cook Part 1.mp4", "out/How to cook Part 2.mp4"],
+            note="2 shorts made.",
         )
 
     monkeypatch.setattr(engine.shorts, "detect_silences", scan)
@@ -270,7 +270,7 @@ def test_the_vertical_box_makes_the_vertical_file_beside_the_download(monkeypatc
     thread._post_leg(1, SOURCE, {"duration": 120.0})
 
     assert ("analyse", SOURCE) in seen
-    assert ("render", SOURCE, "out/How to cook_9x16.mp4") in seen
+    assert ("render", SOURCE, os.path.join("out", "How to cook_9x16.mp4")) in seen
 
 
 def test_the_picture_and_the_path_from_the_analysis_reach_the_render(monkeypatch):
@@ -307,7 +307,7 @@ def test_the_split_runs_before_the_reframe(monkeypatch):
     names = [entry[0] for entry in seen]
     assert names.index("split") < names.index("render")
     assert names.count("render") == len(pieces)
-    assert ("render", pieces[0], "out/How to cook_short01_9x16.mp4") in seen
+    assert ("render", pieces[0], os.path.join("out", "How to cook Part 1_9x16.mp4")) in seen
 
 
 def test_each_short_gets_its_own_vertical_version(monkeypatch):
@@ -376,7 +376,7 @@ def test_the_plan_is_read_out_before_anything_is_cut(monkeypatch):
 
     assert "2 clips → about 1 min each on average." in lines
     assert lines.index("2 clips → about 1 min each on average.") < lines.index(
-        "2 shorts saved beside the original."
+        "2 shorts made."
     )
 
 
@@ -407,7 +407,7 @@ def test_a_plan_that_cuts_nothing_leaves_the_video_whole(monkeypatch):
     thread._post_leg(1, SOURCE, {"duration": 60.0})
 
     assert "split" not in [entry[0] for entry in seen]
-    assert ("render", SOURCE, "out/How to cook_9x16.mp4") in seen
+    assert ("render", SOURCE, os.path.join("out", "How to cook_9x16.mp4")) in seen
     assert "One clip covers the video; not split." in lines
 
 
@@ -453,7 +453,7 @@ def test_a_broken_split_still_gets_a_vertical_version_of_the_whole_video(monkeyp
 
     thread._post_leg(1, SOURCE, {"duration": 120.0})
 
-    assert ("render", SOURCE, "out/How to cook_9x16.mp4") in seen
+    assert ("render", SOURCE, os.path.join("out", "How to cook_9x16.mp4")) in seen
     assert any("ffmpeg is missing" in line for line in lines)
 
 
@@ -603,13 +603,13 @@ def test_a_real_download_is_cut_into_shorts_and_each_one_turns_vertical(
 
     pieces = sorted(
         path.name
-        for path in tmp_path.glob("*_short*.mp4")
+        for path in tmp_path.glob("* Part *.mp4")
         if not path.name.endswith("_9x16.mp4")
     )
     assert pieces == [
-        "How to cook_short01.mp4",
-        "How to cook_short02.mp4",
-        "How to cook_short03.mp4",
+        "How to cook Part 1.mp4",
+        "How to cook Part 2.mp4",
+        "How to cook Part 3.mp4",
     ]
     # The download itself is never touched, and with the split on the vertical
     # versions are made from the shorts, not from the long file.

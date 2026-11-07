@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path
 
-from . import ffmpeg_process
+from . import ffmpeg_process, output_names
 
 logger = logging.getLogger(__name__)
 
@@ -347,12 +347,13 @@ def split_video(
     if not plan.segments:
         return SplitResult(note=plan.note)
     original = Path(source).resolve()
+    # The parts are numbered from one past the highest already in the folder, so
+    # a second cut of a film lands beside the first rather than refusing it.
+    first = output_names.next_part_start(str(original.parent), original.stem)
     destinations = [
-        original.with_name(f"{original.stem}_short{segment.index + 1:02d}.mp4")
+        original.with_name(f"{original.stem} Part {first + segment.index}.mp4")
         for segment in plan.segments
     ]
-    if any(os.path.lexists(path) for path in destinations):
-        return SplitResult(note="A short output already exists; nothing was overwritten.")
     outputs: list[str] = []
     run = runner or _run_split
     total = sum(segment.duration for segment in plan.segments)
@@ -377,7 +378,7 @@ def split_video(
     except OSError:
         logger.warning("Could not finish writing shorts; original kept.")
         return SplitResult(outputs, "The split could not finish; original kept.")
-    return SplitResult(outputs, f"{len(outputs)} shorts saved beside the original.")
+    return SplitResult(outputs, f"{len(outputs)} shorts made.")
 
 
 def _publish_clip(staged: Path, destination: Path) -> None:
