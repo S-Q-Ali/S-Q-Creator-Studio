@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1794046728.8250222,
-    "seen": 1794047006.1817048,
-    "ast_hash": "63dfabda37c8b1a35dcc25827bc2041a",
+    "mtime": 1794048517.612457,
+    "seen": 1794049182.8995097,
+    "ast_hash": "d1daaba751f73b3cd6d995687ec30226",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -2418,21 +2418,21 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/vertical_studio_page.py": {
-    "mtime": 1794001494.5119908,
-    "seen": 1794001981.5538075,
-    "ast_hash": "833b0d199d351691a6abba4034d7577c",
+    "mtime": 1794048442.279317,
+    "seen": 1794049182.8995264,
+    "ast_hash": "9223c1695500d850475cb966433045c4",
     "semantic_hash": ""
   },
   "tests/test_engine_local_video.py": {
-    "mtime": 1794046843.2690701,
-    "seen": 1794047006.181836,
-    "ast_hash": "a1a5baa24c04b46d28a200680de38daf",
+    "mtime": 1794048662.6165876,
+    "seen": 1794049182.8995607,
+    "ast_hash": "4cef6e7a405214716c69f200626400d3",
     "semantic_hash": ""
   },
   "tests/test_vertical_studio_page.py": {
-    "mtime": 1794001441.2735913,
-    "seen": 1794001981.5541031,
-    "ast_hash": "366f10ef5ec8408d8aaeed9198d5d59b",
+    "mtime": 1794048591.4952145,
+    "seen": 1794049182.8996408,
+    "ast_hash": "924c8f10720fe189bf87966a7f29174f",
     "semantic_hash": ""
   },
   "tasks/plan-vertical-studio.md": {
@@ -2502,9 +2502,15 @@
     "semantic_hash": ""
   },
   "tasks/plan-output-names-never-overwrite.md": {
-    "mtime": 1794046059.8131335,
-    "seen": 1794047006.1825833,
-    "ast_hash": "68663affbe9e7e3d17ecdea00318584b",
+    "mtime": 1794047372.0336428,
+    "seen": 1794049182.9001,
+    "ast_hash": "e83f9b772876e8da03012eabeef99ce7",
+    "semantic_hash": ""
+  },
+  "tasks/plan-studio-audit-fixes.md": {
+    "mtime": 1794047953.2287333,
+    "seen": 1794049182.9001105,
+    "ast_hash": "6f905587831439bace603a49a0752851",
     "semantic_hash": ""
   }
 }
