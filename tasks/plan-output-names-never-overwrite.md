@@ -110,6 +110,25 @@ audit finding 4, a different decision.
    parts writes new ones instead of refusing.
 5. Owner's live check on a rebuilt portable (below, needs its own go).
 
+## Result (2026-11-07)
+
+Ruff clean, offline suite `1133 passed, 28 deselected` (20 tests new). The two
+audit proofs re-run through `engine.run_post_leg` with the real ffmpeg:
+
+1. `Film_9x16.mp4` planted at 61 bytes → after the leg it is still 61 bytes and
+   the render is at `Film_9x16 Part 2.mp4` (180x320, 6.0 s). Log:
+   `Made Film_9x16 Part 2.mp4.`
+2. `Film Part 1.mp4` planted at 61 bytes, `N clips = 2` with the vertical on →
+   the cut landed at `Part 2`/`Part 3`, each with its own `_9x16`, the decoy
+   untouched and **no** vertical of the whole film. Log:
+   `2 clips → about 10 s each on average.` · `2 shorts made.` ·
+   `Made Film Part 2_9x16.mp4.` · `Made Film Part 3_9x16.mp4.`
+3. The same file run again into the same folder continued at `Part 4`/`Part 5`,
+   every earlier file still on disk.
+
+The cost of the rule, visible in (3): a second run of one film doubles its parts
+in the folder rather than replacing them. That is what option B buys.
+
 ## Not in this change (each needs its own go)
 
 - Audit findings 3-6: the default-off vertical checkbox, "Run" with no job chosen,
