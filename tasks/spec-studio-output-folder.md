@@ -30,8 +30,13 @@ clear the folder, run again, and the results are back beside each file.
 1. **Studio only.** The download tail keeps writing beside the download; its
    folder is already the one the user chose on the Settings page.
 2. **Collision → a new name, never an overwrite.** Decided as
-   `name (2).mp4`; the implementation gets this for free by putting the
-   source through `engine.unique_basename` before anything else is named.
+   `name (2).mp4` for the copy of the source, through `engine.unique_basename`.
+   The outputs needed a rule of their own, and the first cut of this feature
+   did not give them one — see findings 1 and 2 of
+   [audit-vertical-studio.md](audit-vertical-studio.md). Both legs now name
+   through [core/output_names.py](../src/s_q_ali_media_downloader/core/output_names.py):
+   the vertical takes the next free `<stem>_9x16 Part N.mp4`, and the shorts
+   number their pieces `<stem> Part N.mp4` from one past the highest on disk.
 3. **Everything the folder, nothing beside the source.** When the folder is
    set, the run copies the source into it and works on the copy, so the
    folder holds the file, its `_9x16.mp4` and its shorts together. The
@@ -119,15 +124,16 @@ until there is something to point at.
       one overwritten result.
 - [ ] An unwritable or uncreatable folder is named in the status line and the
       run does not start.
-- [ ] No result is ever written over an existing file, and no source is
-      modified.
+- [x] No result is ever written over an existing file, and no source is
+      modified. Proven by `test_a_file_already_in_the_folder_is_never_written_over`
+      and `test_a_second_cut_continues_past_the_parts_on_disk`.
 
 ## Open Questions
 
-1. Collision in the chosen folder: new suffix (`name (2)_9x16.mp4`) or refuse
-   and say so? (Recommendation: suffix — the folder accumulates from many
-   sources, and refusing makes re-running one file impossible without manual
-   cleanup.)
+1. Collision in the chosen folder: new suffix or refuse and say so? Decided: a
+   new name — the folder accumulates from many sources, and refusing makes
+   re-running one file impossible without manual cleanup. The legs disagreeing
+   about it (one refusing, one overwriting) is what the audit caught.
 2. Does the Settings page also get the field, or does it live only in the
    Studio? (Recommendation: Studio only — it is a Studio option, and the
    Settings page owns download options the Studio reads but never writes.)

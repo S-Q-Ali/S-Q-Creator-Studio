@@ -177,3 +177,9 @@ contradicts a decision written into the spec; finding 2 answers a request for
 shorts with a full-length vertical and says nothing about it. Both are reachable
 through the folder the owner chose on purpose. The verdict does not touch the
 rest of the app, and no fix was attempted as part of this audit.
+
+**After the audit.** Findings 1 and 2 are fixed: the owner chose the new-name
+rule with the `Part N` spelling, and
+[plan-output-names-never-overwrite.md](plan-output-names-never-overwrite.md)
+holds the naming now in `core/output_names.py` (commits `183001f`, `e3f067b`).
+Findings 3 to 6 still stand.
