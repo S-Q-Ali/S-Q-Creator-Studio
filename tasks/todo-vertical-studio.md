@@ -117,16 +117,20 @@ and the measured cost — and the CHANGELOG gains the release entry.
 
 **Acceptance criteria:**
 
-- [ ] The README's new text states the 4 s per second of film cost and that
+- [x] The README's new text states the 4 s per second of film cost and that
       the source file is not touched.
-- [ ] No stale claim anywhere: the download flow wording still matches the
-      code.
+- [x] No stale claim anywhere: the download flow wording still matches the
+      code. Checked against the code on 2026-11-07 — the two pass bullets, the
+      settings rows and the roadmap all say what the app does now.
 - [ ] Version bump and CHANGELOG heading dated on the day of the tag, not
-      before.
+      before. The bump went to **2.17.0** and the 2.15.0/2.16.0/2.17.0 headings
+      are dated 2026-11-06/07/07; **re-date the 2.17.0 heading if the tag lands
+      on a later day**, and note that 2.14.0, 2.15.0 and 2.16.0 were never
+      published, so the public is still on 2.13.0.
 
 **Verification:**
 
-- [ ] Offline suite green, `ruff` clean, `graphify update .` committed
+- [x] Offline suite green, `ruff` clean, `graphify update .` committed
       separately.
 - [ ] Live check (the owner): drop a real landscape video, watch the
       `_9x16.mp4`, judge the camera.

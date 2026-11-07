@@ -3,6 +3,125 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.17.0] — 2026-11-07
+
+### Changed
+
+- **Nothing the Studio makes writes over a file that was already there.** Each
+  pass used to derive one fixed name from the film — `<name>_9x16.mp4`,
+  `<name>_short01.mp4` — and ffmpeg was told to replace whatever stood at that
+  path: a 53-byte `Film_9x16.mp4` in the results folder came back as a 306 KB
+  render, unasked and unsaid. The names now come from one place, so shorts
+  land as `<name> Part 1.mp4`, `Part 2` and on, a second run of the same film
+  continues at `Part 4` with every earlier part untouched, and a vertical
+  whose name is taken lands as `<name>_9x16 Part 2.mp4`. The shorts leg's old
+  answer to a taken name — refuse the cut and say "nothing was overwritten" —
+  went with it, and it was hiding the worse half of the same bug: after
+  refusing, the vertical pass went on to render the **whole film**, so a
+  request for two shorts was answered with one vertical feature.
+  **The cost of the rule:** running one film twice leaves two sets of parts in
+  the folder instead of replacing the first. That is what never-overwriting
+  buys, and the staged copy follows the same law (`Film (2).mp4`).
+- **The log says what the run wrote.** "N shorts saved beside the original"
+  and "The vertical version is beside the original" were true of the copy in
+  the results folder and misleading about everything else. The lines now name
+  the files: `2 shorts made.` · `Made Film Part 2_9x16.mp4.`
+
+### Fixed
+
+- **A vertical render that fails takes its own file back out.** The truncated
+  mp4 it left on disk was counted as a result by the next run, which then
+  stepped aside for it.
+- **Run with nothing chosen no longer promises versions.** With the vertical
+  box off and Shorts on Off — the state a fresh settings store starts in — the
+  Studio started a worker, logged a run, and closed with "Done. The versions
+  are in X." over a folder nothing had been written into. It now says which
+  box to tick and starts nothing.
+- **One file the copy could not make no longer ends the queue.** The copy into
+  the results folder answered only for `OSError`; anything else it raised — a
+  permissions surprise, a name lookup that failed — stopped the run and the
+  remaining files were never mentioned. It is guarded the way the two passes
+  are: the file is named, the reason given, the next one runs.
+- **Stop interrupts a copy.** A whole-film copy had no cancel in it, so after
+  the button — which says "Stopping after the file in hand" — a 6 GB film on a
+  slow disk kept coming for minutes. The copy now goes in 4 MB bites and asks
+  the stop flag between them, and what it managed is removed: half a film is
+  not a result.
+- **"Working:" names the file the writes go into**, not the one that was
+  dropped while every output landed in its staged copy.
+- **A folder that holds its own probe is not refused.** The Studio tests a
+  chosen folder by writing a file into it; an indexer or antivirus holding
+  that probe for a moment was enough to answer "Nothing could be written to X"
+  about a folder it can write. Only creating the probe decides the answer.
+- **The results field is reachable by its name.** Its label had no buddy, and
+  the error line was painted by a stylesheet of its own; the colour now comes
+  from the theme's `role="error"` like everywhere else in the app.
+
+## [2.16.0] — 2026-11-07
+
+### Added
+
+- **The Studio can put everything in one folder.** "Save results to" under the
+  options: name a folder and each file is copied into it first, then the 9:16
+  version and the shorts are made beside that copy — so the folder ends up
+  holding the film, its parts and their verticals, while the file you pointed
+  at stays exactly where it was. The choice is remembered between runs,
+  **Beside each file** puts it back, and the closing line names the folder the
+  run used.
+
+### Fixed
+
+- **A long job no longer fills the desktop with blank terminals.** The
+  packaged build is windowed, so Windows gave every ffmpeg child a console of
+  its own; one helper spawns ffmpeg and hides that window, and all four passes
+  go through it.
+- **The progress bar moves inside one file.** It counted files, so a single
+  30-minute film sat at zero through minutes of ffmpeg. Each pass now asks
+  ffmpeg for its own counters, and the bar is priced up front in reads of the
+  film so the work a split only finds later fills the bar instead of pushing
+  it back. The status line names the file in hand, its place in the list and
+  the pass running on it.
+- **Browse opens a picker you can see.** On the packaged build the native
+  Windows dialog is a separate top-level window that can come up behind the
+  app, which made the button look dead. The page's own picker is a child of
+  this window, lands in front of it, and opens at the folder of the last file
+  in the list — or the downloads folder when the list is empty.
+- **The clip count the app works out for itself has a floor and a ceiling.**
+  **Auto** on a long video cut at every scene change and returned 29 clips
+  between 2 seconds and 9 minutes: fragments at one end, nothing a Short can
+  be at the other. A number you typed is still honoured exactly.
+
+## [2.15.0] — 2026-11-06
+
+### Added
+
+- **The Vertical Studio.** A fifth section, between Music and the AI channel,
+  for the two passes over videos the app never downloaded: drop the files or
+  press Browse, tick the vertical box, pick a shorts length, or both, and press
+  Run. Until now the only way to reframe a file you already had was to
+  re-download it. One file at a time on purpose — a reframe costs about four
+  seconds of work per second of film, so two at once only make both slower —
+  and a run counts as work under way, so closing asks instead of abandoning a
+  file mid-write. A file that cannot be read says so in one sentence and lets
+  the rest of the list run; Stop ends the run after the file in hand.
+- **The length of a file with no site behind it.** The split plans its cuts
+  from a duration, and until now the only duration the app knew was the one a
+  website reported with its download. A dropped file has none, so the
+  container is asked instead — the frame count over the frame rate, off the
+  same decoder the subject tracker already opens.
+
+### Fixed
+
+- **The release workflow names a runner that exists.** GitHub retired the
+  `macos-14` image on 2 November 2026 and the Apple Silicon job was cancelled
+  the second it was queued — no runner, no log, nothing published — which
+  reads as a deliberately cancelled release rather than as a dead label, and
+  re-running it reads the workflow from the tag, which still names that label.
+- **The drop zone is aimable.** A thin strip of dashed frame is hard to hit,
+  while three or four named files need far less than the whole panel: the zone
+  takes the stretch and the list is capped, the way the other pages cap their
+  panels.
+
 ## [2.14.0] — 2026-11-06
 
 ### Added
