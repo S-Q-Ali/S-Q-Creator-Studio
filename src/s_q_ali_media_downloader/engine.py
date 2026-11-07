@@ -21,7 +21,6 @@ import logging
 import os
 import random
 import re
-import shutil
 import threading
 import time
 import unicodedata
@@ -1026,7 +1025,34 @@ class _Meter:
             self._report(100.0)
 
 
-def stage_for_folder(path, folder, report):
+#: The size of a copy's read: what Stop is checked against. A whole-film
+#: copy has no cancel of its own, and minutes of it would go on running
+#: after the user pressed the button.
+COPY_CHUNK = 4 * 1024 * 1024
+
+
+def _take_back(target):
+    """A file this run started and did not finish is not a result."""
+    try:
+        os.remove(target)
+    except OSError:
+        pass
+
+
+def _copy_file(source, target, stopped):
+    """The source's bytes, into the target, in chunks. False means Stop was
+    pressed partway and what is on disk is part of a film."""
+    with open(source, "rb") as src, open(target, "wb") as dst:
+        while True:
+            if stopped():
+                return False
+            data = src.read(COPY_CHUNK)
+            if not data:
+                return True
+            dst.write(data)
+
+
+def stage_for_folder(path, folder, report, stopped=None):
     """The file the legs work on: a copy of the source, inside the folder.
 
     The legs write every output beside the file they were given, so putting
@@ -1034,26 +1060,35 @@ def stage_for_folder(path, folder, report):
     dropped stays exactly where it was. None means this file is skipped and
     ``report`` has already said why; a copy that died halfway is not a
     result and is taken back out.
+
+    Everything the copy does is guarded, and guarded against more than the
+    ``OSError`` it says it will raise: this step can take minutes over a big
+    film, and it ending the run on a surprise would leave the rest of the
+    list unnamed. ``stopped`` is asked between the chunks so a Stop is
+    answered in seconds, not after the whole film has come over.
     """
-    source = os.path.abspath(path)
-    destination = os.path.abspath(folder)
-    name = os.path.basename(source)
-    if os.path.normcase(os.path.dirname(source)) == os.path.normcase(destination):
-        return source
+    stop_ = stopped or (lambda: False)
+    name = os.path.basename(str(path))
     target = None
     try:
+        source = os.path.abspath(path)
+        destination = os.path.abspath(folder)
+        if os.path.normcase(os.path.dirname(source)) == os.path.normcase(destination):
+            return source
         os.makedirs(destination, exist_ok=True)
         base, ext = os.path.splitext(name)
         with _NAME_LOCK:
             target = os.path.join(destination, unique_basename(destination, base) + ext)
-            shutil.copyfile(source, target)
-    except OSError as exc:
+            copied = _copy_file(source, target, stop_)
+    except Exception as exc:
+        logger.warning("The copy into the results folder failed for %s", path, exc_info=True)
         if target is not None:
-            try:
-                os.remove(target)
-            except OSError:
-                pass
+            _take_back(target)
         report(f"{name} could not be copied to the results folder: {exc}")
+        return None
+    if not copied:
+        _take_back(target)
+        report(f"{name} was left uncopied: the run was stopped.")
         return None
     return target
 
@@ -1575,15 +1610,17 @@ class LocalVideoThread(QThread):
 
     One file at a time: a reframe costs about four seconds of work per second
     of film, so two at once only make both slower. Stop ends the run after the
-    file in hand - a write started is a write finished.
+    ffmpeg pass in hand - a write started is a write finished - but a copy is
+    stopped where it stands and taken back out.
 
     ``progress`` is the file in hand: how far its priced work has got, and the
     name of the pass doing it.
 
     ``out_dir`` is the results folder the Studio was shown: each file is
     copied into it and worked on there, so the folder ends up holding the
-    film, its vertical and its shorts. Empty means leave the files where the
-    user put them.
+    film, its vertical and its shorts - under names of its own when the same
+    film has been run before. Empty means leave the files where the user put
+    them.
     """
 
     file_started = Signal(int, str)
@@ -1623,13 +1660,19 @@ class LocalVideoThread(QThread):
                 self._percent = 0.0
                 self._stage = ""
                 self.file_started.emit(index, path)
-                work = path
-                if self.out_dir:
-                    self._named("copying to the folder")
-                    work = stage_for_folder(path, self.out_dir, self.log.emit)
-                    if work is None:
-                        continue
                 try:
+                    work = path
+                    if self.out_dir:
+                        self._named("copying to the folder")
+                        work = stage_for_folder(
+                            path, self.out_dir, self.log.emit, stopped=lambda: self._stop
+                        )
+                        if work is None:
+                            continue
+                        if work != path:
+                            # The writes from here on go into the copy, so the
+                            # file in hand is the copy - not what the user dropped.
+                            self.file_started.emit(index, work)
                     run_post_leg(
                         work,
                         vertical=self.vertical,

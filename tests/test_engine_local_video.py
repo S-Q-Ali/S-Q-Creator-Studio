@@ -8,6 +8,9 @@ of the list.
 from __future__ import annotations
 
 import os
+import threading
+import time
+from pathlib import Path
 
 from s_q_ali_media_downloader import engine
 from s_q_ali_media_downloader.core import reframe, shorts
@@ -273,6 +276,68 @@ def test_two_files_of_the_same_name_both_keep_their_results(
     assert _text(os.path.join(where, "clip (2).mp4")) == "a different film"
 
 
+def test_the_folder_ends_up_holding_the_film_its_parts_and_their_verticals(
+    qapp, monkeypatch, tmp_path
+):
+    """The worker's promise about a results folder is about files, so it is
+    proved with files: the copy, the parts cut from it and a vertical of
+    every part, all standing in the folder, and the dropped source left with
+    its own bytes."""
+    _fake_legs(monkeypatch)
+
+    def write_parts(source, plan, **kwargs):
+        original = Path(source)
+        outputs = [
+            original.with_name(f"{original.stem} Part {segment.index + 1}.mp4")
+            for segment in plan.segments
+        ]
+        for output in outputs:
+            output.write_bytes(b"a part")
+        return shorts.SplitResult(
+            outputs=[str(output) for output in outputs], note="2 shorts made."
+        )
+
+    def write_vertical(source, output, width, height, samples, **kwargs):
+        Path(output).write_bytes(b"9 by 16")
+        return reframe.RenderResult(
+            output=output, note=f"Made {os.path.basename(output)}."
+        )
+
+    monkeypatch.setattr(engine.shorts, "split_video", write_parts)
+    monkeypatch.setattr(engine.reframe, "render_vertical", write_vertical)
+    where = tmp_path / "results"
+    desktop = _film(tmp_path, "desktop")
+
+    _thread([desktop], out_dir=str(where), split="60 s").run()
+
+    assert set(os.listdir(where)) == {
+        "one.mp4",
+        "one Part 1.mp4",
+        "one Part 1_9x16.mp4",
+        "one Part 2.mp4",
+        "one Part 2_9x16.mp4",
+    }
+    assert (where / "one Part 1_9x16.mp4").read_bytes() == b"9 by 16"
+    assert _text(desktop) == "the whole film"
+
+
+def test_the_work_is_named_by_the_copy_in_the_folder(qapp, monkeypatch, tmp_path):
+    """The writes of a folder run land in the staged copy, not in the file the
+    user dropped, so by the time the legs start the worker names the copy: a
+    status line about the dropped file would describe writes that never touch
+    it."""
+    seen = _fake_legs(monkeypatch)
+    where = str(tmp_path / "results")
+    dropped = _film(tmp_path, "desktop")
+
+    thread = _thread([dropped], out_dir=where)
+    thread.run()
+
+    staged = os.path.join(where, "one.mp4")
+    assert thread.started == [(0, dropped), (0, staged)]
+    assert seen["render"] == [(staged, os.path.join(where, "one_9x16.mp4"))]
+
+
 def test_the_copy_says_so_before_the_work_starts(qapp, monkeypatch, tmp_path):
     """A big film takes minutes to copy and the bar is priced in ffmpeg
     seconds, so it sits at zero through it. The pass name is what tells the
@@ -316,15 +381,152 @@ def test_a_copy_that_dies_halfway_leaves_nothing_behind(
     _fake_legs(monkeypatch)
     where = tmp_path / "results"
 
-    def half_copy(source, destination, **kwargs):
-        (where / os.path.basename(destination)).write_text("hal")
+    def half_copy(source, target, stopped):
+        (where / os.path.basename(target)).write_bytes(b"hal")
         raise OSError("the disk filled up")
 
-    monkeypatch.setattr(engine.shutil, "copyfile", half_copy)
+    monkeypatch.setattr(engine, "_copy_file", half_copy)
     thread = _thread([_film(tmp_path, "desktop")], out_dir=str(where))
 
     thread.run()
 
     assert not (where / "one.mp4").exists()
     assert any("the disk filled up" in line for line in thread.lines)
+
+
+def test_a_surprise_from_the_copy_ends_the_file_not_the_run(
+    qapp, monkeypatch, tmp_path
+):
+    """The copy says it raises OSError, and the leg around it catches that.
+    Anything else it did not expect - a name the filesystem refuses, a
+    library that throws what it was not asked to - is still one file's
+    sentence, not the end of the list."""
+    _fake_legs(monkeypatch)
+
+    def no_name(folder, base):
+        raise RuntimeError("the folder had a name nobody expected")
+
+    monkeypatch.setattr(engine, "unique_basename", no_name)
+    thread = _thread(
+        [_film(tmp_path, "desktop"), _film(tmp_path, "phone", "two.mp4")],
+        out_dir=str(tmp_path / "results"),
+    )
+
+    thread.run()
+
+    assert any("one.mp4" in line for line in thread.lines)
+    assert any("two.mp4" in line for line in thread.lines)
+    assert thread.lines[-1] == "__done__"
+
+
+def test_stop_ends_a_copy_under_way(monkeypatch, tmp_path):
+    """Stop says "Stopping after the file in hand", and a write started is a
+    write finished - except a copy, which the user can be waiting minutes on.
+    The chunks check the flag, so what Stop leaves behind is nothing."""
+    monkeypatch.setattr(engine, "COPY_CHUNK", 4)
+    folder = tmp_path / "results"
+    film = tmp_path / "one.mp4"
+    film.write_bytes(b"x" * 40)
+    lines = []
+    chunks = []
+
+    def stop_after_the_first_chunk():
+        chunks.append(1)
+        return len(chunks) > 1
+
+    staged = engine.stage_for_folder(
+        str(film), str(folder), lines.append, stopped=stop_after_the_first_chunk
+    )
+
+    assert staged is None
+    assert not (folder / "one.mp4").exists()
+    assert any("stopped" in line for line in lines)
+
+
+def test_stop_pressed_during_the_copy_leaves_the_file_unworked(qapp, monkeypatch, tmp_path):
+    """The page's Stop reaches the copy the worker is inside, so no leg runs
+    over a file that never finished coming over."""
+    seen = _fake_legs(monkeypatch)
+    where = tmp_path / "results"
+    thread = _thread([_film(tmp_path, "desktop")], out_dir=str(where))
+    thread.progress.connect(
+        lambda percent, stage: thread.stop() if stage == "copying to the folder" else None
+    )
+
+    thread.run()
+
+    assert seen == {"render": [], "split": []}
+    assert not (where / "one.mp4").exists()
+    assert thread.lines[-1] == "__done__"
+
+
+def test_two_runs_of_the_same_name_do_not_share_a_copy(tmp_path, monkeypatch):
+    """The folder is one flat place and two files can be named the same:
+    the name and its copy are reserved in one lock, so a second worker is
+    told the next name rather than writing over the film already there."""
+    sources = []
+    for name, text in (("desktop", b"from the desktop"), ("phone", b"from the phone")):
+        directory = tmp_path / name
+        directory.mkdir()
+        path = directory / "clip.mp4"
+        path.write_bytes(text)
+        sources.append((str(path), text))
+
+    def slow_copy(source, target, stopped):
+        time.sleep(0.02)
+        with open(source, "rb") as src, open(target, "wb") as dst:
+            dst.write(src.read())
+        return True
+
+    monkeypatch.setattr(engine, "_copy_file", slow_copy)
+    folder = str(tmp_path / "results")
+    ready = threading.Barrier(2)
+    staged = {}
+
+    def stage(key):
+        ready.wait()
+        staged[key] = engine.stage_for_folder(
+            sources[key][0], folder, lambda line: None
+        )
+
+    workers = [threading.Thread(target=stage, args=(key,)) for key in (0, 1)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=30)
+
+    assert {os.path.basename(staged[0]), os.path.basename(staged[1])} == {
+        "clip.mp4",
+        "clip (2).mp4",
+    }
+    for key, (_path, text) in enumerate(sources):
+        with open(staged[key], "rb") as handle:
+            assert handle.read() == text
+
+
+# --------------------------------------------------------- what the options allow
+
+
+def test_the_worker_keeps_only_the_options_it_can_act_on(qapp):
+    """The page's widgets cannot hand over a nonsense option, but the worker
+    is built from the code as easily as from the page: a folder of spaces is
+    no folder, a length that is not one of the app's is Off, and a count
+    under one is one."""
+    thread = LocalVideoThread(
+        [ONE], vertical=True, split="30 seconds", clips=0, out_dir="   "
+    )
+
+    assert thread.split == engine.DEFAULT_SPLIT
+    assert thread.clips == 1
+    assert thread.out_dir is None
+
+
+def test_the_options_the_worker_can_act_on_survive_the_trip(qapp, tmp_path):
+    thread = LocalVideoThread(
+        [ONE], vertical=True, split="30 s", clips=4, out_dir=f"  {tmp_path}  "
+    )
+
+    assert thread.split == "30 s"
+    assert thread.clips == 4
+    assert thread.out_dir == str(tmp_path)
 
