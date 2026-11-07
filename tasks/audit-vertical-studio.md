@@ -182,4 +182,37 @@ rest of the app, and no fix was attempted as part of this audit.
 rule with the `Part N` spelling, and
 [plan-output-names-never-overwrite.md](plan-output-names-never-overwrite.md)
 holds the naming now in `core/output_names.py` (commits `183001f`, `e3f067b`).
-Findings 3 to 6 still stand.
+Findings 8 and 12 went over with that same change: the legs now say
+`2 shorts made.` and `Made Film Part 2_9x16.mp4.` about the file they really
+wrote, and a vertical render that fails takes back the file it started
+([core/reframe.py:393](../src/s_q_ali_media_downloader/core/reframe.py#L393),
+[:412](../src/s_q_ali_media_downloader/core/reframe.py#L412)).
+
+Findings 3-7, 9, 11 and 13 are fixed per
+[plan-studio-audit-fixes.md](plan-studio-audit-fixes.md):
+
+- **3** `run()` refuses when neither the vertical box nor a shorts length is
+  chosen and names what to choose, so the closing line only ever describes a
+  run that asked for at least one version.
+- **4** the copy is guarded like the legs: `stage_for_folder` catches anything
+  the staging raises, says which file it failed on, and the run goes on to the
+  next file.
+- **5** the docstring's promise and the spec's decision 2 are proved by the
+  artefacts a folder run leaves on disk, not by the names in a log line.
+- **6** the gaps are closed: `split` × `out_dir` offline, real files in the
+  folder, a collision on an **output** name, the other cases `can_write_to`
+  cites, the branches listed above, the three weak assertions, the option
+  clamps, and `_NAME_LOCK` under two threads.
+- **7** only creating the probe answers the question; a probe the app cannot
+  take back is still a yes.
+- **9** the status is re-emitted with the staged name before any write goes
+  into it.
+- **11** the copy goes in 4 MB chunks and checks the stop flag between them;
+  what it managed is taken back out.
+- **13** the results field has a buddy, and `_say` flips the theme's own
+  `role` property instead of an inline stylesheet.
+
+Finding **10 stands** as the price of the Part N rule, and
+[plan-output-names-never-overwrite.md](plan-output-names-never-overwrite.md)
+says so where it measured it. `music_page.py` and `settings_page.py` still set
+their own inline styles; they were outside this audit's Studio scope.

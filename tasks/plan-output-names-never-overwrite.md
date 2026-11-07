@@ -81,6 +81,9 @@ landed at `Film_9x16 Part 2.mp4`. Plus: a runner that returns non-zero leaves no
 somewhere else and the names are new. Reworded to what happened, in the same place.
 No control flow changes here — `stage_for_folder` staying outside the per-file guard is
 audit finding 4, a different decision.
+That decision was taken later, in
+[plan-studio-audit-fixes.md](plan-studio-audit-fixes.md): the staging call now sits
+inside the per-file guard.
 
 ### 5. The tests the names are already in
 
@@ -134,7 +137,11 @@ in the folder rather than replacing them. That is what option B buys.
 - Audit findings 3-6: the default-off vertical checkbox, "Run" with no job chosen,
   `stage_for_folder` outside the per-file guard, and the untested branches
   (`clear`, drag, re-entry, `stop()`, `can_write_to` beyond "path is a file").
+  Taken in [plan-studio-audit-fixes.md](plan-studio-audit-fixes.md); the checkbox
+  stays off by default, and "Run" with nothing chosen now refuses instead of lying.
 - Consider 7-11 and 13: false negative on `os.remove`, Stop not interrupting a copy,
   the second copy of the film on every re-run, `setBuddy`, the inline error stylesheet.
+  Fixed there too, except the second copy of the film — that is the cost of this
+  rule, restated in the audit as finding 10.
 - Version bump (`2.17.0` — user-visible behaviour, nothing broken for a consumer of the
   API), rebuild, tag, push, and the still-open README/CHANGELOG wording for 2.15/2.16.

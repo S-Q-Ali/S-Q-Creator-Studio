@@ -75,3 +75,9 @@ test with the venv python.
       still unauthorised).
 - [ ] Owner's live check on the new build: set a folder, run one file, everything in it;
       clear it, run again, everything beside the source.
+- [ ] Owner's live check of what the audit fixes changed
+      (`tasks/plan-studio-audit-fixes.md`): Run with the vertical unticked and
+      Shorts on Off answers "Tick the vertical box or pick a shorts length,
+      then Run." and starts nothing; Stop pressed during `copying to the
+      folder` ends in seconds and leaves no part-copy behind; the error lines
+      are the theme's own red; `Tab` reaches the results field from its label.

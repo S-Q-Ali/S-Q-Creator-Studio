@@ -68,3 +68,21 @@ comes from the theme like everywhere else.
 One ruff run and one full offline suite per slice; `graphify update .` and the
 audit note at the end. Commits stay atomic: A/B/C/D/E/F, then the tests that
 stand on their own, then docs + graph.
+
+## Verified
+
+- `ruff check src tests release` clean; the offline suite at **1156 passed,
+  28 deselected** (from 1133 before: 23 tests added).
+- E is not only unit-tested — `test_stop_ends_a_copy_under_way` drops
+  `COPY_CHUNK` to 4 bytes and proves the file is gone afterwards.
+- `_NAME_LOCK` proved by taking it out: with `engine._NAME_LOCK` replaced by a
+  `nullcontext()` and the copy slowed, both workers chose `clip.mp4`, the
+  folder held one file, and the second film's bytes were the first's. With the
+  lock: `clip.mp4` and `clip (2).mp4`, each with its own bytes.
+- F checked against the theme itself, not a screenshot: the error line comes
+  from `QLabel[role="error"]` and the widget's own `styleSheet()` stays empty.
+- Not checked here: the live Studio run over real ffmpeg with a folder set —
+  that stays with the owner in
+  [todo-studio-output-folder.md](todo-studio-output-folder.md). Nothing was
+  pushed, tagged or rebuilt, and the version is still **2.16.0**, so the
+  portable build open on the desktop still has the old behaviour.
