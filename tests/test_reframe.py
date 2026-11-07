@@ -279,9 +279,18 @@ def test_the_command_file_writes_a_line_only_when_the_window_moves(tmp_path):
     ]
 
 
-def test_the_vertical_file_sits_next_to_the_original():
-    assert (
-        reframe.vertical_output_path("How to cook.mp4") == "How to cook_9x16.mp4"
+def test_the_vertical_file_sits_next_to_the_original(tmp_path):
+    source = tmp_path / "How to cook.mp4"
+
+    assert reframe.vertical_output_path(str(source)) == str(tmp_path / "How to cook_9x16.mp4")
+
+
+def test_a_vertical_name_that_is_taken_is_not_asked_for_twice(tmp_path):
+    source = tmp_path / "How to cook.mp4"
+    (tmp_path / "How to cook_9x16.mp4").write_bytes(b"kept by the user")
+
+    assert reframe.vertical_output_path(str(source)) == str(
+        tmp_path / "How to cook_9x16 Part 2.mp4"
     )
 
 
@@ -361,6 +370,120 @@ def test_a_landscape_source_is_rendered(tmp_path):
     assert result.output == str(output)
     assert any("sendcmd=f=crop.cmd" in part for part in ran["command"])
     assert ran["commands"].splitlines() == ["0.000 crop@c x 100;"]
+
+
+def test_a_render_says_which_file_it_made(tmp_path):
+    source = tmp_path / "in.mp4"
+    source.write_bytes(b"not really a video")
+
+    def fake_run(command, cwd):
+        Path(command[-1]).write_bytes(b"made")
+        return 0
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=str(tmp_path / "in_9x16.mp4"),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=fake_run,
+    )
+
+    assert result.note == "Made in_9x16.mp4."
+
+
+def test_a_file_already_in_the_folder_is_never_written_over(tmp_path):
+    """The audit's first Critical: the leg derived a name and took it, whatever
+    the user had put there."""
+    source = tmp_path / "Film.mp4"
+    source.write_bytes(b"the film")
+    kept = tmp_path / "Film_9x16.mp4"
+    kept.write_bytes(b"THE USER KEPT THIS")
+
+    def fake_run(command, cwd):
+        Path(command[-1]).write_bytes(b"made")
+        return 0
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=reframe.vertical_output_path(str(source)),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=fake_run,
+    )
+
+    assert kept.read_bytes() == b"THE USER KEPT THIS"
+    assert result.output == str(tmp_path / "Film_9x16 Part 2.mp4")
+
+
+def test_a_name_handed_over_already_taken_stops_before_ffmpeg(tmp_path):
+    """The name is held by writing it, so a file that is there when the leg
+    arrives is somebody else's and nothing runs over it."""
+    source = tmp_path / "in.mp4"
+    source.write_bytes(b"the film")
+    output = tmp_path / "in_9x16.mp4"
+    output.write_bytes(b"THE USER KEPT THIS")
+
+    def fake_run(command, cwd):
+        raise AssertionError("ffmpeg must not run over a file it does not own")
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=str(output),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=fake_run,
+    )
+
+    assert result.output is None
+    assert output.read_bytes() == b"THE USER KEPT THIS"
+
+
+def test_a_failed_render_leaves_no_half_a_video_behind(tmp_path):
+    source = tmp_path / "in.mp4"
+    source.write_bytes(b"the film")
+    output = tmp_path / "in_9x16.mp4"
+
+    def fake_run(command, cwd):
+        Path(command[-1]).write_bytes(b"half of a video")
+        return 1
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=str(output),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=fake_run,
+    )
+
+    assert result.output is None
+    assert not output.exists()
+
+
+def test_a_render_that_wrote_nothing_reports_no_video(tmp_path):
+    source = tmp_path / "in.mp4"
+    source.write_bytes(b"the film")
+    output = tmp_path / "in_9x16.mp4"
+
+    result = reframe.render_vertical(
+        source=str(source),
+        output=str(output),
+        source_width=1920,
+        source_height=1080,
+        samples=[reframe.Sample(0.0, 100)],
+        ffmpeg="ffmpeg",
+        runner=lambda command, cwd: 0,
+    )
+
+    assert result.output is None
+    assert not output.exists()
 
 
 def test_the_render_resolves_the_paths_before_it_moves_to_its_own_folder(

@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import ffmpeg_process
+from . import ffmpeg_process, output_names
 
 logger = logging.getLogger(__name__)
 
@@ -219,8 +219,13 @@ def output_size(source_height: int) -> tuple[int, int]:
 
 
 def vertical_output_path(source: str) -> str:
-    """Where the vertical version of a download goes."""
-    return f"{os.path.splitext(source)[0]}_9x16.mp4"
+    """Where the vertical version of a download goes.
+
+    A name the folder already holds - from an earlier run or a file the user
+    put there - is not asked for twice; the next part of it is.
+    """
+    folder, name = os.path.split(source)
+    return output_names.next_part_path(folder, os.path.splitext(name)[0] + "_9x16")
 
 
 def filter_chain(
@@ -368,7 +373,8 @@ def render_vertical(
     """Render the vertical version of a video beside it.
 
     A file that is already vertical, or that has no video at all, is left
-    alone and says why.
+    alone and says why. So is ``output`` if something is standing at it: this
+    writes a new file or nothing.
     """
     if not source_width or not source_height:
         return RenderResult(None, "The video has no picture, only audio.")
@@ -380,16 +386,34 @@ def render_vertical(
     except ValueError as exc:
         return RenderResult(None, str(exc))
 
-    command = build_command(ffmpeg, os.path.abspath(source), os.path.abspath(output), chain)
+    output = os.path.abspath(output)
+    try:
+        # Holding the name by writing it is what makes the -y below safe: the
+        # file ffmpeg replaces is this placeholder, never one that was there.
+        with open(output, "xb"):
+            pass
+    except OSError:
+        return RenderResult(
+            None,
+            f"{os.path.basename(output)} is already there; nothing was overwritten.",
+        )
+
+    command = build_command(ffmpeg, os.path.abspath(source), output, chain)
     length = duration or (duration_seconds(source) if progress else 0.0)
     run = runner or _ffmpeg_runner(length, progress)
     with tempfile.TemporaryDirectory() as work:
         write_command_file(os.path.join(work, "crop.cmd"), samples)
         code = run(command, work)
 
-    if code != 0 or not os.path.isfile(output):
+    if code != 0 or not os.path.isfile(output) or os.path.getsize(output) == 0:
+        # A half-written mp4 is not a result, and the next run would count it as
+        # one and step aside for it, so the file this render made is taken back.
+        try:
+            os.remove(output)
+        except OSError:
+            pass
         return RenderResult(None, "The vertical version could not be made.")
-    return RenderResult(output, "The vertical version is beside the original.")
+    return RenderResult(output, f"Made {os.path.basename(output)}.")
 
 
 def _ffmpeg_runner(duration: float, progress: Callable[[float], None] | None):
