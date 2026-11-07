@@ -39,8 +39,8 @@ Two premises in the original question were wrong:
 - The detectors are **DNN ONNX models** (YuNet + NanoDet, `reframe.py:732-735`),
   not Haar cascades — so "GPU the classifier" was never an OpenCV-Cascade issue.
 - The pin is `opencv-python-headless==4.14.0.94` (`requirements.txt:36`), and
-  that wheel has **no CUDA module at all** — upstream refuses to ship one: *"Pre-built wheels with CUDA
-  support will not be added [to] PyPI"*
+  that wheel has **no CUDA module at all** — upstream refuses to ship one:
+  *"Pre-built wheels with CUDA support will not be added [to] PyPI"*
   ([opencv-python#398](https://github.com/opencv/opencv-python/issues/398)).
   Using OpenCV's CUDA backend would mean building OpenCV from source
   (`WITH_CUDA=ON`) and shipping that binary ourselves.
