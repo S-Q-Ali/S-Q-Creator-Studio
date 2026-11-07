@@ -30,6 +30,30 @@ def _force_platform(monkeypatch, name):
     monkeypatch.setattr(ffmpeg_process.sys, "platform", name)
 
 
+class _FakeStartupInfo:
+    """The Windows STARTUPINFO shape, for a machine that has no such class."""
+
+    def __init__(self):
+        self.dwFlags = 0
+        self.wShowWindow = None
+
+
+def _win_names(monkeypatch):
+    """Put the Windows-only `subprocess` names in place before faking win32.
+
+    `sys.platform` can be forced on any OS; `subprocess.STARTUPINFO` cannot.
+    A Linux or macOS CI cell has no such attribute, so the Windows branch died
+    with an AttributeError before it could be tested. These are the documented
+    Win32 values, so on Windows the stand-in is the same number as the real
+    constant and the assertions below keep their meaning on every platform.
+    """
+    module = ffmpeg_process.subprocess
+    monkeypatch.setattr(module, "STARTUPINFO", _FakeStartupInfo, raising=False)
+    monkeypatch.setattr(module, "STARTF_USESHOWWINDOW", 0x1, raising=False)
+    monkeypatch.setattr(module, "SW_HIDE", 0, raising=False)
+    monkeypatch.setattr(module, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+
+
 class _FakeProcess:
     """An ffmpeg child whose output is a list of lines, drained on close."""
 
@@ -56,6 +80,7 @@ class _FakeProcess:
 
 def test_windows_gets_a_child_with_no_console(monkeypatch):
     _force_platform(monkeypatch, "win32")
+    _win_names(monkeypatch)
 
     kwargs = ffmpeg_process.child_kwargs()
 
@@ -73,6 +98,7 @@ def test_other_platforms_need_no_kwargs(monkeypatch, name):
 
 def test_run_hides_the_window_and_keeps_the_pipes_apart(monkeypatch, fake_run):
     _force_platform(monkeypatch, "win32")
+    _win_names(monkeypatch)
 
     result = ffmpeg_process.run(["ffmpeg", "-version"], cwd="work")
 
@@ -97,6 +123,7 @@ def test_a_missing_ffmpeg_reaches_the_caller_as_it_was(monkeypatch):
 
 def test_stream_reports_each_line_as_it_lands(monkeypatch):
     _force_platform(monkeypatch, "win32")
+    _win_names(monkeypatch)
     lines = ["frame=1 out_time_ms=1000000\n", "out_time_ms=2000000\n", "progress=end\n"]
 
     class FakeProcess:
