@@ -71,8 +71,9 @@ test with the venv python.
       commit.
 - [x] Owner's go for the version bump and the rebuild, taken 2026-11-07; the
       release went to 2.16.0.
-- [ ] Owner's go before any README/CHANGELOG wording (the 2.15.0 docs task is
-      still unauthorised).
+- [x] Owner's go before any README/CHANGELOG wording, taken 2026-11-07 ("agay
+      barho"); the wording covers 2.15.0, 2.16.0 and 2.17.0 and the release
+      went to 2.17.0, rebuilt portable + installer from it.
 - [ ] Owner's live check on the new build: set a folder, run one file, everything in it;
       clear it, run again, everything beside the source.
 - [ ] Owner's live check of what the audit fixes changed

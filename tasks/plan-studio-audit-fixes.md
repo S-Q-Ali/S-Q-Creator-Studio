@@ -83,6 +83,8 @@ stand on their own, then docs + graph.
   from `QLabel[role="error"]` and the widget's own `styleSheet()` stays empty.
 - Not checked here: the live Studio run over real ffmpeg with a folder set —
   that stays with the owner in
-  [todo-studio-output-folder.md](todo-studio-output-folder.md). Nothing was
-  pushed, tagged or rebuilt, and the version is still **2.16.0**, so the
-  portable build open on the desktop still has the old behaviour.
+  [todo-studio-output-folder.md](todo-studio-output-folder.md).
+- After this plan was committed: the three missing CHANGELOG entries and the
+  README bullet were written, the version moved to **2.17.0**, and the portable
+  build and installer were rebuilt from it — so the desktop build now carries
+  every fix above. Nothing was pushed or tagged; that still awaits its own go.
