@@ -25,9 +25,9 @@ and the plan's README/CHANGELOG wording is approved.
 
 ## Task 2: the row loses Browse…, the page keeps one handler
 
-- [ ] No `self.btn_browse` anywhere; `browse()` unchanged but for its new caller.
-- [ ] Layout guards green at the smallest window; remaining buttons keep order.
-- [ ] Tests that clicked `btn_browse` click the well's button instead, keeping
+- [x] No `self.btn_browse` anywhere; `browse()` unchanged but for its new caller.
+- [x] Layout guards green at the smallest window; remaining buttons keep order.
+- [x] Tests that clicked `btn_browse` click the well's button instead, keeping
       the `DontUseNativeDialog` assertion.
 
 **Verification:** Task 1's command plus

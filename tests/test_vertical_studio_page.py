@@ -159,7 +159,7 @@ def test_browse_adds_what_the_picker_returns(page, tmp_path, monkeypatch):
 
     monkeypatch.setattr(QFileDialog, "getOpenFileNames", classmethod(picker))
 
-    page.browse()
+    page.btn_choose.click()
 
     assert page.paths == [video]
     assert asked["args"][1] == "Choose videos to reframe"
@@ -179,7 +179,7 @@ def test_browse_starts_where_the_last_file_came_from(page, tmp_path, monkeypatch
     video = _videos(tmp_path, "one.mp4")[0]
     _drop_on(page, local=[video])
 
-    page.browse()
+    page.btn_choose.click()
 
     assert asked[0][2] == os.path.dirname(video)
 
@@ -240,6 +240,12 @@ def test_the_wells_button_is_styled_by_the_sheet_not_the_page(page):
     button = _well(page).findChild(QPushButton)
 
     assert button.styleSheet() == ""
+
+
+def test_the_well_is_the_only_door(page):
+    """Browse left the button row: one handler, and the well's button is the
+    only thing that calls it."""
+    assert not hasattr(page, "btn_browse")
 
 
 def test_the_options_are_seeded_from_the_saved_settings(tmp_path, monkeypatch):

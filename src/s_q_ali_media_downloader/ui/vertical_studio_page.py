@@ -231,9 +231,6 @@ class VerticalStudioPage(QWidget):
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
-        self.btn_browse = QPushButton("Browse…")
-        self.btn_browse.setProperty("kind", "ghost")
-        self.btn_browse.clicked.connect(self.browse)
         self.btn_remove = QPushButton("Remove")
         self.btn_remove.setProperty("kind", "ghost")
         self.btn_remove.setToolTip("Take the selected file out of the list. A double-click does it too.")
@@ -248,7 +245,6 @@ class VerticalStudioPage(QWidget):
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop)
         for button in (
-            self.btn_browse,
             self.btn_remove,
             self.btn_clear,
             self.btn_run,
@@ -473,7 +469,6 @@ class VerticalStudioPage(QWidget):
     def _set_running(self, running):
         self.btn_run.setEnabled(not running)
         self.btn_stop.setEnabled(running)
-        self.btn_browse.setEnabled(not running)
         self.btn_choose.setEnabled(not running)
         self.btn_remove.setEnabled(not running)
         self.btn_clear.setEnabled(not running)
