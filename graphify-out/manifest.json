@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1794000715.0832303,
-    "seen": 1794001981.5537643,
-    "ast_hash": "dcec65396acecdeaa49cbf28b5d613ba",
+    "mtime": 1794046728.8250222,
+    "seen": 1794047006.1817048,
+    "ast_hash": "63dfabda37c8b1a35dcc25827bc2041a",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793972249.9611979,
-    "seen": 1793972810.941844,
-    "ast_hash": "40e7b49b4f5c2e715024455f5ebda810",
+    "mtime": 1794046910.4958143,
+    "seen": 1794047006.1825302,
+    "ast_hash": "8be87e56265efcea8d55873391a62f89",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -2334,27 +2334,27 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1793987280.9070206,
-    "seen": 1793990063.0803032,
-    "ast_hash": "ad173a96b8dec1d226ac4e0ab6b01096",
+    "mtime": 1794046486.4476655,
+    "seen": 1794047006.181692,
+    "ast_hash": "db4ac742772db981ea3838649673c27f",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
-    "mtime": 1793987077.5616996,
-    "seen": 1793990063.080314,
-    "ast_hash": "7c81c972c39d5295aa18304acee28296",
+    "mtime": 1794046722.9071653,
+    "seen": 1794047006.1816983,
+    "ast_hash": "c5b703b867007351857ee0adb881e5c4",
     "semantic_hash": ""
   },
   "tests/test_reframe.py": {
-    "mtime": 1793988344.3435836,
-    "seen": 1793990063.080935,
-    "ast_hash": "5727ff1f61526176cbca91556ad4ca7a",
+    "mtime": 1794046439.021275,
+    "seen": 1794047006.1819282,
+    "ast_hash": "7736264032ed7b603ec49d6453724a31",
     "semantic_hash": ""
   },
   "tests/test_shorts.py": {
-    "mtime": 1793985822.5980532,
-    "seen": 1793990063.0809712,
-    "ast_hash": "40598665120570a025ccb100215634e5",
+    "mtime": 1794046707.5561192,
+    "seen": 1794047006.1819549,
+    "ast_hash": "df4ce9e1e9eca2591f5cf3e3c4385e7b",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/models/LICENSE-NanoDet.txt": {
@@ -2400,9 +2400,9 @@
     "semantic_hash": ""
   },
   "tests/test_engine_post_leg.py": {
-    "mtime": 1794001462.5268114,
-    "seen": 1794001981.5539036,
-    "ast_hash": "aaeab46f27444bf3c5663922b3c2b669",
+    "mtime": 1794046832.7933047,
+    "seen": 1794047006.1818435,
+    "ast_hash": "b8e8268e17f868406ecb9db6cb6b213f",
     "semantic_hash": ""
   },
   "tests/fixtures/TRACKER_CLIP.txt": {
@@ -2424,9 +2424,9 @@
     "semantic_hash": ""
   },
   "tests/test_engine_local_video.py": {
-    "mtime": 1794000737.7522533,
-    "seen": 1794001981.5538948,
-    "ast_hash": "843d0e6ad05f7db866298fb2509d05c9",
+    "mtime": 1794046843.2690701,
+    "seen": 1794047006.181836,
+    "ast_hash": "a1a5baa24c04b46d28a200680de38daf",
     "semantic_hash": ""
   },
   "tests/test_vertical_studio_page.py": {
@@ -2472,15 +2472,39 @@
     "semantic_hash": ""
   },
   "tasks/spec-studio-output-folder.md": {
-    "mtime": 1794000476.1274576,
-    "seen": 1794001981.555827,
-    "ast_hash": "46aab08da8f1e57536da393549070f75",
+    "mtime": 1794046937.9509797,
+    "seen": 1794047006.1826222,
+    "ast_hash": "1ba62a5b9d61bd57be0ceb2473371a40",
     "semantic_hash": ""
   },
   "tasks/todo-studio-output-folder.md": {
     "mtime": 1794003691.7953165,
     "seen": 1794004933.0644224,
     "ast_hash": "96f4875f0c81bbd102e61d814a2616ee",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/core/output_names.py": {
+    "mtime": 1794046344.6755793,
+    "seen": 1794047006.1816862,
+    "ast_hash": "d174b52487da456152f6bd9d69bddd6f",
+    "semantic_hash": ""
+  },
+  "tests/test_output_names.py": {
+    "mtime": 1794046321.2535203,
+    "seen": 1794047006.1819098,
+    "ast_hash": "f4094c7e9edbf9660336d207cdcbcb83",
+    "semantic_hash": ""
+  },
+  "tasks/audit-vertical-studio.md": {
+    "mtime": 1794046953.0849981,
+    "seen": 1794047006.1825593,
+    "ast_hash": "a8c04ec1753c1399c58c024aedb91098",
+    "semantic_hash": ""
+  },
+  "tasks/plan-output-names-never-overwrite.md": {
+    "mtime": 1794046059.8131335,
+    "seen": 1794047006.1825833,
+    "ast_hash": "68663affbe9e7e3d17ecdea00318584b",
     "semantic_hash": ""
   }
 }
