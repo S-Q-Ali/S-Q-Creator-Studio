@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -154,6 +155,11 @@ class VerticalStudioPage(QWidget):
         zone_hint.setProperty("role", "hint")
         zone_layout.addWidget(zone_title)
         zone_layout.addWidget(zone_hint)
+        self.btn_choose = QPushButton("Choose video files")
+        # Outside a QDialog a push button ignores Return unless it is the default.
+        self.btn_choose.setDefault(True)
+        self.btn_choose.clicked.connect(self.browse)
+        zone_layout.addWidget(self.btn_choose, 0, Qt.AlignHCenter)
         # The zone takes the room the list does not: it is the thing the user
         # aims at, and a thin strip of it is hard to hit.
         layout.addWidget(zone, 1)
@@ -468,6 +474,7 @@ class VerticalStudioPage(QWidget):
         self.btn_run.setEnabled(not running)
         self.btn_stop.setEnabled(running)
         self.btn_browse.setEnabled(not running)
+        self.btn_choose.setEnabled(not running)
         self.btn_remove.setEnabled(not running)
         self.btn_clear.setEnabled(not running)
         self.vertical.setEnabled(not running)

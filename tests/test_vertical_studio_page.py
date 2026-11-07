@@ -12,7 +12,8 @@ import os
 import pytest
 from PySide6.QtCore import QMimeData, QPoint, QSettings, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
-from PySide6.QtWidgets import QFileDialog, QLabel
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QFileDialog, QFrame, QLabel, QPushButton
 
 from s_q_ali_media_downloader.engine import default_output_dir
 from s_q_ali_media_downloader.ui import vertical_studio_page as module
@@ -181,6 +182,64 @@ def test_browse_starts_where_the_last_file_came_from(page, tmp_path, monkeypatch
     page.browse()
 
     assert asked[0][2] == os.path.dirname(video)
+
+
+def _well(page):
+    return next(w for w in page.findChildren(QFrame) if w.objectName() == "DropZone")
+
+
+def test_the_well_carries_a_button_that_opens_the_same_picker(page, tmp_path, monkeypatch):
+    """The well is the door: a real button inside it opens the app's own
+    picker, and the files land through add_paths exactly as a drop does."""
+    video = _videos(tmp_path, "one.mp4")[0]
+    asked = {}
+
+    def picker(cls, *args, **kwargs):
+        asked["args"] = args
+        asked["kwargs"] = kwargs
+        return [video], ""
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileNames", classmethod(picker))
+
+    zone = _well(page)
+    button = zone.findChild(QPushButton)
+
+    assert button is not None
+    assert button.text() == "Choose video files"
+    assert "Drop video files here" in [w.text() for w in zone.findChildren(QLabel)]
+    button.click()
+
+    assert page.paths == [video]
+    assert asked["args"][1] == "Choose videos to reframe"
+    assert asked["kwargs"]["options"] == QFileDialog.Option.DontUseNativeDialog
+
+
+def test_the_wells_button_answers_the_keyboard(page, tmp_path, monkeypatch):
+    """Tab reaches it and Space/Enter fire it — the way in that dragging
+    never gave a keyboard user."""
+    video = _videos(tmp_path, "one.mp4")[0]
+    calls = []
+    monkeypatch.setattr(
+        QFileDialog,
+        "getOpenFileNames",
+        classmethod(lambda cls, *args, **kwargs: calls.append(args) or ([video], "")),
+    )
+    button = _well(page).findChild(QPushButton)
+
+    assert button.focusPolicy() & Qt.TabFocus
+    QTest.keyClick(button, Qt.Key_Space)
+    QTest.keyClick(button, Qt.Key_Return)
+
+    assert len(calls) == 2
+    assert page.paths == [video]
+
+
+def test_the_wells_button_is_styled_by_the_sheet_not_the_page(page):
+    """An inline stylesheet is one the theme cannot answer: the button's
+    look comes from the app's sheet, like every other button."""
+    button = _well(page).findChild(QPushButton)
+
+    assert button.styleSheet() == ""
 
 
 def test_the_options_are_seeded_from_the_saved_settings(tmp_path, monkeypatch):

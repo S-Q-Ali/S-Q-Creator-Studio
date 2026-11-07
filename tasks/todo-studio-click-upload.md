@@ -1,20 +1,22 @@
 # Tasks: click the Vertical Studio well to choose files
 
 Plan: `tasks/plan-studio-click-upload.md` · Test-first, one offline gate per
-task, commit only when the gate is green. Not started — waiting on the owner's
-answers to the plan's four open questions.
+task, commit only when the gate is green. Owner answered 2026-11-08: `Browse…`
+goes entirely, the button reads "Choose video files", this lands in **2.18.0**,
+and the plan's README/CHANGELOG wording is approved.
 
 ## Task 1: a button in the well opens the picker
 
-- [ ] `QPushButton` inside the `#DropZone` well, connected to the existing
+- [x] `QPushButton` inside the `#DropZone` well, connected to the existing
       `browse()`; the well keeps its labels, its objectName and its stretch.
-- [ ] Same `getOpenFileNames` call: `DontUseNativeDialog`, same start folder,
+- [x] Same `getOpenFileNames` call: `DontUseNativeDialog`, same start folder,
       same `PICKER` filter.
-- [ ] Keyboard-reachable by being a real button (`Tab`, `Space`/`Enter`), proven
-      by a test rather than assumed.
-- [ ] Chosen files go through `add_paths`, so folders and links are still named
+- [x] Keyboard-reachable by being a real button (`Tab`, `Space`/`Enter`), proven
+      by a test rather than assumed. (The test caught it: outside a QDialog a
+      QPushButton ignores Return — the button is `setDefault(True)`.)
+- [x] Chosen files go through `add_paths`, so folders and links are still named
       and skipped.
-- [ ] `theme.py` carries the button's look; no inline stylesheet in the page.
+- [x] `theme.py` carries the button's look; no inline stylesheet in the page.
 
 **Verification:** `QT_QPA_PLATFORM=offscreen ./source/venv/Scripts/python.exe -m pytest tests/test_vertical_studio_page.py tests/test_ui_layout.py -m "not live" -q -p no:warnings -o addopts=""`
 

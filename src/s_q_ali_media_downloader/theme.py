@@ -611,6 +611,11 @@ QToolTip {{
     border: 1px dashed {C['border']};
     border-radius: 10px;
 }}
+/* The well's door: the standard button face with a wider stance, so the
+   dashed target reads as one thing to click. */
+#DropZone QPushButton {{
+    padding: {t['pad_y']}px {t['pad_x'] + 10}px;
+}}
 QListWidget {{
     background: {C['panel']};
     color: {C['text']};
