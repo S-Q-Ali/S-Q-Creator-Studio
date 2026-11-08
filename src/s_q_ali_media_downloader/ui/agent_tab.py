@@ -188,7 +188,6 @@ class AgentTabWidget(QWidget):
         self.btn_search = QPushButton("🤖 Find && Verify Channels")
         self.btn_search.setProperty("kind", "primary")
         self.btn_search.setMinimumHeight(40)
-        self.btn_search.setMinimumWidth(180)
         self.btn_search.clicked.connect(self._start_agent)
 
         self.btn_stop = QPushButton("Stop")
@@ -196,8 +195,8 @@ class AgentTabWidget(QWidget):
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.cancel)
 
-        row1.addWidget(self.query_edit, 4)
-        row1.addWidget(self.btn_search, 1)
+        row1.addWidget(self.query_edit, 1)
+        row1.addWidget(self.btn_search, 0)
         row1.addWidget(self.btn_stop, 0)
         search_layout.addLayout(row1)
 

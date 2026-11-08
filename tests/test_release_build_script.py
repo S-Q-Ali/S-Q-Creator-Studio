@@ -567,3 +567,46 @@ def test_the_windows_wrapper_starts_the_script_and_carries_its_exit_code():
     assert "robocopy" not in text and "xcopy" not in text and "attrib" not in text
     assert "build.py" in text
     assert "exit /b %rc%" in text
+
+
+def test_hdiutil_is_retried_when_the_disk_image_is_briefly_busy(monkeypatch, tmp_path):
+    """Spotlight on macOS 15 can hold the temporary volume open for a moment
+    and fail hdiutil with 'Resource busy'; a retry finishes the image."""
+    attempts = []
+
+    def fake_run(command, **kwargs):
+        if command[0] == "hdiutil":
+            attempts.append(command)
+            if len(attempts) < 3:
+                return subprocess.CompletedProcess(
+                    command, 1, "", "hdiutil: create failed - Resource busy"
+                )
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+    monkeypatch.setattr(build.time, "sleep", lambda _: None)
+    monkeypatch.setattr(build, "RELEASE", tmp_path)
+    app = tmp_path / f"{build.APP_NAME}.app"
+    app.mkdir()
+
+    build.build_dmg(app, tmp_path / "out.dmg")
+
+    assert len(attempts) == 3
+
+
+def test_hdiutil_giving_up_after_retries_stops_the_build(monkeypatch, tmp_path):
+    def fake_run(command, **kwargs):
+        if command[0] == "hdiutil":
+            return subprocess.CompletedProcess(
+                command, 1, "", "hdiutil: create failed - Resource busy"
+            )
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(build.subprocess, "run", fake_run)
+    monkeypatch.setattr(build.time, "sleep", lambda _: None)
+    monkeypatch.setattr(build, "RELEASE", tmp_path)
+    app = tmp_path / f"{build.APP_NAME}.app"
+    app.mkdir()
+
+    with pytest.raises(SystemExit):
+        build.build_dmg(app, tmp_path / "out.dmg")

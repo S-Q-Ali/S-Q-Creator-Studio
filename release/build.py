@@ -359,27 +359,40 @@ def build_dmg(app_bundle: Path, out: Path) -> None:
         # The Applications shortcut has to be in the folder before the image
         # is made - hdiutil reads the folder as it is when it runs.
         (root / "Applications").symlink_to("/Applications")
-        for command in (
-            ["ditto", str(app_bundle), str(root / app_bundle.name)],
-            [
-                "hdiutil",
-                "create",
-                "-volname",
-                APP_NAME,
-                "-srcfolder",
-                str(root),
-                "-ov",
-                "-format",
-                "UDZO",
-                str(out),
-            ],
-        ):
-            done = subprocess.run(command, capture_output=True, text=True, check=False)
-            if done.returncode != 0:
+        ditto = ["ditto", str(app_bundle), str(root / app_bundle.name)]
+        done = subprocess.run(ditto, capture_output=True, text=True, check=False)
+        if done.returncode != 0:
+            fail(
+                "Could not build the disk image (ditto failed).",
+                done.stderr.strip()[:400],
+            )
+        # Spotlight on macOS 15 briefly opens the new temporary volume while
+        # hdiutil is closing it, which fails with "Resource busy". Retrying
+        # after a short pause lets the indexer let go.
+        hdiutil = [
+            "hdiutil",
+            "create",
+            "-volname",
+            APP_NAME,
+            "-srcfolder",
+            str(root),
+            "-ov",
+            "-format",
+            "UDZO",
+            str(out),
+        ]
+        for attempt in range(1, 6):
+            if out.exists():
+                out.unlink(missing_ok=True)
+            done = subprocess.run(hdiutil, capture_output=True, text=True, check=False)
+            if done.returncode == 0:
+                break
+            if attempt == 5:
                 fail(
-                    f"Could not build the disk image ({command[0]} failed).",
+                    "Could not build the disk image (hdiutil failed).",
                     done.stderr.strip()[:400],
                 )
+            time.sleep(3)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

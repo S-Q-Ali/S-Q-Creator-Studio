@@ -352,6 +352,26 @@ def test_job_card_checkbox_and_form_labels_have_accessible_names_and_buddies(win
     assert len(studio_buddies) == 2 and all(b is not None for b in studio_buddies)
 
 
+def test_folder_button_and_agent_search_button_do_not_force_clipping(window):
+    """Regression test for Ubuntu/macOS CI layout clipping:
+    1. Repeated _apply_density() calls with a long download folder path must
+       not ratchet the rail width up or clip the folder button.
+    2. AgentTabWidget.btn_search must not set a hardcoded minimumWidth(180)
+       that overrides a wider platform sizeHint() on Linux/macOS.
+    """
+    window.settings_page.folder_edit.setText(
+        "/home/runner/work/S-Q-Creator-Studio/S-Q-Creator-Studio/very/long/path/downloads"
+    )
+    window.settings_page.compact_check.setChecked(False)
+    window._apply_density()
+    first_rail_width = window.rail.width()
+    window._apply_density()
+    second_rail_width = window.rail.width()
+    assert second_rail_width == first_rail_width
+    assert window.folder_label.sizeHint().width() <= window.rail.width() - 44
+    assert window.agent_tab.btn_search.minimumWidth() == 0
+
+
 def qapp_process():
     from PySide6.QtWidgets import QApplication
 

@@ -652,8 +652,9 @@ class MainWindow(QMainWindow):
         folder = self.output_dir()
         text = f"Saving to {folder}" if folder else "No folder chosen"
         self.folder_label.setToolTip(text)
+        self.folder_label.ensurePolished()
         metrics = QFontMetrics(self.folder_label.font())
-        room = max(60, self.rail.width() - 72)
+        room = max(60, self.rail.width() - 96)
         self.folder_label.setText(metrics.elidedText(text, Qt.ElideMiddle, room))
 
     def _apply_density(self):
@@ -661,6 +662,7 @@ class MainWindow(QMainWindow):
         from s_q_ali_media_downloader.theme import apply_density
 
         compact = self.settings_page.compact_check.isChecked()
+        self.folder_label.setText("")
         apply_density(self, compact)
         name = "compact" if compact else "comfortable"
         self.wordmark.setPixmap(wordmark_pixmap(DENSITY[name]["title"]))
