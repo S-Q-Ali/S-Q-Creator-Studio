@@ -3,6 +3,22 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.19.0] — 2026-11-08
+
+### Changed
+
+- **Unified theme rules, keyboard focus rings, and workspace headers across all 5 tabs.**
+  - Added `QSpinBox`, `QPushButton[kind="github"]`, and `QPushButton[kind="linkedin"]` rules (with `:focus` rings) to `theme.py`; moved social buttons and `MusicPage._say()` off inline `setStyleSheet()` onto dynamic properties; gave `QPushButton[kind="danger"]` a distinct resting border (`C["faint"]`); scaled `QLabel[role="pageTitle"]` from the density token (`16px` comfortable, `14px` compact).
+  - Added `#WorkHeader` (`⚙️ Settings`) to `SettingsPage`, removed the duplicate `🔎 SOCIAL DISCOVERY` header inside `SocialDiscoveryPage`, and matched `AgentTabWidget`'s header to Title Case (`🤖 AI Channel Finder & Social Inspector`).
+  - Added an `#EmptyState` stack, alternating row fills, and hidden gridlines to `MusicPage`, reordered `VerticalStudioPage` action buttons so the primary CTA (`Run`, `Stop`) leads the row, capped `MusicPage` and `VerticalStudioPage` activity logs at 500 blocks, and standardized `"Browse…"` labels and inline status messages across `SettingsPage` and `AgentTabWidget`.
+
+### Fixed
+
+- **Packaged-build file pickers, running-state locks, and full keyboard accessibility.**
+  - Passed `QFileDialog.Option.DontUseNativeDialog` to all 6 remaining file/folder pickers across `MusicPage`, `SettingsPage`, `AgentTabWidget`, and `SocialDiscoveryPage`.
+  - Disabled `MusicPage.btn_browse` during active music downloads, added cooperative `Stop` cancellation to `AgentTabWidget` (`AgentWorkerThread.cancel()`), and included `agent_tab.worker` in `MainWindow` close-event guards.
+  - Replaced `MainWindow.folder_label` with a keyboard-focusable `QPushButton` (`kind="ghost"`), underlined link cells in `SocialDiscoveryPage`, wired keyboard arrow navigation and `Return`/`Enter` link activation on `SocialDiscoveryPage` and `AgentTabWidget` tables, and set `accessibleName` and `setBuddy()` across form controls and checkboxes.
+
 ## [2.18.0] — 2026-11-08
 
 ### Changed
