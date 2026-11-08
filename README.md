@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.14%20tested-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows_Linux_macOS-blue.svg)](#install)
 
-Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pull the **audio** behind any YouTube, YouTube Music, SoundCloud or Spotify link, and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
+Bulk-download **TikTok**, **YouTube**, **Instagram** and **Facebook** videos, pull the **audio** behind any YouTube, YouTube Music, SoundCloud or Spotify link, reframe downloaded or local videos into **9:16 verticals and shorts** in the **Vertical Studio**, and find a creator's Facebook, Instagram and TikTok accounts — one queue-based desktop studio. Every account is confirmed in a real browser, not just guessed by an AI. Open source, free, and no activation keys — ever.
 
 **[Quick Start](#quick-start)** | **[Features](#features)** | **[Install](#install)** | **[Build from Source](#build-from-source)** | **[FAQ](#faq)** | **[Roadmap](#roadmap)**
 
@@ -31,13 +31,17 @@ Download the latest release and start downloading videos in seconds:
 |----------------|-------|
 | ![Main Interface](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/interface.png) | ![Music](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/music.png) |
 
-| AI Channel Finder | Social Discovery |
-|-------------------|------------------|
-| ![AI Channel Finder](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/agent.png) | ![Social Discovery](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/social-discovery.png) |
+| Vertical Studio | AI Channel Finder |
+|-----------------|-------------------|
+| ![Vertical Studio](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/studio.png) | ![AI Channel Finder](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/agent.png) |
 
-| Settings | Compact Mode |
-|----------|--------------|
-| ![Settings](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/settings.png) | ![Compact Mode](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/compact.png) |
+| Social Discovery | Settings |
+|------------------|----------|
+| ![Social Discovery](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/social-discovery.png) | ![Settings](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/settings.png) |
+
+| Compact Mode (1280×720) |
+|-------------------------|
+| ![Compact Mode](https://github.com/S-Q-Ali/S-Q-Creator-Studio/raw/master/screenshots/compact.png) |
 
 ---
 
@@ -62,7 +66,7 @@ Download the latest release and start downloading videos in seconds:
 - **Search-grounded answers** — Gemini is asked with Google Search turned on, so the proposal comes from a real search result instead of the model's memory. Groq answers when Gemini has no key or fails. TikTok walls its tag listing even for a signed-in cookie file, so the TikTok mode works from creators you paste — `@handles` or profile URLs, one per line or comma-separated — and checks each one on YouTube, Instagram and Facebook.
 - **A browser that does not look like a bot** — `navigator.webdriver` and the one-language `navigator.languages` are the two tells a platform can read without guessing; the app hides both.
 - **Operation log** — every step writes one line: the stage, the engine that did it, the link it touched and how long it took. The search budget is in there too.
-- **Glass theme** — black, white, grey and one blue: opaque panels over a lit dark base, with status carried by a spine on each card. Built with PySide6.
+- **Glass theme & full keyboard navigation** — black, white, grey and one blue: opaque panels over a lit dark base, with status carried by a spine on each card and high-contrast `:focus` rings across every button, spinbox, table and tab. `Tab` reaches the download folder button and the rail toggle, and `Enter` opens or copies links in the discovery tables. Built with PySide6.
 - **Fits a small laptop** — the layout has a compact density that switches on below 1500×850, so nothing is clipped on a 1280×720 screen.
 
 > Only download content you own or have permission to download.

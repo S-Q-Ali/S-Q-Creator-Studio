@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "s-q-ali-media-downloader"
 version = "2.19.0"
-description = "AI-powered bulk video downloader for TikTok, YouTube, Instagram & Facebook with a glass desktop theme and social-account discovery across platforms."
+description = "Bulk video and music downloader for TikTok, YouTube, Instagram, Facebook, SoundCloud & Spotify with a 9:16 Vertical Studio, browser-verified social account discovery, and a dark glass Qt 6 interface."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "S-Q-Ali" }]
-keywords = ["tiktok", "youtube", "downloader", "yt-dlp", "pyside6"]
+keywords = ["tiktok", "youtube", "instagram", "facebook", "spotify", "music-downloader", "video-downloader", "shorts", "vertical-video", "yt-dlp", "pyside6", "playwright"]
 dependencies = [
     # PySide6 6.12 aborts during teardown in some conditions (a native access
     # violation that takes the whole test run with it). Stay on the verified

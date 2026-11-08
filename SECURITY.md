@@ -6,10 +6,10 @@ We take the security of S-Q Creator Studio seriously. We provide security update
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.6.x   | ✅ Yes             |
-| 2.5.x   | ⚠️ Limited         |
-| 2.4.x   | ⚠️ Limited         |
-| < 2.0   | ❌ No              |
+| 2.19.x  | ✅ Yes             |
+| 2.18.x  | ⚠️ Limited         |
+| 2.17.x  | ⚠️ Limited         |
+| < 2.17  | ❌ No              |
 
 ## Reporting a Vulnerability
 
@@ -19,9 +19,10 @@ We take the security of S-Q Creator Studio seriously. If you believe you have fo
 
 ### How to Report
 
-Please report security vulnerabilities via email to:
+Please report security vulnerabilities privately through GitHub Security Advisories or direct maintainer contact:
 
-**Email:** `[YOUR-EMAIL-HERE]@example.com`
+- **GitHub Security Advisories (Preferred):** [Open a private security advisory](https://github.com/S-Q-Ali/S-Q-Creator-Studio/security/advisories/new)
+- **Maintainer Contact:** [LinkedIn — S. Qasim Ali](https://linkedin.com/in/s-qasim-ali)
 
 **Include in your report:**
 - Description of the vulnerability
@@ -41,7 +42,7 @@ Please report security vulnerabilities via email to:
 - Keep your yt-dlp and all dependencies updated to the latest versions
 - Only download and use official release binaries from GitHub Releases
 - Export cookies.txt only from trusted browsers
-- Don't share your Groq API key or YouTube API key publicly
+- Don't share your Gemini API key, Groq API key, or YouTube API key publicly
 - Use the latest version of the app for maximum security
 
 ## Security Features

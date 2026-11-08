@@ -1,7 +1,7 @@
 # Graph Report - S Q Ali Media Downloader  (2026-11-08)
 
 ## Corpus Check
-- 359 files · ~554,486 words
+- 359 files · ~563,732 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 63 file(s) not represented in the graph (top: .ttf 54, (none) 2, .onnx 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `da6c30a8`
+- Built from commit: `90d1a310`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1957,7 +1957,7 @@ Nodes (5): Authentication and Authorization, DNS Rebinding Protection, Error Han
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `MainWindow` connect `MainWindow` to `SettingsPage`, `test_ui_layout.py`, `app.py`, `YouTubeFetchThread`, `engine.py`, `MusicPage`, `test_gui.py`, `widgets.py`, `main_window.py`, `AgentWorkerThread`, `run_post_leg`, `render_glass_screenshots.py`, `MusicTrack`, `Goal`, `test_agent_tab_can_cancel_running_worker_and_blocks_window_close`, `._post_leg`, `VerticalStudioPage`, `test_backdrop.py`, `MusicDownloadThread`, `AgentTabWidget`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Are the 58 inferred relationships involving `MainWindow` (e.g. with `Fixed` and `AccountFetchThread`) actually correct?**
   _`MainWindow` has 58 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `s-q-ali-media-downloader` to the rest of the system?**

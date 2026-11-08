@@ -49,11 +49,11 @@ The same six are skills, so they can be invoked by name as well.
 ## Code layout
 
 - `src/s_q_ali_media_downloader/engine.py` — download engine and URL helpers (no UI code).
-- `src/s_q_ali_media_downloader/theme.py` — palette and stylesheet.
+- `src/s_q_ali_media_downloader/theme.py` — palette, density tokens, and stylesheet.
 - `src/s_q_ali_media_downloader/app.py` — application entry point.
-- `src/s_q_ali_media_downloader/ui/` — `main_window.py` (window + wiring) and `widgets.py` (cards, chips, drawing helpers).
+- `src/s_q_ali_media_downloader/ui/` — `main_window.py` (window + queue wiring), `music_page.py` (music workspace), `vertical_studio_page.py` (local 9:16 reframe + shorts splitter), `agent_tab.py` (AI Channel Finder container), `social_discovery_page.py` (cross-platform social account verifier), `settings_page.py` (preferences + sealed keys), and `widgets.py` (cards, chips, drawing helpers).
 - `src/s_q_ali_media_downloader/agent/` — AI Channel Finder: discovery orchestrator, typed schemas, social verification tools.
-- `src/s_q_ali_media_downloader/core/` — the parts that are not a feature: the secret store (API keys, sealed with DPAPI on Windows; see `SECURITY.md` for the other platforms), the YouTube client, the exporter.
+- `src/s_q_ali_media_downloader/core/` — shared non-UI modules: `settings_store.py` (API keys sealed with DPAPI on Windows and OS keychains via `keyring` elsewhere), `music.py`, `reframe.py`, `shorts.py`, `studio.py`, `social_discovery.py`, `youtube_client.py`, and `exporter.py`.
 - `tests/` — pytest suite. Keep it green; add tests alongside new behaviour.
 
 ## Guidelines
@@ -66,9 +66,9 @@ The same six are skills, so they can be invoked by name as well.
   installer outputs) or virtual environments — see `.gitignore`.
 - Do not commit secrets, API keys, session exports, or personal `opencode.json`
   files (all ignored).
-- Use the single dark ink-plum/cyan palette for any UI work — `theme.py` holds
-  the palette and the one stylesheet, and it has a compact variant that the
-  app switches to on a small screen. There is no second theme anymore.
+- Use the single dark glass palette (black, white, grey and one blue) in `theme.py`
+  for any UI work — `theme.py` holds the palette and the one stylesheet, with
+  `comfortable` and `compact` densities that scale from a shared token set.
 - Any selector you add to the stylesheet must parse cleanly — that is
   covered by `tests/test_qss_parses.py`.
 
@@ -84,8 +84,9 @@ The same six are skills, so they can be invoked by name as well.
 Everything about a release lives in `release/` — the build script, the
 installer definition, and a README that says how to run it.
 
-Maintainers cut releases by tagging (`v2.6.1`, …). The tag triggers the CI
-release pipeline: lint, tests, pip-audit, then a portable build published as a
-GitHub Release asset, with the Inno installer built the same way. To build it
-on your own machine instead, run `release\build.bat` — see `release/README.md`
-for what it needs.
+Maintainers cut releases by tagging (`v2.19.0`, …). The tag triggers the CI
+release pipeline: lint, tests, pip-audit, then platform builds (`python release/build.py`)
+published as GitHub Release assets across Windows (`.exe` installer + `.zip`),
+Linux (`.tar.gz`), and macOS (`arm64` and `x64` `.dmg` + `.tar.gz`). To build it
+on your own machine instead, run `python release/build.py` (or `release\build.bat`
+on Windows) — see `release/README.md` for what it needs.

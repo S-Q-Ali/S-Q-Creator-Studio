@@ -23,6 +23,7 @@ FONT_SOURCES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
             "segoeuib.ttf",
             "segoeuii.ttf",
             "seguisb.ttf",
+            "seguisym.ttf",
             "consola.ttf",
             "seguiemj.ttf",
         ),

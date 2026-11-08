@@ -10,6 +10,7 @@ Everything about a local build lives in this folder.
 | `portable/` | The portable build — the folder you can unzip and run. |
 | `staging/` | What the installer picks up: `staging\bin\ffmpeg.exe`. |
 | `S-Q-Creator-Studio-Setup-<version>.exe` | The installers this machine has built. Windows only. |
+| `S-Q-Creator-Studio-<version>-macos-<arch>.dmg` | The macOS disk image with an `Applications` drag-and-drop shortcut. macOS only. |
 
 ## Building it locally
 
@@ -70,18 +71,23 @@ git tag v<x.y.z>
 git push origin v<x.y.z>
 ```
 
-`.github/workflows/release.yml` runs the same `release/build.bat`, checks the
-build, smoke tests the built app, and publishes the release with the checksum.
-The release notes are the matching section of `CHANGELOG.md`.
+`.github/workflows/release.yml` runs `python release/build.py` across Windows,
+Ubuntu 24.04, macOS 15 (Apple Silicon `arm64`), and macOS 15 (Intel `x64`),
+checks the build, smoke tests the built app, and publishes the release with
+checksums. On macOS it signs the bundle ad-hoc, verifies the Mach-O `minos`
+floor (`15.0`), and builds the `.dmg` with `hdiutil` (retrying if Spotlight
+briefly holds the temporary volume). The release notes are the matching section
+of `CHANGELOG.md`.
 
 ## What the build produces
 
 ```
-release/portable/S-Q Creator Studio[.exe]   the app — no extension off Windows
-release/portable/_internal/                 its Python and its libraries
-release/portable/browsers/chromium-<build>/  the browser the app drives
-release/portable/bin/ffmpeg[.exe]           merges video and audio
-release/S-Q-Creator-Studio-Setup-<version>.exe   the installer, on Windows
+release/portable/S-Q Creator Studio[.exe|.app]       the app (bundle on macOS)
+release/portable/_internal/                          its Python and its libraries
+release/portable/browsers/chromium-<build>/          the browser the app drives
+release/portable/bin/ffmpeg[.exe]                    merges video and audio
+release/S-Q-Creator-Studio-Setup-<version>.exe       the installer, on Windows
+release/S-Q-Creator-Studio-<version>-macos-<arch>.dmg the disk image, on macOS
 ```
 
 The installer is unsigned: Windows will ask you to confirm it the first
