@@ -6,129 +6,129 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1794079967.1778402,
-    "seen": 1794080423.718571,
-    "ast_hash": "98f03d289ed74e92ee5068cb2e0c6c83",
+    "mtime": 1794155295.0494285,
+    "seen": 1794155523.3726268,
+    "ast_hash": "2cceab567614a8f0723718e6bfae53a7",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
-    "mtime": 1794079967.1778402,
-    "seen": 1794080423.7186053,
-    "ast_hash": "b1bba994922f29300ee730af848a1527",
+    "mtime": 1794155296.5534747,
+    "seen": 1794155523.3726509,
+    "ast_hash": "a43f9aa010624c71508dadab0623e901",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__main__.py": {
-    "mtime": 1788604898.1721847,
-    "seen": 1788977537.5740588,
+    "mtime": 1794154042.0870802,
+    "seen": 1794155523.372665,
     "ast_hash": "0fffcfbe7866da5b8e54b27a7c56009b",
     "semantic_hash": "0fffcfbe7866da5b8e54b27a7c56009b"
   },
   "src/s_q_ali_media_downloader/agent/__init__.py": {
-    "mtime": 1788984275.4511383,
-    "seen": 1788984488.2850294,
+    "mtime": 1794154042.10691,
+    "seen": 1794155523.3726716,
     "ast_hash": "0a0bc0cb72f954d02054812b5f34e6a4",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/orchestrator.py": {
-    "mtime": 1793799194.466097,
-    "seen": 1793799484.7964709,
+    "mtime": 1794155511.0697083,
+    "seen": 1794155523.3726864,
     "ast_hash": "92caf12e437e728a0510e25ff2a75854",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/schema.py": {
-    "mtime": 1793308709.8412328,
-    "seen": 1793309600.7442403,
+    "mtime": 1794154042.1044421,
+    "seen": 1794155523.37269,
     "ast_hash": "0aca53c61ffc4e118d5d9f6c0c9fc175",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/__init__.py": {
-    "mtime": 1788984279.2928767,
-    "seen": 1788984488.2850294,
+    "mtime": 1794154042.4404664,
+    "seen": 1794155523.3726978,
     "ast_hash": "270e6882a728ba6949ee2e0a19092a18",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/link_parser.py": {
-    "mtime": 1793222686.1613832,
-    "seen": 1793223544.657571,
+    "mtime": 1794154042.3990242,
+    "seen": 1794155523.3727138,
     "ast_hash": "8962b4be5cd223b5dfde7ca7d3668da3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/metadata_extractor.py": {
-    "mtime": 1793222689.4761279,
-    "seen": 1793223544.6575742,
+    "mtime": 1794154042.400027,
+    "seen": 1794155523.3727179,
     "ast_hash": "0659dc081a2540b0695b25fd695ba7f5",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_verifier.py": {
-    "mtime": 1793308728.3489494,
-    "seen": 1793309600.7442596,
+    "mtime": 1794155511.0717134,
+    "seen": 1794155523.3727288,
     "ast_hash": "2e2b5ab569abc74bd261888c1cfb27aa",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_api.py": {
-    "mtime": 1793308922.203324,
-    "seen": 1793309600.7442646,
+    "mtime": 1794154042.4270291,
+    "seen": 1794155523.3727405,
     "ast_hash": "09790a17ea6a23e397f45c15d2e7295d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_search.py": {
-    "mtime": 1793309222.5495477,
-    "seen": 1793309600.7442667,
+    "mtime": 1794155511.073231,
+    "seen": 1794155523.3727448,
     "ast_hash": "d71cd83a52781e25fbffae4f2eb874fb",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/youtube_existence.py": {
-    "mtime": 1793226458.5253646,
-    "seen": 1793228824.3432667,
+    "mtime": 1794155511.0742617,
+    "seen": 1794155523.3727484,
     "ast_hash": "93e4668edd58ff048928639288600041",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/youtube_search.py": {
-    "mtime": 1792655051.5678904,
-    "seen": 1792728948.8072524,
+    "mtime": 1794154042.4395187,
+    "seen": 1794155523.3727524,
     "ast_hash": "3b6df3c303c44e70510d6f7d281044bb",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/app.py": {
-    "mtime": 1793708112.5392144,
-    "seen": 1793708669.3690863,
+    "mtime": 1794154042.0670836,
+    "seen": 1794155523.3727572,
     "ast_hash": "8e26e51677b4539e018b8eecbc9f5949",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1794048517.612457,
-    "seen": 1794049182.8995097,
+    "mtime": 1794155511.0812535,
+    "seen": 1794155523.3728163,
     "ast_hash": "d1daaba751f73b3cd6d995687ec30226",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
-    "mtime": 1794079609.3017373,
-    "seen": 1794080423.7187428,
-    "ast_hash": "8a65fb0ce4e0c938a81b7fcdb99caee0",
+    "mtime": 1794154042.0860827,
+    "seen": 1794155523.3728204,
+    "ast_hash": "deb9428259b38dd4bf634bfe13475472",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/__init__.py": {
-    "mtime": 1786064355.3336663,
-    "seen": 1788977537.5740588,
+    "mtime": 1794154042.3651512,
+    "seen": 1794155523.3728244,
     "ast_hash": "9850f9228ddf4cdecb3d68c5fdf8256e",
     "semantic_hash": "9850f9228ddf4cdecb3d68c5fdf8256e"
   },
   "src/s_q_ali_media_downloader/ui/agent_tab.py": {
-    "mtime": 1793761350.757336,
-    "seen": 1793762136.9396384,
-    "ast_hash": "3afa50b22cca4db2c5fa0358dcb41250",
+    "mtime": 1794155010.8985956,
+    "seen": 1794155523.3728328,
+    "ast_hash": "8b6b0633462cca4c3b1a0d82d769a308",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1793976908.1987388,
-    "seen": 1793978626.78086,
-    "ast_hash": "5ce3cb955ea68f2e4bddc3f0c2a700ad",
+    "mtime": 1794154665.5905435,
+    "seen": 1794155523.372836,
+    "ast_hash": "00da57ac4be35d992d9a20194c8d597d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
-    "mtime": 1793877044.3979053,
-    "seen": 1793889470.5196753,
-    "ast_hash": "867d5442a563331d8f094377a0beebe6",
+    "mtime": 1794154658.8649364,
+    "seen": 1794155523.3728552,
+    "ast_hash": "4e9612019d14136a6101c716cfa40cc3",
     "semantic_hash": ""
   },
   "tests/conftest.py": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "tests/test_theme.py": {
-    "mtime": 1793761458.823841,
-    "seen": 1793762136.9399137,
-    "ast_hash": "1d4bbbc6619364df177ace89c8b1c5e2",
+    "mtime": 1794153881.9939528,
+    "seen": 1794155523.3732262,
+    "ast_hash": "b71d1492c26bb008cd4c92f5cea00798",
     "semantic_hash": ""
   },
   "tests/test_tiktok_pipeline.py": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1794079983.1670346,
-    "seen": 1794080423.7193289,
-    "ast_hash": "9c040ec80ef253a9fd9bac08664948ad",
+    "mtime": 1794155298.154806,
+    "seen": 1794155523.3738427,
+    "ast_hash": "779b29fa4c43a88593f1f0a02494b82c",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1410,9 +1410,9 @@
     "semantic_hash": ""
   },
   "tests/test_agent_tab.py": {
-    "mtime": 1793308860.3766963,
-    "seen": 1793309600.744323,
-    "ast_hash": "33d1d2422edbd62ba149b6a32b3e71be",
+    "mtime": 1794155441.9503887,
+    "seen": 1794155523.3728888,
+    "ast_hash": "fb82912c292f9f0921872731200a83cb",
     "semantic_hash": ""
   },
   "tests/test_app_logging.py": {
@@ -1422,39 +1422,39 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/social_discovery.py": {
-    "mtime": 1793228361.4414635,
-    "seen": 1793228824.3432114,
+    "mtime": 1794155511.0707111,
+    "seen": 1794155523.3726935,
     "ast_hash": "92440e952e8bcd3c06d8796dcfc29133",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/browser.py": {
-    "mtime": 1793698495.9581082,
-    "seen": 1793707944.4248326,
+    "mtime": 1794154042.381171,
+    "seen": 1794155523.3727057,
     "ast_hash": "95a5c16bc2ab9ccf1ad0b5d126507fcd",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_judge.py": {
-    "mtime": 1793308725.0699973,
-    "seen": 1793309600.744256,
+    "mtime": 1794154042.401029,
+    "seen": 1794155523.3727214,
     "ast_hash": "e73b497ad35c03960e9cb1d6f87f62a3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_resolve.py": {
-    "mtime": 1792973694.353464,
-    "seen": 1792974202.1696646,
+    "mtime": 1794154042.418032,
+    "seen": 1794155523.3727255,
     "ast_hash": "b571705a25aa25ced2626b36f0c408dc",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_verify.py": {
-    "mtime": 1793232592.2505705,
-    "seen": 1793239604.3329618,
+    "mtime": 1794154042.4200335,
+    "seen": 1794155523.3727326,
     "ast_hash": "2f67938be82b282e064603f6ff71d8e0",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/social_discovery_page.py": {
-    "mtime": 1793711890.3621695,
-    "seen": 1793712476.885174,
-    "ast_hash": "2889b619ef087a41c30d85c8969e6560",
+    "mtime": 1794155423.252802,
+    "seen": 1794155523.3728476,
+    "ast_hash": "de6512d594311e263fcd55992ee066d6",
     "semantic_hash": ""
   },
   "tests/fixtures/social_pages.json": {
@@ -1476,9 +1476,9 @@
     "semantic_hash": ""
   },
   "tests/test_social_discovery_ui.py": {
-    "mtime": 1793151248.0678563,
-    "seen": 1793152404.9174068,
-    "ast_hash": "7028c4c9cd0e2160b64151bbb8f2875f",
+    "mtime": 1794155441.9277701,
+    "seen": 1794155523.3731284,
+    "ast_hash": "a5bda719c33d100c15dcf9f01e5ae0bc",
     "semantic_hash": ""
   },
   "tests/test_social_judge.py": {
@@ -1542,39 +1542,39 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/__init__.py": {
-    "mtime": 1792616906.8935788,
-    "seen": 1792728948.8072617,
+    "mtime": 1794154042.2692294,
+    "seen": 1794155523.3727612,
     "ast_hash": "0fdbbe9dc73e260b73d9b7b1e8d96975",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/exporter.py": {
-    "mtime": 1793799194.468131,
-    "seen": 1793799484.7965598,
+    "mtime": 1794155511.075253,
+    "seen": 1794155523.3727653,
     "ast_hash": "1407d002d118eaa8c99d7b36fc928eb9",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/format.py": {
-    "mtime": 1792654991.3987427,
-    "seen": 1792728948.8072689,
+    "mtime": 1794154042.1264918,
+    "seen": 1794155523.3727775,
     "ast_hash": "c6e5593de5000982375b29e65be36a8f",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/settings_store.py": {
-    "mtime": 1793658637.2775934,
-    "seen": 1793659088.8011193,
+    "mtime": 1794154042.2250714,
+    "seen": 1794155523.3728049,
     "ast_hash": "390e5b9532c0698c66f5955ab232704d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/youtube_client.py": {
-    "mtime": 1793799194.4690905,
-    "seen": 1793799484.7965767,
+    "mtime": 1794155511.0802536,
+    "seen": 1794155523.3728123,
     "ast_hash": "15970d976242e77d33f25f13b1f01163",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/settings_page.py": {
-    "mtime": 1793891440.1665945,
-    "seen": 1793892224.2571218,
-    "ast_hash": "2941da1832ae4e92d42e0c71b7dc60d5",
+    "mtime": 1794155019.6957014,
+    "seen": 1794155523.3728435,
+    "ast_hash": "0b979029409ebdce85ca52f1a440fcfb",
     "semantic_hash": ""
   },
   "tests/test_core_exporter.py": {
@@ -1602,9 +1602,9 @@
     "semantic_hash": ""
   },
   "tests/test_ui_layout.py": {
-    "mtime": 1794079831.5109715,
-    "seen": 1794080423.7188952,
-    "ast_hash": "296c2070face2dca5b353528070fa7d8",
+    "mtime": 1794155160.0456038,
+    "seen": 1794155523.373236,
+    "ast_hash": "2db30f0f0d56cd5f899633a77a2c9c30",
     "semantic_hash": ""
   },
   ".github/dependabot.yml": {
@@ -1806,9 +1806,9 @@
     "semantic_hash": ""
   },
   "tests/test_settings_page.py": {
-    "mtime": 1793890897.5073414,
-    "seen": 1793892224.2572508,
-    "ast_hash": "3d1fcff3ad89f94e7337c5fdd1454f10",
+    "mtime": 1794154921.8342626,
+    "seen": 1794155523.3731027,
+    "ast_hash": "5b3feb75a0ad8ab0b9d45529d24f2775",
     "semantic_hash": ""
   },
   "tasks/spec-groq-key-test.md": {
@@ -1860,8 +1860,8 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/activity_log.py": {
-    "mtime": 1793711009.5093856,
-    "seen": 1793712476.8851092,
+    "mtime": 1794154042.312106,
+    "seen": 1794155523.372829,
     "ast_hash": "9404c431f978edc2c970aa24ebec1085",
     "semantic_hash": ""
   },
@@ -1890,8 +1890,8 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/agent_browser.py": {
-    "mtime": 1793226393.8755758,
-    "seen": 1793228824.34322,
+    "mtime": 1794154042.3681507,
+    "seen": 1794155523.3727021,
     "ast_hash": "232d118a835b27fafbfa67474a79b1ed",
     "semantic_hash": ""
   },
@@ -1902,20 +1902,20 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/opslog.py": {
-    "mtime": 1793227056.2945123,
-    "seen": 1793228824.3431945,
+    "mtime": 1794154042.088081,
+    "seen": 1794155523.3726804,
     "ast_hash": "23c200e5b6d774da0e1d292411ee8a5c",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/dual_check.py": {
-    "mtime": 1793296166.7380362,
-    "seen": 1793296435.4868956,
+    "mtime": 1794154042.3831537,
+    "seen": 1794155523.37271,
     "ast_hash": "cfa5d2de745943571ab70889cdb8290d",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/stealth.py": {
-    "mtime": 1793226002.339614,
-    "seen": 1793228824.3432548,
+    "mtime": 1794154042.4210274,
+    "seen": 1794155523.3727367,
     "ast_hash": "a74c7b0918f0f7a2528dd4711d870c28",
     "semantic_hash": ""
   },
@@ -1968,14 +1968,14 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/facebook_client.py": {
-    "mtime": 1793284887.734772,
-    "seen": 1793285047.9896688,
+    "mtime": 1794155511.076253,
+    "seen": 1794155523.372769,
     "ast_hash": "d843d22138a630e8b11b363a9a3c4b76",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/instagram_client.py": {
-    "mtime": 1793799194.4690905,
-    "seen": 1793799484.7965667,
+    "mtime": 1794155511.0772538,
+    "seen": 1794155523.372781,
     "ast_hash": "9eba18a2b99b1f44c33c25a87058e250",
     "semantic_hash": ""
   },
@@ -2028,8 +2028,8 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/listing.py": {
-    "mtime": 1793280178.3038676,
-    "seen": 1793285047.9896748,
+    "mtime": 1794154042.1404996,
+    "seen": 1794155523.3727856,
     "ast_hash": "f23a9e271bd7e66f8b8731bf73a1a303",
     "semantic_hash": ""
   },
@@ -2106,21 +2106,21 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/music_source.py": {
-    "mtime": 1793634209.7909489,
-    "seen": 1793634911.9437952,
+    "mtime": 1794154042.141493,
+    "seen": 1794155523.372791,
     "ast_hash": "aa4d3a7d3fe25541f7663b2b0ae1be9c",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/music_tagging.py": {
-    "mtime": 1793539346.120082,
-    "seen": 1793542482.3549147,
+    "mtime": 1794154042.1990902,
+    "seen": 1794155523.3727942,
     "ast_hash": "3c6f6f05a6f1a71e6201c037e82e1602",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/music_page.py": {
-    "mtime": 1793711009.2465644,
-    "seen": 1793712476.8851583,
-    "ast_hash": "d18ba41c744867de2e9f877f70893cf1",
+    "mtime": 1794155441.924762,
+    "seen": 1794155523.3728397,
+    "ast_hash": "fc46f459552318f872f790d8704fbd8a",
     "semantic_hash": ""
   },
   "tests/test_music_engine.py": {
@@ -2148,9 +2148,9 @@
     "semantic_hash": ""
   },
   "tests/test_music_ui.py": {
-    "mtime": 1793541570.6128771,
-    "seen": 1793542482.3564587,
-    "ast_hash": "fe0f94b3093aaa4e5963dfb3e7b6ca42",
+    "mtime": 1794155441.9287636,
+    "seen": 1794155523.3730276,
+    "ast_hash": "dda5a71b7b93562cbec4fd594489ace1",
     "semantic_hash": ""
   },
   "SPEC-music-downloader.md": {
@@ -2334,14 +2334,14 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1794046486.4476655,
-    "seen": 1794047006.181692,
+    "mtime": 1794155511.0792537,
+    "seen": 1794155523.3728018,
     "ast_hash": "db4ac742772db981ea3838649673c27f",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
-    "mtime": 1794046722.9071653,
-    "seen": 1794047006.1816983,
+    "mtime": 1794154042.2575715,
+    "seen": 1794155523.3728087,
     "ast_hash": "c5b703b867007351857ee0adb881e5c4",
     "semantic_hash": ""
   },
@@ -2418,9 +2418,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/vertical_studio_page.py": {
-    "mtime": 1794080033.6580381,
-    "seen": 1794080423.7187603,
-    "ast_hash": "279ca1afe8adee8b1a4e252e16e32055",
+    "mtime": 1794155058.7975438,
+    "seen": 1794155523.3728516,
+    "ast_hash": "ec067c2a4233f9b1bf52550ee5f67d58",
     "semantic_hash": ""
   },
   "tests/test_engine_local_video.py": {
@@ -2430,9 +2430,9 @@
     "semantic_hash": ""
   },
   "tests/test_vertical_studio_page.py": {
-    "mtime": 1794079951.1570847,
-    "seen": 1794080423.7189004,
-    "ast_hash": "00de5a3518b346d68c9f03a96547ac4b",
+    "mtime": 1794154918.0150163,
+    "seen": 1794155523.373244,
+    "ast_hash": "bbdc0e04815d6936a7f19fe15745a55b",
     "semantic_hash": ""
   },
   "tasks/plan-vertical-studio.md": {
@@ -2454,8 +2454,8 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/ffmpeg_process.py": {
-    "mtime": 1793986772.6767805,
-    "seen": 1793990063.080236,
+    "mtime": 1794154042.1250465,
+    "seen": 1794155523.3727741,
     "ast_hash": "636df218c46a07d0e798535843a542ad",
     "semantic_hash": ""
   },
@@ -2484,8 +2484,8 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/output_names.py": {
-    "mtime": 1794046344.6755793,
-    "seen": 1794047006.1816862,
+    "mtime": 1794154042.2009668,
+    "seen": 1794155523.372798,
     "ast_hash": "d174b52487da456152f6bd9d69bddd6f",
     "semantic_hash": ""
   },
@@ -2526,9 +2526,21 @@
     "semantic_hash": ""
   },
   "tasks/todo-studio-click-upload.md": {
-    "mtime": 1794080379.8928635,
-    "seen": 1794080423.7194579,
-    "ast_hash": "89265d8d71c76810a062ca6e48593236",
+    "mtime": 1794080429.7440622,
+    "seen": 1794155523.3741357,
+    "ast_hash": "0701396be3c278a3e8cd9d422651bd15",
+    "semantic_hash": ""
+  },
+  "tasks/plan-ui-audit-fixes.md": {
+    "mtime": 1794153793.848987,
+    "seen": 1794155523.3739893,
+    "ast_hash": "c76cb12e873d13c8ce3f3325d7e590fd",
+    "semantic_hash": ""
+  },
+  "tasks/todo-ui-audit-fixes.md": {
+    "mtime": 1794155299.8593957,
+    "seen": 1794155523.3741467,
+    "ast_hash": "6568245eeee57ea872d04c93c5de31af",
     "semantic_hash": ""
   }
 }
