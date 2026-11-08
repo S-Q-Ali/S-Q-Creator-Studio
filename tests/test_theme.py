@@ -256,6 +256,7 @@ def test_sheet_covers_every_widget_the_app_paints():
         "QMenuBar",
         "QMenu",
         "QTextEdit",
+        "QSpinBox",
         "QTabWidget::pane",
         "QTabBar::tab:selected",
         "QScrollBar:horizontal",
@@ -370,13 +371,25 @@ FOCUS_RING = {
     "the danger button": 'QPushButton[kind="danger"]:focus',
     "the ghost button": 'QPushButton[kind="ghost"]:focus',
     "the workspace tab": 'QPushButton[kind="tab"]:focus',
+    "the GitHub button": 'QPushButton[kind="github"]:focus',
+    "the LinkedIn button": 'QPushButton[kind="linkedin"]:focus',
     "the link field": "QLineEdit:focus",
     "the log": "QPlainTextEdit:focus",
     "the rich text": "QTextEdit:focus",
     "the dropdown": "QComboBox:focus",
+    "the spin box": "QSpinBox:focus",
     "the checkbox": "QCheckBox::indicator:focus",
     "the embedded tab": "QTabBar::tab:focus",
 }
+
+
+def test_page_title_scales_with_density():
+    assert "font-size: 16px" in _rule(stylesheet("comfortable"), 'QLabel[role="pageTitle"]')
+    assert "font-size: 14px" in _rule(stylesheet("compact"), 'QLabel[role="pageTitle"]')
+
+
+def test_danger_button_rests_with_a_distinct_border():
+    assert C["faint"] in _rule(STYLESHEET, 'QPushButton[kind="danger"]')
 
 
 def _rules(css: str) -> list[tuple[str, str, int]]:

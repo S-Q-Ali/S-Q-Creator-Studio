@@ -262,11 +262,11 @@ class MainWindow(QMainWindow):
         # rest of the download settings live in the Settings page, where
         # there is room to edit them. A long path is shortened to fit
         # rather than cut off: the whole path stays in the tooltip.
-        self.folder_label = QLabel("")
-        self.folder_label.setProperty("role", "hint")
+        self.folder_label = QPushButton("")
+        self.folder_label.setProperty("kind", "ghost")
         self.folder_label.setToolTip("Click to open the download folder")
         self.folder_label.setCursor(Qt.PointingHandCursor)
-        self.folder_label.mousePressEvent = lambda _event: self.open_folder()
+        self.folder_label.clicked.connect(self.open_folder)
         lay.addWidget(self.folder_label)
         lay.addSpacing(8)
 
@@ -331,10 +331,12 @@ class MainWindow(QMainWindow):
         pa.setContentsMargins(0, 0, 0, 0)
         pa.setSpacing(6)
 
-        pa.addWidget(self._section("ACCOUNT"))
+        lbl_account = self._section("ACCOUNT")
+        pa.addWidget(lbl_account)
         self.account_edit = QLineEdit()
         self.account_edit.setPlaceholderText("@username  or  profile link")
         self.account_edit.returnPressed.connect(self.fetch_account)
+        lbl_account.setBuddy(self.account_edit)
         pa.addWidget(self.account_edit)
         pa.addSpacing(8)
 
@@ -343,10 +345,12 @@ class MainWindow(QMainWindow):
 
         col = QVBoxLayout()
         col.setSpacing(6)
-        col.addWidget(self._section("MAX VIDEOS"))
+        lbl_max_videos = self._section("MAX VIDEOS")
+        col.addWidget(lbl_max_videos)
         self.account_limit = QComboBox()
         self.account_limit.addItems(str(n) for n in ACCOUNT_LIMITS)
         self.account_limit.setCurrentText(str(MAX_ACCOUNT_VIDEOS))
+        lbl_max_videos.setBuddy(self.account_limit)
         col.addWidget(self.account_limit)
         pair.addLayout(col, 1)
 
@@ -420,6 +424,7 @@ class MainWindow(QMainWindow):
         self.work_tab_group.setExclusive(True)
 
         self.btn_toggle_rail = QPushButton("☰")
+        self.btn_toggle_rail.setAccessibleName("Toggle left panel")
         self.btn_toggle_rail.setProperty("kind", "tab")
         self.btn_toggle_rail.setCursor(Qt.PointingHandCursor)
         self.btn_toggle_rail.setMinimumHeight(34)
@@ -619,24 +624,10 @@ class MainWindow(QMainWindow):
         row.setSpacing(6)
         for label, glyph, colour, url in SOCIALS:
             btn = QPushButton(label)
+            btn.setProperty("kind", label.lower())
             btn.setCursor(Qt.PointingHandCursor)
             btn.setToolTip(url)
             btn.setMinimumHeight(28)
-            hover = QColor(colour).lighter(118).name()
-            pressed = QColor(colour).darker(112).name()
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: {colour};
-                    border: none;
-                    border-radius: 14px;
-                    padding: 4px 12px;
-                    color: {C['text']};
-                    font-size: 11px;
-                    font-weight: 700;
-                }}
-                QPushButton:hover {{ background: {hover}; }}
-                QPushButton:pressed {{ background: {pressed}; }}
-            """)
             btn.clicked.connect(lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u)))
             row.addWidget(btn)
         row.addStretch(1)
@@ -662,7 +653,7 @@ class MainWindow(QMainWindow):
         text = f"Saving to {folder}" if folder else "No folder chosen"
         self.folder_label.setToolTip(text)
         metrics = QFontMetrics(self.folder_label.font())
-        room = max(60, self.rail.width() - 44)
+        room = max(60, self.rail.width() - 72)
         self.folder_label.setText(metrics.elidedText(text, Qt.ElideMiddle, room))
 
     def _apply_density(self):
@@ -1321,7 +1312,8 @@ class MainWindow(QMainWindow):
         self.set_status(note)
 
     def _workers_running(self):
-        social = getattr(getattr(self, "agent_tab", None), "social_page", None)
+        agent = getattr(self, "agent_tab", None)
+        social = getattr(agent, "social_page", None)
         music = getattr(self, "music_page", None)
         studio = getattr(self, "vertical_studio_page", None)
         return (
@@ -1331,6 +1323,11 @@ class MainWindow(QMainWindow):
             or (studio is not None and studio.is_running())
             or (self.expander is not None and self.expander.isRunning())
             or self.settings_page.key_test_running()
+            or (
+                agent is not None
+                and agent.worker is not None
+                and agent.worker.isRunning()
+            )
             or (
                 social is not None
                 and social.worker is not None
@@ -1371,7 +1368,10 @@ class MainWindow(QMainWindow):
         studio = getattr(self, "vertical_studio_page", None)
         if studio is not None:
             studio.stop()
-        social = getattr(getattr(self, "agent_tab", None), "social_page", None)
+        agent = getattr(self, "agent_tab", None)
+        if agent is not None:
+            agent.cancel()
+        social = getattr(agent, "social_page", None)
         if social is not None:
             social.cancel()
         self.hide()

@@ -77,12 +77,21 @@ class AgentWorkerThread(QThread):
         self.mode = mode
         self.cookiefile = cookiefile
         self.show_browser = show_browser
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def _emit_progress(self, pct: int, msg: str):
+        if self._cancelled:
+            raise InterruptedError("Discovery stopped.")
+        self.progress_updated.emit(pct, msg)
 
     def run(self):
         try:
             orchestrator = AgentOrchestrator(
                 api_key=self.api_key,
-                progress_callback=lambda pct, msg: self.progress_updated.emit(pct, msg),
+                progress_callback=self._emit_progress,
                 log_callback=self.log.emit,
                 show_browser=self.show_browser,
             )
@@ -103,10 +112,14 @@ class AgentWorkerThread(QThread):
                     check_tiktok=self.check_tiktok,
                     only_no_socials=self.only_no_socials,
                 )
-            self.search_finished.emit(result)
+            if not self._cancelled:
+                self.search_finished.emit(result)
+        except InterruptedError:
+            self.log.emit("Stopped by user.")
         except Exception as e:
-            self.log.emit(f"Error: {e}")
-            self.search_failed.emit(str(e))
+            if not self._cancelled:
+                self.log.emit(f"Error: {e}")
+                self.search_failed.emit(str(e))
 
 
 class AgentTabWidget(QWidget):
@@ -134,7 +147,7 @@ class AgentTabWidget(QWidget):
         controls_layout.setSpacing(12)
 
         # Header Title
-        lbl_title = QLabel("🤖 AI CHANNEL FINDER & SOCIAL PRESENCE INSPECTOR")
+        lbl_title = QLabel("🤖 AI Channel Finder & Social Inspector")
         lbl_title.setProperty("role", "pageTitle")
         controls_layout.addWidget(lbl_title)
 
@@ -147,6 +160,7 @@ class AgentTabWidget(QWidget):
         self.mode_combo.addItems([MODE_YOUTUBE, MODE_TIKTOK, MODE_SOCIAL])
         self.mode_combo.setMinimumHeight(34)
         self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        lbl_mode.setBuddy(self.mode_combo)
         row0.addWidget(lbl_mode)
         row0.addWidget(self.mode_combo, 1)
         controls_layout.addLayout(row0)
@@ -177,8 +191,14 @@ class AgentTabWidget(QWidget):
         self.btn_search.setMinimumWidth(180)
         self.btn_search.clicked.connect(self._start_agent)
 
+        self.btn_stop = QPushButton("Stop")
+        self.btn_stop.setMinimumHeight(40)
+        self.btn_stop.setEnabled(False)
+        self.btn_stop.clicked.connect(self.cancel)
+
         row1.addWidget(self.query_edit, 4)
         row1.addWidget(self.btn_search, 1)
+        row1.addWidget(self.btn_stop, 0)
         search_layout.addLayout(row1)
 
         # The filters, the API key and the cookies file live behind a
@@ -211,6 +231,7 @@ class AgentTabWidget(QWidget):
         self.depth_combo = QComboBox()
         self.depth_combo.addItems(["20 channels", "50 channels", "100 channels"])
         self.depth_combo.setCurrentIndex(1)
+        lbl_depth.setBuddy(self.depth_combo)
 
         row2a.addWidget(lbl_depth)
         row2a.addWidget(self.depth_combo)
@@ -221,6 +242,7 @@ class AgentTabWidget(QWidget):
         self.subs_combo = QComboBox()
         self.subs_combo.addItems(["Any", "5K+", "10K+", "50K+", "100K+"])
         self.subs_combo.setCurrentIndex(0)
+        self.lbl_subs.setBuddy(self.subs_combo)
 
         row2a.addWidget(self.lbl_subs)
         row2a.addWidget(self.subs_combo)
@@ -267,6 +289,7 @@ class AgentTabWidget(QWidget):
             "Leave blank for 100% free zero-key scraper mode (yt-dlp)"
         )
         self.api_key_edit.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        lbl_key.setBuddy(self.api_key_edit)
 
         row3.addWidget(lbl_key)
         row3.addWidget(self.api_key_edit)
@@ -281,7 +304,8 @@ class AgentTabWidget(QWidget):
             "Optional: paste @handles or profile URLs in the search box; "
             "each creator is checked on YouTube, Instagram and Facebook"
         )
-        self.btn_browse_cookies = QPushButton("Browse...")
+        lbl_cookies.setBuddy(self.cookies_edit)
+        self.btn_browse_cookies = QPushButton("Browse…")
         self.btn_browse_cookies.clicked.connect(self._browse_cookies)
         row4.addWidget(lbl_cookies)
         row4.addWidget(self.cookies_edit, 1)
@@ -326,6 +350,7 @@ class AgentTabWidget(QWidget):
         self._setup_table_columns(MODE_YOUTUBE)
         self.table.cellClicked.connect(self._open_cell_url)
         self.table.cellDoubleClicked.connect(self._open_cell_url)
+        self.table.installEventFilter(self)
 
         # The table and the empty state share one slot: a table with no rows
         # is seven hundred pixels of nothing, which reads as a broken screen
@@ -437,7 +462,11 @@ class AgentTabWidget(QWidget):
 
     def _browse_cookies(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select TikTok cookies.txt", "", "Text Files (*.txt);;All Files (*)"
+            self,
+            "Select TikTok cookies.txt",
+            "",
+            "Text Files (*.txt);;All Files (*)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path:
             self.cookies_edit.setText(path)
@@ -484,7 +513,7 @@ class AgentTabWidget(QWidget):
     def _start_agent(self):
         query = self.query_edit.text().strip()
         if not query:
-            QMessageBox.warning(self, "Input Required", "Please enter a search prompt or tag!")
+            self.lbl_status.setText("Enter a search prompt, tag or creator handle first.")
             return
 
         depth_map = {0: 20, 1: 50, 2: 100}
@@ -495,6 +524,7 @@ class AgentTabWidget(QWidget):
         mode = self.mode_combo.currentText()
 
         self.btn_search.setEnabled(False)
+        self.btn_stop.setEnabled(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.lbl_status.setText("Starting Agent...")
@@ -520,6 +550,17 @@ class AgentTabWidget(QWidget):
         self.worker.search_failed.connect(self._on_failed)
         self.worker.start()
 
+    def is_running(self) -> bool:
+        return self.worker is not None and self.worker.isRunning()
+
+    def cancel(self):
+        if self.worker is not None and hasattr(self.worker, "cancel"):
+            self.worker.cancel()
+        self.btn_search.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.progress_bar.setVisible(False)
+        self.lbl_status.setText("Stopped.")
+
     def _on_progress(self, percent: int, message: str):
         self.progress_bar.setValue(percent)
         self.lbl_status.setText(message)
@@ -527,6 +568,7 @@ class AgentTabWidget(QWidget):
     def _on_finished(self, result):
         self.search_result = result
         self.btn_search.setEnabled(True)
+        self.btn_stop.setEnabled(False)
         self.progress_bar.setVisible(False)
         mode = self.mode_combo.currentText()
         self._setup_table_columns(mode)
@@ -537,6 +579,7 @@ class AgentTabWidget(QWidget):
 
     def _on_failed(self, error_msg: str):
         self.btn_search.setEnabled(True)
+        self.btn_stop.setEnabled(False)
         self.progress_bar.setVisible(False)
         self.lbl_status.setText(f"Error: {error_msg}")
         QMessageBox.critical(self, "Agent Error", f"Agent failed with error:\n{error_msg}")
@@ -560,6 +603,18 @@ class AgentTabWidget(QWidget):
         url = item.data(self._URL_ROLE)
         if url:
             QDesktopServices.openUrl(QUrl(url))
+
+    def eventFilter(self, obj, event) -> bool:
+        from PySide6.QtCore import QEvent
+
+        if (
+            obj is self.table
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        ):
+            self._open_cell_url(self.table.currentRow(), self.table.currentColumn())
+            return True
+        return super().eventFilter(obj, event)
 
     @staticmethod
     def _status_item(status: SocialStatus, ok_label: str, unknown_label: str = "? Unconfirmed"):
@@ -586,6 +641,7 @@ class AgentTabWidget(QWidget):
             # Col 0: Checkbox
             chk = QCheckBox()
             chk.setChecked(True)
+            chk.setAccessibleName(f"Select {ch.title or ch.handle}")
             self.table.setCellWidget(row_idx, 0, chk)
 
             # Col 1: Title
@@ -658,6 +714,7 @@ class AgentTabWidget(QWidget):
             # Col 0: Checkbox
             chk = QCheckBox()
             chk.setChecked(True)
+            chk.setAccessibleName(f"Select {profile.nickname or profile.handle}")
             self.table.setCellWidget(row_idx, 0, chk)
 
             # Col 1: Nickname
@@ -757,7 +814,7 @@ class AgentTabWidget(QWidget):
             self.send_to_queue_requested.emit(selected_urls)
             self.lbl_status.setText(f"Sent {len(selected_urls)} URLs to the download queue.")
         else:
-            QMessageBox.warning(self, "No Selection", "Please select at least one entry!")
+            self.lbl_status.setText("Select at least one row to send to the queue.")
 
     def _copy_fb_links(self):
         links = []
@@ -831,7 +888,11 @@ class AgentTabWidget(QWidget):
         if not is_tiktok_mode and not self.search_result.channels:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Agent Results CSV", "channels_social_export.csv", "CSV Files (*.csv)"
+            self,
+            "Save Agent Results CSV",
+            "channels_social_export.csv",
+            "CSV Files (*.csv)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if not path:
             return
@@ -907,7 +968,11 @@ class AgentTabWidget(QWidget):
         if not self.search_result:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Agent Results JSON", "channels_social_export.json", "JSON Files (*.json)"
+            self,
+            "Save Agent Results JSON",
+            "channels_social_export.json",
+            "JSON Files (*.json)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path:
             with open(path, "w", encoding="utf-8") as f:

@@ -293,7 +293,7 @@ QLabel[role="hintStrong"] {{
     background: transparent;
 }}
 QLabel[role="pageTitle"] {{
-    font-size: 14px;
+    font-size: {t['title'] - 3}px;
     font-weight: 800;
     color: {C['accent_hi']};
     background: transparent;
@@ -339,6 +339,22 @@ QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus {{
     border: 1px solid {C['accent_hi']};
 }}
 QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled, QComboBox:disabled {{
+    color: {C['muted']};
+    border-color: {C['border']};
+    background: {well};
+}}
+QSpinBox {{
+    background: {raised};
+    border: 1px solid {C['border']};
+    border-radius: 8px;
+    padding: {t['field_pad_y']}px {t['field_pad_x']}px;
+    selection-background-color: {C['accent_deep']};
+    selection-color: {C['text']};
+}}
+QSpinBox:focus {{
+    border: 1px solid {C['accent_hi']};
+}}
+QSpinBox:disabled {{
     color: {C['muted']};
     border-color: {C['border']};
     background: {well};
@@ -393,7 +409,7 @@ QPushButton[kind="primary"]:disabled {{ background: {well}; border-color: {C['bo
    the focused button looks untouched. Hover is told apart by its fill. */
 QPushButton[kind="primary"]:focus {{ border-color: {C['accent_hi']}; }}
 
-QPushButton[kind="danger"] {{ color: {C['failed']}; border-color: {C['border']}; }}
+QPushButton[kind="danger"] {{ color: {C['failed']}; border-color: {C['faint']}; }}
 QPushButton[kind="danger"]:hover {{ border-color: {C['accent_hi']}; background: {C['raised_hi']}; }}
 QPushButton[kind="danger"]:focus {{ border-color: {C['accent_hi']}; }}
 
@@ -406,6 +422,32 @@ QPushButton[kind="ghost"] {{
 }}
 QPushButton[kind="ghost"]:hover {{ color: {C['text']}; border-color: {C['border']}; }}
 QPushButton[kind="ghost"]:focus {{ border-color: {C['accent_hi']}; }}
+
+QPushButton[kind="github"] {{
+    background: {C['github']};
+    border: 1px solid {C['border']};
+    border-radius: 14px;
+    padding: 4px 12px;
+    color: {C['text']};
+    font-size: {caption + 1}px;
+    font-weight: 700;
+}}
+QPushButton[kind="github"]:hover {{ border-color: {C['faint']}; }}
+QPushButton[kind="github"]:pressed {{ background: {C['raised']}; }}
+QPushButton[kind="github"]:focus {{ border-color: {C['accent_hi']}; }}
+
+QPushButton[kind="linkedin"] {{
+    background: {C['linkedin']};
+    border: 1px solid {C['linkedin']};
+    border-radius: 14px;
+    padding: 4px 12px;
+    color: {C['text']};
+    font-size: {caption + 1}px;
+    font-weight: 700;
+}}
+QPushButton[kind="linkedin"]:hover {{ border-color: {C['accent_hi']}; }}
+QPushButton[kind="linkedin"]:pressed {{ background: {C['accent_deep']}; }}
+QPushButton[kind="linkedin"]:focus {{ border-color: {C['accent_hi']}; }}
 
 /* ---------- source tabs ---------- */
 QPushButton[kind="tab"] {{

@@ -257,6 +257,7 @@ class JobCard(QFrame):
 
         self.title.setText(shorten(j.title) if j.title else "Waiting for details")
         self.title.setStyleSheet("" if j.title else f"color: {C['faint']}; font-weight: 500;")
+        self.check.setAccessibleName(f"Select {j.title or j.url}")
 
         self.url.setText(shorten(j.url, 110))
 

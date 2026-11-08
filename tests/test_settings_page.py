@@ -296,3 +296,24 @@ def test_a_stored_mode_the_app_does_not_know_falls_back_to_off(qapp, tmp_path):
 
     assert page.split.currentText() == "Off"
     assert page.clips.value() == 6
+
+
+def test_settings_page_has_work_header_and_standard_browse_ellipsis(qapp, isolated_appdata):
+    from PySide6.QtWidgets import QFrame, QLabel, QPushButton
+
+    page = SettingsPage()
+    header = page.findChild(QFrame, "WorkHeader")
+    assert header is not None
+    titles = [
+        lbl.text()
+        for lbl in header.findChildren(QLabel)
+        if lbl.property("role") == "pageTitle"
+    ]
+    assert titles == ["⚙️ Settings"]
+    browse_btns = [
+        btn.text()
+        for btn in page.findChildren(QPushButton)
+        if "Browse" in btn.text()
+    ]
+    assert browse_btns and all(text == "Browse…" for text in browse_btns)
+    page.deleteLater()

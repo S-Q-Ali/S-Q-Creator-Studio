@@ -280,3 +280,31 @@ def test_a_channel_that_could_not_be_resolved_still_gets_a_row(qapp):
 
     assert page.table.rowCount() == 1
     assert page.table.item(0, 1).text() == "—"
+
+
+def test_found_cell_is_underlined_and_keyboard_navigation_shows_detail_and_opens_link(
+    qapp, monkeypatch
+):
+    from PySide6.QtCore import QEvent
+    from PySide6.QtGui import QKeyEvent
+
+    from s_q_ali_media_downloader.ui import social_discovery_page as sdp
+
+    opened = []
+    monkeypatch.setattr(sdp.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+
+    page = SocialDiscoveryPage()
+    result = _result()
+    result.platforms = [_found("facebook")]
+    page._on_result(result)
+
+    item = page.table.item(0, 1)
+    assert item.font().underline() is True
+
+    page.table.setCurrentCell(0, 1)
+    assert "mrbeast" in page.detail_label.text()
+
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
+    page.eventFilter(page.table, event)
+    assert opened == ["https://www.facebook.com/mrbeast"]
+    page.deleteLater()

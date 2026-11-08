@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -35,7 +37,6 @@ from s_q_ali_media_downloader.engine import (
     MusicResolveThread,
     default_output_dir,
 )
-from s_q_ali_media_downloader.theme import C
 
 COLUMNS = ("#", "Track", "Source", "Status", "Progress", "Quality")
 
@@ -95,17 +96,22 @@ class MusicPage(QWidget):
 
         options = QHBoxLayout()
         options.setSpacing(8)
-        options.addWidget(QLabel("Format"))
+        lbl_format = QLabel("Format")
+        options.addWidget(lbl_format)
         self.format = QComboBox()
         self.format.addItems(list(MUSIC_FORMATS))
+        lbl_format.setBuddy(self.format)
         options.addWidget(self.format, 0)
         options.addSpacing(8)
-        options.addWidget(QLabel("Folder"))
+        lbl_folder = QLabel("Folder")
+        options.addWidget(lbl_folder)
         self.folder = QLineEdit()
+        lbl_folder.setBuddy(self.folder)
         options.addWidget(self.folder, 1)
         browse = QPushButton("Browse…")
         browse.setProperty("kind", "ghost")
         browse.clicked.connect(self._browse)
+        self.btn_browse = browse
         options.addWidget(browse)
         self.cookies = QCheckBox("Chrome cookies")
         self.cookies.setToolTip(
@@ -141,10 +147,24 @@ class MusicPage(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         for column in (0, 2, 3, 4, 5):
             self.table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeToContents)
-        layout.addWidget(self.table, 1)
+
+        self.table_stack = QStackedWidget()
+        self.table_stack.addWidget(self.table)
+        self.empty_state = QLabel(
+            "No tracks queued yet.\n\n"
+            "Paste a Spotify, SoundCloud or YouTube link above and click Add to queue."
+        )
+        self.empty_state.setObjectName("EmptyState")
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        self.empty_state.setWordWrap(True)
+        self.table_stack.addWidget(self.empty_state)
+        self.table_stack.setCurrentWidget(self.empty_state)
+        layout.addWidget(self.table_stack, 1)
 
         self.overall = QProgressBar()
         self.overall.setRange(0, 100)
@@ -154,6 +174,7 @@ class MusicPage(QWidget):
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
+        self.log.setMaximumBlockCount(500)
         self.log.setFixedHeight(62)
         self.log.setPlaceholderText("Activity appears here.")
         layout.addWidget(self.log)
@@ -174,7 +195,10 @@ class MusicPage(QWidget):
 
     def _browse(self):
         folder = QFileDialog.getExistingDirectory(
-            self, "Choose where music is saved", self.folder.text().strip() or default_output_dir()
+            self,
+            "Choose where music is saved",
+            self.folder.text().strip() or default_output_dir(),
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if folder:
             self.folder.setText(folder)
@@ -227,6 +251,7 @@ class MusicPage(QWidget):
     # -------------------------------------------------------------- queue UI
     def _add_track(self, track):
         self.tracks.append(track)
+        self.table_stack.setCurrentWidget(self.table)
         row = self.table.rowCount()
         self.table.insertRow(row)
         self.table.setItem(row, 0, QTableWidgetItem(str(row + 1)))
@@ -292,6 +317,7 @@ class MusicPage(QWidget):
         self.btn_clear.setEnabled(not running)
         self.format.setEnabled(not running)
         self.folder.setEnabled(not running)
+        self.btn_browse.setEnabled(not running)
         self.cookies.setEnabled(not running)
 
     def _on_started(self, uid, label):
@@ -355,6 +381,7 @@ class MusicPage(QWidget):
         self._row_by_uid.clear()
         self._bars.clear()
         self.table.setRowCount(0)
+        self.table_stack.setCurrentWidget(self.empty_state)
         self.overall.setRange(0, 100)
         self.overall.setValue(0)
         self._say("Queue cleared.")
@@ -362,7 +389,9 @@ class MusicPage(QWidget):
     # -------------------------------------------------------------- feedback
     def _say(self, text, error=False):
         self.status.setText(text)
-        self.status.setStyleSheet(f"color: {C['failed']};" if error else "")
+        self.status.setProperty("role", "error" if error else "meta")
+        self.status.style().unpolish(self.status)
+        self.status.style().polish(self.status)
 
     def _log(self, text):
         if text:

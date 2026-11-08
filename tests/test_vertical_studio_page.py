@@ -767,3 +767,8 @@ def test_a_run_without_a_folder_still_sends_them_back_to_their_own_files(
     seen["threads"][0].finished_all.emit()
 
     assert page.status.text() == "Done. The versions are beside each file."
+
+
+def test_studio_primary_run_button_leads_action_row_and_log_is_capped(page):
+    assert page.btn_run.x() < page.btn_remove.x()
+    assert page.log.maximumBlockCount() == 500

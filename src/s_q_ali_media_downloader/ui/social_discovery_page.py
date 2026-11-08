@@ -152,10 +152,6 @@ class SocialDiscoveryPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
 
-        title = QLabel("🔎 SOCIAL DISCOVERY")
-        title.setProperty("role", "pageTitle")
-        layout.addWidget(title)
-
         hint = QLabel(
             "Paste a YouTube channel URL, an @handle, or a channel name — one per line "
             "for a batch. The YouTube channel is resolved first with yt-dlp (or the "
@@ -222,6 +218,8 @@ class SocialDiscoveryPage(QWidget):
                 column, QHeaderView.ResizeMode.Stretch
             )
         self.table.cellClicked.connect(self._on_cell_clicked)
+        self.table.currentCellChanged.connect(self._on_current_cell_changed)
+        self.table.installEventFilter(self)
 
         # The table and the empty state share one slot. A table with no rows
         # is a screen of nothing; the empty state says what to do instead.
@@ -341,6 +339,9 @@ class SocialDiscoveryPage(QWidget):
                 item.setToolTip(tip)
                 if outcome.url:
                     item.setData(Qt.ItemDataRole.UserRole, outcome.url)
+                    font = item.font()
+                    font.setUnderline(True)
+                    item.setFont(font)
             self.table.setItem(row, index, item)
 
         self.table.resizeRowsToContents()
@@ -378,16 +379,16 @@ class SocialDiscoveryPage(QWidget):
     # ------------------------------------------------------------------ #
     # The detail line
     # ------------------------------------------------------------------ #
-    def _on_cell_clicked(self, row: int, column: int) -> None:
-        if column == 0:
-            return
+    def _show_cell_detail(self, row: int, column: int):
+        if row < 0 or column <= 0:
+            return None
         result = self._results[row] if row < len(self._results) else None
         if result is None:
-            return
+            return None
         outcome = result.outcome(PLATFORMS[column - 1])
         if outcome is None:
             self.detail_label.setText("")
-            return
+            return None
         parts = [f"{outcome.platform}: {VERDICT_TEXT.get(outcome.verdict, outcome.verdict)}"]
         if outcome.tier:
             parts.append(f"confidence: {outcome.tier}")
@@ -402,8 +403,19 @@ class SocialDiscoveryPage(QWidget):
         if outcome.detail:
             parts.append(outcome.detail)
         if outcome.url:
-            parts.append("click the cell again to open the account")
+            parts.append("click the cell again or press Enter to open the account")
         self.detail_label.setText("  ·  ".join(parts))
+        return outcome
+
+    def _on_current_cell_changed(
+        self, current_row: int, current_column: int, _prev_row: int, _prev_col: int
+    ) -> None:
+        self._show_cell_detail(current_row, current_column)
+
+    def _on_cell_clicked(self, row: int, column: int) -> None:
+        outcome = self._show_cell_detail(row, column)
+        if outcome is None:
+            return
 
         # The first click shows the account; a second click on the same cell
         # opens it. The hint says so, and it is what a link is expected to
@@ -414,6 +426,22 @@ class SocialDiscoveryPage(QWidget):
             self._last_clicked = None
         else:
             self._last_clicked = cell
+
+    def eventFilter(self, obj, event) -> bool:
+        from PySide6.QtCore import QEvent
+
+        if (
+            obj is self.table
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        ):
+            outcome = self._show_cell_detail(
+                self.table.currentRow(), self.table.currentColumn()
+            )
+            if outcome is not None and outcome.url:
+                QDesktopServices.openUrl(QUrl(outcome.url))
+                return True
+        return super().eventFilter(obj, event)
 
     # ------------------------------------------------------------------ #
     # Export
@@ -446,6 +474,7 @@ class SocialDiscoveryPage(QWidget):
             "Export social discovery",
             exporter.suggested_filename("social-discovery", fmt),
             f"Text documents (*.{fmt})",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if not path:
             return

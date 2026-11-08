@@ -172,12 +172,36 @@ def test_the_nav_tabs_leave_room_for_their_text(window):
 
     for button in (
         window.btn_nav_queue,
+        window.btn_nav_music,
+        window.btn_nav_studio,
         window.btn_nav_agent,
         window.btn_nav_settings,
     ):
         shown = button.text().replace("&&", "&")
         slack = button.width() - button.fontMetrics().horizontalAdvance(shown)
         assert slack >= 20, f"{shown!r} has only {slack}px of padding"
+
+
+def test_nothing_is_clipped_across_all_workspace_tabs_at_1280x720(window):
+    window.settings_page.compact_check.setChecked(True)
+    window._apply_density()
+    window.resize(1280, 720)
+    window.show()
+    for _ in range(40):
+        qapp_process()
+
+    for button in (
+        window.btn_nav_queue,
+        window.btn_nav_music,
+        window.btn_nav_studio,
+        window.btn_nav_agent,
+        window.btn_nav_settings,
+    ):
+        button.click()
+        for _ in range(20):
+            qapp_process()
+        clipped = _clipped_widgets(window)
+        assert not clipped, f"clipped on {button.text()!r}:\n  " + "\n  ".join(clipped)
 
 
 def test_the_window_can_be_narrower_than_a_small_laptop(window):
@@ -288,6 +312,44 @@ def test_the_settings_page_is_reachable_and_holds_the_groq_key(window):
         qapp_process()
 
     assert window.workspace_stack.currentWidget() is window.settings_page
+
+
+def test_folder_link_and_rail_toggle_are_keyboard_accessible(window):
+    assert isinstance(window.folder_label, QPushButton)
+    assert window.folder_label.focusPolicy() != Qt.FocusPolicy.NoFocus
+    assert window.btn_toggle_rail.accessibleName() == "Toggle left panel"
+
+
+def test_job_card_checkbox_and_form_labels_have_accessible_names_and_buddies(window):
+    from s_q_ali_media_downloader.ui.widgets import Job, JobCard
+
+    job = Job("https://youtu.be/x")
+    job.title = "Demo clip"
+    card = JobCard(job)
+    assert "Demo clip" in card.check.accessibleName()
+    card.deleteLater()
+
+    # Check buddies across Settings, Music, Studio, Agent, and MainWindow rail
+    settings_buddies = [
+        lbl.buddy()
+        for lbl in window.settings_page.findChildren(QLabel)
+        if lbl.property("role") == "fieldLabel" and lbl.text().strip()
+    ]
+    assert settings_buddies and all(b is not None for b in settings_buddies)
+
+    music_buddies = [
+        lbl.buddy()
+        for lbl in window.music_page.findChildren(QLabel)
+        if lbl.text() in ("Format", "Folder")
+    ]
+    assert len(music_buddies) == 2 and all(b is not None for b in music_buddies)
+
+    studio_buddies = [
+        lbl.buddy()
+        for lbl in window.vertical_studio_page.findChildren(QLabel)
+        if lbl.text() in ("Shorts", "Save results to")
+    ]
+    assert len(studio_buddies) == 2 and all(b is not None for b in studio_buddies)
 
 
 def qapp_process():

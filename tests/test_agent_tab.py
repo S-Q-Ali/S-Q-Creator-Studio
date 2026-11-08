@@ -263,3 +263,106 @@ def test_copy_links_uses_inline_status(qapp, isolated_appdata, monkeypatch):
     assert popups == []
     assert "Facebook" in tab.lbl_status.text()
     tab.deleteLater()
+
+
+def test_file_dialogs_use_non_native_dialog():
+    import re
+
+    ui_dir = AGENT_TAB.parent
+    for name in ("music_page.py", "settings_page.py", "agent_tab.py", "social_discovery_page.py"):
+        text = (ui_dir / name).read_text(encoding="utf-8")
+        calls = re.findall(
+            r"QFileDialog\.(?:getOpenFileName|getSaveFileName|getExistingDirectory)\([\s\S]*?\n\s*\)",
+            text,
+        )
+        assert calls, f"no QFileDialog calls matched in {name}"
+        for call in calls:
+            assert "DontUseNativeDialog" in call, f"{name} missing DontUseNativeDialog: {call}"
+
+
+def test_agent_tab_can_cancel_running_worker_and_blocks_window_close(qapp, isolated_appdata):
+    from s_q_ali_media_downloader.ui.main_window import MainWindow
+
+    window = MainWindow()
+    tab = window.agent_tab
+    assert hasattr(tab, "btn_stop")
+    assert not tab.btn_stop.isEnabled()
+
+    class BusyWorker:
+        cancelled = False
+
+        def isRunning(self):
+            return not self.cancelled
+
+        def cancel(self):
+            self.cancelled = True
+
+    tab.worker = BusyWorker()
+    tab.btn_search.setEnabled(False)
+    tab.btn_stop.setEnabled(True)
+    assert window._workers_running()
+
+    tab.cancel()
+    assert tab.worker.cancelled
+    assert tab.btn_search.isEnabled()
+    assert not tab.btn_stop.isEnabled()
+    window.close()
+
+
+def test_pressing_return_on_agent_table_opens_focused_link_and_checkbox_has_accessible_name(
+    qapp, isolated_appdata, monkeypatch
+):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent
+
+    from s_q_ali_media_downloader.ui import agent_tab as at
+
+    opened = []
+    monkeypatch.setattr(at.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+
+    tab = AgentTabWidget()
+    channel = ChannelMetadata(
+        channel_id="ucx",
+        title="Test Channel",
+        youtube_url="https://www.youtube.com/channel/ucx",
+    )
+    tab._populate_table([channel])
+
+    chk = tab.table.cellWidget(0, 0)
+    assert "Test Channel" in chk.accessibleName()
+
+    tab.table.setCurrentCell(0, 1)
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Return, Qt.KeyboardModifier.NoModifier)
+    tab.eventFilter(tab.table, event)
+    assert opened == ["https://www.youtube.com/channel/ucx"]
+    tab.deleteLater()
+
+
+def test_agent_tab_uses_title_case_header_and_inline_status_for_empty_actions(
+    qapp, isolated_appdata, monkeypatch
+):
+    from PySide6.QtWidgets import QLabel
+
+    from s_q_ali_media_downloader.ui import agent_tab as at
+
+    warnings = []
+    monkeypatch.setattr(at.QMessageBox, "warning", lambda *a, **k: warnings.append(a))
+
+    tab = AgentTabWidget()
+    titles = [
+        lbl.text()
+        for lbl in tab.findChildren(QLabel)
+        if lbl.property("role") == "pageTitle"
+    ]
+    assert titles == ["🤖 AI Channel Finder & Social Inspector"]
+    assert tab.btn_browse_cookies.text() == "Browse…"
+
+    tab.query_edit.clear()
+    tab._start_agent()
+    assert warnings == []
+    assert "prompt" in tab.lbl_status.text().lower() or "tag" in tab.lbl_status.text().lower()
+
+    tab._send_selected_to_queue()
+    assert warnings == []
+    assert "select" in tab.lbl_status.text().lower()
+    tab.deleteLater()

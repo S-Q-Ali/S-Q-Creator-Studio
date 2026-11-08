@@ -73,3 +73,59 @@ def test_main_window_has_music_workspace(qapp, isolated_appdata):
     assert isinstance(window.music_page, MusicPage)
     assert window.workspace_stack.count() >= 4
     window.close()
+
+
+def test_say_uses_role_property_instead_of_inline_stylesheet(qapp):
+    page = MusicPage()
+    page._say("Boom", error=True)
+    assert page.status.property("role") == "error"
+    assert page.status.styleSheet() == ""
+    page._say("Ready")
+    assert page.status.property("role") == "meta"
+    assert page.status.styleSheet() == ""
+    page.deleteLater()
+
+
+def test_running_state_disables_browse_button(qapp):
+    page = MusicPage()
+    page._set_running(True)
+    assert not page.btn_browse.isEnabled()
+    page._set_running(False)
+    assert page.btn_browse.isEnabled()
+    page.deleteLater()
+
+
+def test_browse_uses_non_native_dialog(qapp, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog
+
+    from s_q_ali_media_downloader.ui import music_page as mp
+
+    captured = {}
+
+    def fake_dir(*args, **kwargs):
+        captured.update(kwargs)
+        return ""
+
+    monkeypatch.setattr(mp.QFileDialog, "getExistingDirectory", fake_dir)
+    page = MusicPage()
+    page._browse()
+    assert captured.get("options") == QFileDialog.Option.DontUseNativeDialog
+    page.deleteLater()
+
+
+def test_music_page_has_empty_state_alternating_rows_and_log_cap(qapp):
+    page = MusicPage()
+    assert hasattr(page, "empty_state")
+    assert page.table_stack.currentWidget() is page.empty_state
+    assert page.table.alternatingRowColors() is True
+    assert page.table.showGrid() is False
+    assert page.log.maximumBlockCount() == 500
+
+    page._add_track(
+        MusicTrack(url="https://youtu.be/x", title="Song", artist="Artist", source="youtube")
+    )
+    assert page.table_stack.currentWidget() is page.table
+
+    page.clear()
+    assert page.table_stack.currentWidget() is page.empty_state
+    page.deleteLater()

@@ -182,13 +182,15 @@ class VerticalStudioPage(QWidget):
         )
         options.addWidget(self.vertical)
         options.addSpacing(8)
-        options.addWidget(QLabel("Shorts"))
+        lbl_shorts = QLabel("Shorts")
+        options.addWidget(lbl_shorts)
         self.split = QComboBox()
         self.split.addItems(SPLIT_OPTIONS)
         self.split.setMaximumWidth(220)
         self.split.setToolTip(
             "Cut the file into shorts at the pauses. Off keeps the file whole."
         )
+        lbl_shorts.setBuddy(self.split)
         options.addWidget(self.split)
         self.clips_label = QLabel("clips")
         self.clips_label.setProperty("role", "hint")
@@ -196,6 +198,7 @@ class VerticalStudioPage(QWidget):
         self.clips.setRange(MIN_CLIPS, MAX_CLIPS)
         self.clips.setValue(DEFAULT_CLIPS)
         self.clips.setToolTip("How many clips the length is divided into.")
+        self.clips_label.setBuddy(self.clips)
         options.addWidget(self.clips_label)
         options.addWidget(self.clips)
         options.addStretch(1)
@@ -247,10 +250,10 @@ class VerticalStudioPage(QWidget):
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop)
         for button in (
-            self.btn_remove,
-            self.btn_clear,
             self.btn_run,
             self.btn_stop,
+            self.btn_remove,
+            self.btn_clear,
         ):
             actions.addWidget(button)
         actions.addStretch(1)
@@ -267,6 +270,7 @@ class VerticalStudioPage(QWidget):
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
+        self.log.setMaximumBlockCount(500)
         self.log.setFixedHeight(62)
         self.log.setPlaceholderText("Activity appears here.")
         layout.addWidget(self.log)

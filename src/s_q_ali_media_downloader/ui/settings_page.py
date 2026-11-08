@@ -180,6 +180,7 @@ class SettingsPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
+        outer.addWidget(self._build_header())
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -207,6 +208,23 @@ class SettingsPage(QWidget):
     # ------------------------------------------------------------------ #
     # The cards
     # ------------------------------------------------------------------ #
+    def _build_header(self) -> QFrame:
+        header = QFrame()
+        header.setObjectName("WorkHeader")
+        layout = QVBoxLayout(header)
+        layout.setContentsMargins(24, 14, 24, 14)
+        layout.setSpacing(4)
+        title = QLabel("⚙️ Settings")
+        title.setProperty("role", "pageTitle")
+        hint = QLabel(
+            "API keys, download defaults and layout density — saved automatically."
+        )
+        hint.setProperty("role", "hint")
+        hint.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(hint)
+        return header
+
     def _card(self, title: str, rows: list[tuple]) -> QFrame:
         """A titled card. The rows share one grid, so every label lines up."""
         card = QFrame()
@@ -231,6 +249,21 @@ class SettingsPage(QWidget):
             text = QLabel(label)
             text.setProperty("role", "fieldLabel")
             text.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            if label:
+                target = (
+                    control
+                    if control.focusPolicy() != Qt.FocusPolicy.NoFocus
+                    else next(
+                        (
+                            c
+                            for c in control.findChildren(QWidget)
+                            if c.focusPolicy() != Qt.FocusPolicy.NoFocus
+                        ),
+                        None,
+                    )
+                )
+                if target is not None:
+                    text.setBuddy(target)
             grid.addWidget(text, row_index, 0)
             grid.addWidget(control, row_index, 1)
             if hint:
@@ -316,7 +349,7 @@ class SettingsPage(QWidget):
         self.cookies_file_edit = QLineEdit()
         self.cookies_file_edit.setPlaceholderText("No cookies file selected")
         self.cookies_file_edit.textChanged.connect(self._save_keys)
-        browse = QPushButton("Browse...")
+        browse = QPushButton("Browse…")
         browse.clicked.connect(self.choose_cookies)
         clear = QPushButton("Clear")
         clear.setProperty("kind", "ghost")
@@ -380,7 +413,7 @@ class SettingsPage(QWidget):
         folder_lay.setSpacing(8)
         self.folder_edit = QLineEdit()
         self.folder_edit.setPlaceholderText("Choose a folder")
-        browse = QPushButton("Browse")
+        browse = QPushButton("Browse…")
         browse.clicked.connect(self.choose_folder)
         open_btn = QPushButton("Open folder")
         open_btn.clicked.connect(self.open_folder)
@@ -811,7 +844,11 @@ class SettingsPage(QWidget):
 
     def choose_cookies(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Choose a cookies.txt", "", "Text files (*.txt);;All files (*)"
+            self,
+            "Choose a cookies.txt",
+            "",
+            "Text files (*.txt);;All files (*)",
+            options=QFileDialog.Option.DontUseNativeDialog,
         )
         if path:
             self.cookies_file_edit.setText(path)
@@ -821,7 +858,11 @@ class SettingsPage(QWidget):
         self.set_status("Cookies file cleared.")
 
     def choose_folder(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Choose a folder")
+        path = QFileDialog.getExistingDirectory(
+            self,
+            "Choose a folder",
+            options=QFileDialog.Option.DontUseNativeDialog,
+        )
         if path:
             # Validate the folder is writable before accepting.
             try:
