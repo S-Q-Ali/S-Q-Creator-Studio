@@ -1173,7 +1173,7 @@ def _ask_searched(
     groq = (api_key or groq_key() or "").strip()
     if not firecrawl and not gemini and not groq:
         raise JudgeUnavailable(
-            "No AI or Firecrawl key configured. Add a Firecrawl, Gemini, or Groq API key in "
+            "No AI key configured. Add a Firecrawl, Gemini, or Groq API key in "
             "Settings > AI Keys."
         )
 
