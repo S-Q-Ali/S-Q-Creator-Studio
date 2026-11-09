@@ -1,7 +1,7 @@
 # Graph Report - S Q Ali Media Downloader  (2026-11-10)
 
 ## Corpus Check
-- 364 files · ~568,585 words
+- 364 files · ~568,595 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 63 file(s) not represented in the graph (top: .ttf 54, (none) 2, .onnx 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5640d566`
+- Built from commit: `09c52476`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1942,7 +1942,7 @@ Nodes (3): Amazon Bedrock model IDs, Claude Platform on AWS, Model-ID Rename Qui
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `page()` connect `page` to `VerticalStudioPage`, `test_vertical_studio_page.py`, `Steering Patterns`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Are the 58 inferred relationships involving `MainWindow` (e.g. with `Fixed` and `AccountFetchThread`) actually correct?**
   _`MainWindow` has 58 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `s-q-ali-media-downloader` to the rest of the system?**

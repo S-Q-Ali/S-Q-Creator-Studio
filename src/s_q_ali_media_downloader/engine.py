@@ -575,16 +575,16 @@ class YouTubeFetchThread(QThread):
         url,
         limit=MAX_ACCOUNT_VIDEOS,
         parent=None,
-        include_shorts=True,
+        include_shorts=False,
         shorts_sort="latest",
-        video_type="all",
+        video_type=None,
     ):
         super().__init__(parent)
         self.url = url
         self.limit = max(1, min(int(limit), 500))
         self.include_shorts = include_shorts
         self.shorts_sort = (shorts_sort or "latest").strip().lower()
-        self.video_type = (video_type or "all").strip().lower()
+        self.video_type = (video_type or "").strip().lower()
 
     def _fetch_sorted_shorts(self, base_url: str, sort_mode: str, limit: int) -> list[str]:
         """Fetch popular or oldest Shorts directly via YouTube InnerTube continuation chips."""
@@ -706,8 +706,10 @@ class YouTubeFetchThread(QThread):
             return [f"{base}/shorts"]
         if explicit_videos or self.video_type in ("videos", "long", "long-form"):
             return [f"{base}/videos"]
+        if self.video_type == "all":
+            return [f"{base}/videos", f"{base}/shorts"]
 
-        # Default "all": Videos first, then Shorts if include_shorts is True
+        # Default fallback for backward compatibility: Videos first, then Shorts if include_shorts is True
         targets = [f"{base}/videos"]
         if self.include_shorts:
             targets.append(f"{base}/shorts")
