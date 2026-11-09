@@ -49,6 +49,7 @@ Download the latest release and start downloading videos in seconds:
 
 - **TikTok & YouTube** in one queue — links are detected automatically and run through per-platform download settings. Instagram and Facebook post links are queued too, without the per-platform tuning TikTok gets.
 - **YouTube playlists & channels** expand into individual videos in the background.
+- **YouTube Shorts sorting** — target YouTube channel Shorts by **Latest (Default)**, **Popular** (highest view count first) or **Oldest** from the dropdown selector when fetching channel Shorts in Paste Links or the Account tab. Continuation chips and InnerTube endpoints resolve the target sorting without extra API keys.
 - **Instagram profiles** expand into their video posts and reels. Only public profiles — no sign-in, and no account is ever stored. Instagram slows the walk down on purpose, so a listing stops after three minutes and tells you how far it got.
 - **Facebook pages** expand into their videos — *experimental*: the page's Videos tab is read in the app's own browser, and the page's own query pages the rest of the list behind it. Only public pages — no sign-in, and no Facebook session is ever stored.
 - **Music workspace** — its own tab for audio. Paste YouTube, YouTube Music, SoundCloud or Spotify links, one per line; a playlist or an album resolves into its tracks in one click. Choose FLAC (default), MP3 320, M4A, Opus or WAV; a quality report says what the source stream really was (YouTube serves lossy audio, so FLAC is a container, not recovered detail). Files land where the link pointed: a collection link — album, playlist or YouTube set — puts all its tracks in that collection's folder as `Collection/NN - Title`, and a single track link uses `Artist/Album/NN - Title`. Spotify links carry metadata rather than audio: it is read anonymously and every title is matched to its YouTube version by yt-dlp's own search — no Spotify account, password or API key. Artwork comes with the link's own metadata: a track or an album brings its cover, and so does a YouTube or SoundCloud link (its thumbnail); a **Spotify playlist** row carries no album and no cover in the free endpoint, so those files are tagged by artist and title only — they still land in the playlist's folder.
@@ -62,8 +63,8 @@ Download the latest release and start downloading videos in seconds:
 - **Account based** — paste a public TikTok profile and pull its newest video URLs for review. The same button takes an Instagram profile or a Facebook page.
 - **Browser impersonation** — TikTok requests are signed with a real Chrome identity so rate-limit failures are far less likely.
 - **AI Channel Finder & Social Inspector** — one tab with three modes: **YouTube → Socials**, **TikTok → YouTube / Facebook / Instagram**, and **Social Discovery**, which takes a channel URL, a handle or a name and finds the creator's other accounts. Uses a keyless yt-dlp search by default; an optional YouTube Data API key lifts quota walls.
-- **Every account is checked twice** — the AI proposes a link and a real browser opens it, then the two answers are reconciled. Neither one is trusted on its own; found, not found and unknown are told apart.
-- **Search-grounded answers** — Gemini is asked with Google Search turned on, so the proposal comes from a real search result instead of the model's memory. Groq answers when Gemini has no key or fails. TikTok walls its tag listing even for a signed-in cookie file, so the TikTok mode works from creators you paste — `@handles` or profile URLs, one per line or comma-separated — and checks each one on YouTube, Instagram and Facebook.
+- **Every account is checked twice** — the AI proposes a link and a real browser opens it, then the two answers are reconciled. Neither one is trusted on its own; found, not found and unknown are told apart. Accounts directly verified via creator bio links are automatically confirmed on the spot.
+- **Multi-tier search-grounded answers** — Gemini is asked with Google Search turned on, with Firecrawl web search fallback, and Groq fallback when Gemini or Firecrawl have no key or fail. TikTok walls its tag listing even for a signed-in cookie file, so the TikTok mode works from creators you paste — `@handles` or profile URLs, one per line or comma-separated — and checks each one on YouTube, Instagram and Facebook.
 - **A browser that does not look like a bot** — `navigator.webdriver` and the one-language `navigator.languages` are the two tells a platform can read without guessing; the app hides both.
 - **Operation log** — every step writes one line: the stage, the engine that did it, the link it touched and how long it took. The search budget is in there too.
 - **Glass theme & full keyboard navigation** — black, white, grey and one blue: opaque panels over a lit dark base, with status carried by a spine on each card and high-contrast `:focus` rings across every button, spinbox, table and tab. `Tab` reaches the download folder button and the rail toggle, and `Enter` opens or copies links in the discovery tables. Built with PySide6.
@@ -196,6 +197,7 @@ Everything is in the **Settings** tab of the app.
 | Setting | What it does |
 |---|---|
 | **Gemini API key** | Tried first by Social Discovery, with Google Search turned on so the answer comes from a real search result. |
+| **Firecrawl API key** | Optional search grounding fallback for web discovery when Gemini search is unavailable. |
 | **Groq API key** | The second opinion. Used when Gemini has no key or fails; the model only *proposes* accounts, a real browser confirms them. Leave both AI keys empty to search by bio links only. |
 | **YouTube API key** | Optional. Without it the search runs keyless through yt-dlp; with it the results carry exact view and subscriber counts. |
 | **Cookies file** | Optional. A Netscape `cookies.txt` exported from a signed-in browser — the way around YouTube's "confirm you are not a bot". |
@@ -214,6 +216,7 @@ What has actually run where: the store resolves its backend on Linux and macOS i
 - **yt-dlp** — extraction and download engine
 - **curl_cffi** — TLS fingerprint impersonation for TikTok (`>=0.15,<0.16`)
 - **instaloader** — lists an Instagram profile's posts (yt-dlp's own Instagram extractor is broken upstream)
+- **firecrawl-py** — web search grounding fallback for Social Discovery
 - **opencv-python-headless** — the face and body detectors behind the vertical 9:16 version; two ONNX models of about 1.3 MB, in a wheel of roughly 110 MB unpacked
 - **mutagen** — artwork and tag embedding for the music files
 - **spotipyFree** — anonymous Spotify metadata for the Music tab: no login, no client ID
@@ -265,6 +268,7 @@ A: **Best up to 4K** (the default — the best the source offers, up to 2160p) �
 - [ ] Twitch video downloader
 - [x] Instagram & Facebook bulk downloading — expand a profile into its posts, and tune the requests the way TikTok's are
 - [x] Music workspace — audio from YouTube, YouTube Music, SoundCloud and Spotify links, tagged and filed by collection or artist/album
+- [x] YouTube Shorts tab sorting — Latest, Popular (view count), Oldest continuation resolver
 - [ ] Mobile companion app (Android)
 
 ### Q1 2027
@@ -295,6 +299,7 @@ This project wouldn't be possible without these amazing libraries and tools:
 - **[Playwright](https://playwright.dev/python/)** - The real browser that confirms every account
 - **[instaloader](https://instaloader.github.io/)** - Lists an Instagram profile's public posts
 - **[Gemini](https://ai.google.dev/)** - Google Search grounding for the first opinion
+- **[Firecrawl](https://firecrawl.dev/)** - Web search grounding fallback for Social Discovery
 - **[Groq LLM](https://groq.com/)** - The second opinion, and the model that browses the web
 - **[Inno Setup](https://jrsoftware.org/isinfo.php)** - Windows installer creation
 - **[PyInstaller](https://www.pyinstaller.org/)** - Standalone EXE packaging

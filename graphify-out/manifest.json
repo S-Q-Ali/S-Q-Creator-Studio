@@ -48,21 +48,21 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/link_parser.py": {
-    "mtime": 1794154042.3990242,
-    "seen": 1794155523.3727138,
-    "ast_hash": "8962b4be5cd223b5dfde7ca7d3668da3",
+    "mtime": 1794173983.9491189,
+    "seen": 1794260902.655264,
+    "ast_hash": "7ad3462b842b511b42ba009efba893cf",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/metadata_extractor.py": {
-    "mtime": 1794154042.400027,
-    "seen": 1794155523.3727179,
-    "ast_hash": "0659dc081a2540b0695b25fd695ba7f5",
+    "mtime": 1794174095.8652844,
+    "seen": 1794260902.655268,
+    "ast_hash": "91a47c2137956bfa4d267afde628049b",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_verifier.py": {
-    "mtime": 1794155511.0717134,
-    "seen": 1794155523.3727288,
-    "ast_hash": "2e2b5ab569abc74bd261888c1cfb27aa",
+    "mtime": 1794237719.0380218,
+    "seen": 1794260902.6552796,
+    "ast_hash": "8f43d22d9d951e5de122db4a362f21f3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_api.py": {
@@ -72,15 +72,15 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/tiktok_search.py": {
-    "mtime": 1794155511.073231,
-    "seen": 1794155523.3727448,
-    "ast_hash": "d71cd83a52781e25fbffae4f2eb874fb",
+    "mtime": 1794166232.4339669,
+    "seen": 1794260902.6552951,
+    "ast_hash": "2f7e6049ca3bd6e561576b6203ea7165",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/youtube_existence.py": {
-    "mtime": 1794155511.0742617,
-    "seen": 1794155523.3727484,
-    "ast_hash": "93e4668edd58ff048928639288600041",
+    "mtime": 1794170030.1233566,
+    "seen": 1794260902.6552987,
+    "ast_hash": "6d87631756bc5f39db290bb801bf17b3",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/youtube_search.py": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1794155511.0812535,
-    "seen": 1794155523.3728163,
-    "ast_hash": "d1daaba751f73b3cd6d995687ec30226",
+    "mtime": 1794253714.8625839,
+    "seen": 1794260902.6553767,
+    "ast_hash": "951ffdaa40b500b7c2dd50f24aa31613",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1794158038.6631894,
-    "seen": 1794158254.778361,
-    "ast_hash": "f8db08de76dd14bfa87f5956377430e9",
+    "mtime": 1794257516.2886617,
+    "seen": 1794260902.655397,
+    "ast_hash": "58cc8310dc762019db699db6ecf1488f",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
@@ -1422,33 +1422,33 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/social_discovery.py": {
-    "mtime": 1794155511.0707111,
-    "seen": 1794155523.3726935,
-    "ast_hash": "92440e952e8bcd3c06d8796dcfc29133",
+    "mtime": 1794250301.9562294,
+    "seen": 1794260902.6552384,
+    "ast_hash": "2bf36dd549ab72bbd3be1564e7bd3166",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/browser.py": {
-    "mtime": 1794154042.381171,
-    "seen": 1794155523.3727057,
-    "ast_hash": "95a5c16bc2ab9ccf1ad0b5d126507fcd",
+    "mtime": 1794174138.1177676,
+    "seen": 1794260902.6552522,
+    "ast_hash": "fc5c2e82f788a6c845b63776405d2990",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_judge.py": {
-    "mtime": 1794154042.401029,
-    "seen": 1794155523.3727214,
-    "ast_hash": "e73b497ad35c03960e9cb1d6f87f62a3",
+    "mtime": 1794249938.0127196,
+    "seen": 1794260902.6552708,
+    "ast_hash": "a759d18cfeed43df400cc4bf1914340e",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_resolve.py": {
-    "mtime": 1794154042.418032,
-    "seen": 1794155523.3727255,
-    "ast_hash": "b571705a25aa25ced2626b36f0c408dc",
+    "mtime": 1794174092.6430843,
+    "seen": 1794260902.6552749,
+    "ast_hash": "77e95883bb5524b3b7341324332e92fb",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/agent/tools/social_verify.py": {
-    "mtime": 1794154042.4200335,
-    "seen": 1794155523.3727326,
-    "ast_hash": "2f67938be82b282e064603f6ff71d8e0",
+    "mtime": 1794166296.7705007,
+    "seen": 1794260902.6552832,
+    "ast_hash": "6d9455f8f214c40b9c2683af40688ead",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/social_discovery_page.py": {
@@ -1572,9 +1572,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/settings_page.py": {
-    "mtime": 1794155019.6957014,
-    "seen": 1794155523.3728435,
-    "ast_hash": "0b979029409ebdce85ca52f1a440fcfb",
+    "mtime": 1794166006.6629214,
+    "seen": 1794260902.6554046,
+    "ast_hash": "88612870cf7733674e0e782a02afda24",
     "semantic_hash": ""
   },
   "tests/test_core_exporter.py": {
@@ -2547,6 +2547,36 @@
     "mtime": 1794160575.370067,
     "seen": 1794162515.2005265,
     "ast_hash": "838850fde720602af9f0bdf27e52aab8",
+    "semantic_hash": ""
+  },
+  "src/s_q_ali_media_downloader/agent/tools/firecrawl_client.py": {
+    "mtime": 1794165942.3617496,
+    "seen": 1794260902.6552603,
+    "ast_hash": "6d2b1e72c95e9de0235a2e723800dd98",
+    "semantic_hash": ""
+  },
+  "tests/test_firecrawl_discovery.py": {
+    "mtime": 1794173948.7404459,
+    "seen": 1794260902.65567,
+    "ast_hash": "e06ba92ef7d36ef6b24c9ba0c1ff3edc",
+    "semantic_hash": ""
+  },
+  "tests/test_youtube_shorts_sort.py": {
+    "mtime": 1794253714.8561378,
+    "seen": 1794260902.655992,
+    "ast_hash": "ad770ce440388b200418f2b1d2b262ae",
+    "semantic_hash": ""
+  },
+  "tasks/plan-firecrawl-discovery.md": {
+    "mtime": 1794170115.66051,
+    "seen": 1794260902.6573632,
+    "ast_hash": "2a0785337af77182560ebed3dc889d00",
+    "semantic_hash": ""
+  },
+  "tasks/spec-firecrawl-discovery.md": {
+    "mtime": 1794165804.6566722,
+    "seen": 1794260902.6575675,
+    "ast_hash": "efe68a3f00e2ce75f4b4ad04a84c9e75",
     "semantic_hash": ""
   }
 }
