@@ -559,11 +559,113 @@ class YouTubeFetchThread(QThread):
     note = Signal(str)
     progress = Signal(int, int)  # (current, total)
 
-    def __init__(self, url, limit=MAX_ACCOUNT_VIDEOS, parent=None, include_shorts=False):
+    def __init__(
+        self,
+        url,
+        limit=MAX_ACCOUNT_VIDEOS,
+        parent=None,
+        include_shorts=False,
+        shorts_sort="latest",
+    ):
         super().__init__(parent)
         self.url = url
         self.limit = max(1, min(int(limit), 500))
         self.include_shorts = include_shorts
+        self.shorts_sort = (shorts_sort or "latest").strip().lower()
+
+    def _fetch_sorted_shorts(self, base_url: str, sort_mode: str, limit: int) -> list[str]:
+        """Fetch popular or oldest Shorts directly via YouTube InnerTube continuation chips."""
+        import json
+        import re
+        import urllib.parse
+        import httpx
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        shorts_url = f"{base_url.rstrip('/')}/shorts"
+        try:
+            resp = httpx.get(shorts_url, headers=headers, timeout=12.0, follow_redirects=True)
+            if resp.status_code != 200:
+                return []
+            m_key = re.search(r'"INNERTUBE_API_KEY":"([^"]+)"', resp.text)
+            if not m_key:
+                return []
+            key = m_key.group(1)
+
+            match = re.search(r'var ytInitialData = ({.*?});</script>', resp.text)
+            if not match:
+                return []
+            data = json.loads(match.group(1))
+            tabs = data.get("contents", {}).get("twoColumnBrowseResultsRenderer", {}).get("tabs", [])
+            shorts_tab = next(
+                (t for t in tabs if "tabRenderer" in t and "shorts" in t["tabRenderer"].get("title", "").lower()),
+                None,
+            )
+            if not shorts_tab:
+                return []
+            chips = (
+                shorts_tab.get("tabRenderer", {})
+                .get("content", {})
+                .get("richGridRenderer", {})
+                .get("header", {})
+                .get("chipBarViewModel", {})
+                .get("chips", [])
+            )
+            target_token = None
+            for chip in chips:
+                c_vm = chip.get("chipViewModel", {})
+                text = (c_vm.get("text") or "").strip().lower()
+                if (sort_mode == "popular" and "popular" in text) or (sort_mode == "oldest" and "oldest" in text):
+                    raw_token = (
+                        c_vm.get("tapCommand", {})
+                        .get("innertubeCommand", {})
+                        .get("continuationCommand", {})
+                        .get("token")
+                    )
+                    if raw_token:
+                        target_token = urllib.parse.unquote(raw_token)
+                        break
+            if not target_token:
+                return []
+
+            payload = {
+                "context": {
+                    "client": {
+                        "clientName": "WEB",
+                        "clientVersion": "2.20241010.00.00",
+                    }
+                },
+                "continuation": target_token,
+            }
+            api_resp = httpx.post(
+                f"https://www.youtube.com/youtubei/v1/browse?key={key}",
+                json=payload,
+                headers=headers,
+                timeout=12.0,
+            )
+            if api_resp.status_code != 200:
+                return []
+            api_data = api_resp.json()
+            out_urls: list[str] = []
+            for act in api_data.get("onResponseReceivedActions", []):
+                cmd = act.get("reloadContinuationItemsCommand", {}) or act.get("appendContinuationItemsAction", {})
+                for it in cmd.get("continuationItems", []):
+                    reel = it.get("richItemRenderer", {}).get("content", {}).get("shortsLockupViewModel", {})
+                    on_tap = reel.get("onTap", {}).get("innertubeCommand", {}).get("reelWatchEndpoint", {})
+                    vid = on_tap.get("videoId") or it.get("richItemRenderer", {}).get("content", {}).get("reelItemRenderer", {}).get("videoId")
+                    if vid and f"https://www.youtube.com/shorts/{vid}" not in out_urls:
+                        out_urls.append(f"https://www.youtube.com/shorts/{vid}")
+                        if len(out_urls) >= limit:
+                            return out_urls
+            return out_urls
+        except Exception as exc:
+            logger.debug("Failed to fetch sorted shorts via InnerTube: %s", exc)
+            return []
 
     def _targets(self) -> list[str]:
         """The pages to read.
@@ -600,6 +702,13 @@ class YouTubeFetchThread(QThread):
         urls: list[str] = []
         label = ""
         for target_idx, target in enumerate(self._targets()):
+            if target.endswith("/shorts") and self.shorts_sort in ("popular", "oldest"):
+                sorted_shorts = self._fetch_sorted_shorts(self.url, self.shorts_sort, self.limit)
+                if sorted_shorts:
+                    for s_url in sorted_shorts:
+                        if s_url not in urls:
+                            urls.append(s_url)
+                    continue
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(target, download=False)

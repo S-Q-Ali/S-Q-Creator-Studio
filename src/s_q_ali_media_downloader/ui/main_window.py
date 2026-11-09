@@ -317,13 +317,22 @@ class MainWindow(QMainWindow):
             "Playlists, channels and profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
+        row_shorts = QHBoxLayout()
+        row_shorts.setSpacing(10)
         self.chk_shorts = QCheckBox("Also fetch Shorts")
         self.chk_shorts.setChecked(True)
         self.chk_shorts.setToolTip(
             "A YouTube channel's Shorts live in their own tab. Turn this off to "
             "fetch only the long videos."
         )
-        pl.addWidget(self.chk_shorts)
+        row_shorts.addWidget(self.chk_shorts)
+        self.combo_shorts_sort = QComboBox()
+        self.combo_shorts_sort.addItems(["Latest (Default)", "Popular", "Oldest"])
+        self.combo_shorts_sort.setToolTip("Sorting order for YouTube Shorts tab.")
+        self.chk_shorts.toggled.connect(self.combo_shorts_sort.setEnabled)
+        row_shorts.addWidget(self.combo_shorts_sort)
+        row_shorts.addStretch(1)
+        pl.addLayout(row_shorts)
         self.source_stack.addWidget(page_links)
 
         page_account = QWidget()
@@ -352,6 +361,16 @@ class MainWindow(QMainWindow):
         self.account_limit.setCurrentText(str(MAX_ACCOUNT_VIDEOS))
         lbl_max_videos.setBuddy(self.account_limit)
         col.addWidget(self.account_limit)
+        pair.addLayout(col, 1)
+
+        col = QVBoxLayout()
+        col.setSpacing(6)
+        lbl_shorts_sort = self._section("SHORTS SORT")
+        col.addWidget(lbl_shorts_sort)
+        self.combo_account_shorts_sort = QComboBox()
+        self.combo_account_shorts_sort.addItems(["Latest (Default)", "Popular", "Oldest"])
+        self.combo_account_shorts_sort.setToolTip("Target sorting for YouTube channel Shorts tab.")
+        col.addWidget(self.combo_account_shorts_sort)
         pair.addLayout(col, 1)
 
         col = QVBoxLayout()
@@ -846,8 +865,13 @@ class MainWindow(QMainWindow):
         # YouTube channel / playlist URL — expand into individual video URLs
         if is_youtube_channel_url(text) or is_youtube_playlist_url(text):
             normalized = normalize_youtube_channel_url(text)
+            sort_mode = self.combo_account_shorts_sort.currentText().split()[0].lower()
             self.fetcher = YouTubeFetchThread(
-                normalized, limit, self, include_shorts=self.chk_shorts.isChecked()
+                normalized,
+                limit,
+                self,
+                include_shorts=True,
+                shorts_sort=sort_mode,
             )
             self._start_fetcher(
                 self.fetcher,
@@ -1000,8 +1024,13 @@ class MainWindow(QMainWindow):
             return InstagramFetchThread(url, limit, self)
         if is_facebook_page_url(url):
             return FacebookFetchThread(url, limit, self)
+        sort_mode = self.combo_shorts_sort.currentText().split()[0].lower()
         return YouTubeFetchThread(
-            url, limit, self, include_shorts=self.chk_shorts.isChecked()
+            url,
+            limit,
+            self,
+            include_shorts=self.chk_shorts.isChecked(),
+            shorts_sort=sort_mode,
         )
 
     def on_youtube_found(self, urls, label):
