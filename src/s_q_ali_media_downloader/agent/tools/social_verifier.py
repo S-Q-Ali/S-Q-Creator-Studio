@@ -58,6 +58,8 @@ def _identity_status(
     """
     positives = positive_evidence(evidence)
     if not is_bio_link:
+        if "back_link" in positives and len(positives) >= 2 and "name_conflict" not in evidence and "conflicting_back_link" not in evidence:
+            return SocialStatus.VERIFIED, 0.90
         return SocialStatus.UNVERIFIED_HANDLE, 0.60
     conflict = "name_conflict" in evidence or "conflicting_back_link" in evidence
     if positives and not conflict:

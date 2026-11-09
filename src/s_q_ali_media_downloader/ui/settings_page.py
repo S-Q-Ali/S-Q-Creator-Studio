@@ -61,6 +61,7 @@ ORG = "S-Q-Ali"
 SETTINGS_VERSION = "2.1"
 
 # The keys the app keeps in the sealed store rather than in QSettings.
+FIRECRAWL_KEY = "firecrawl_api_key"
 GROQ_KEY = "groq_api_key"
 GEMINI_KEY = "gemini_api_key"
 YOUTUBE_KEY = "youtube_api_key"
@@ -125,6 +126,27 @@ class GeminiKeyTestWorker(QThread):
             self.ok.emit(model)
 
 
+class FirecrawlKeyTestWorker(QThread):
+    """Checks the Firecrawl API key via the credit-usage endpoint."""
+
+    ok = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, api_key: str, parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+
+    def run(self) -> None:  # pragma: no cover - the request is real
+        from s_q_ali_media_downloader.agent.tools import firecrawl_client
+
+        try:
+            summary = firecrawl_client.test_firecrawl_key(self.api_key)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+        else:
+            self.ok.emit(summary)
+
+
 def make_settings() -> QSettings:
     """The app's preferences.
 
@@ -176,6 +198,8 @@ class SettingsPage(QWidget):
         self._groq_tested_key = ""
         self._gemini_worker: GeminiKeyTestWorker | None = None
         self._gemini_tested_key = ""
+        self._firecrawl_worker: FirecrawlKeyTestWorker | None = None
+        self._firecrawl_tested_key = ""
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -278,6 +302,37 @@ class SettingsPage(QWidget):
         return card
 
     def _build_keys(self) -> list[tuple]:
+        self.firecrawl_edit = QLineEdit()
+        self.firecrawl_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.firecrawl_edit.setPlaceholderText("fc-...")
+        self.firecrawl_edit.setMaximumWidth(460)
+        self.firecrawl_edit.textChanged.connect(self._save_keys)
+        self.firecrawl_edit.textChanged.connect(self._on_firecrawl_key_edited)
+
+        firecrawl_line = QWidget()
+        firecrawl_line_lay = QHBoxLayout(firecrawl_line)
+        firecrawl_line_lay.setContentsMargins(0, 0, 0, 0)
+        firecrawl_line_lay.setSpacing(8)
+        firecrawl_line_lay.addWidget(self.firecrawl_edit, 1)
+        self.btn_test_firecrawl = QPushButton("Test")
+        self.btn_test_firecrawl.setToolTip(
+            "Check the Firecrawl key and remaining credits."
+        )
+        self.btn_test_firecrawl.clicked.connect(self._test_firecrawl_key)
+        firecrawl_line_lay.addWidget(self.btn_test_firecrawl)
+
+        self.firecrawl_status = QLabel("")
+        self.firecrawl_status.setProperty("role", "hint")
+        self.firecrawl_status.setWordWrap(True)
+        self.firecrawl_status.setVisible(False)
+
+        firecrawl_row = QWidget()
+        firecrawl_lay = QVBoxLayout(firecrawl_row)
+        firecrawl_lay.setContentsMargins(0, 0, 0, 0)
+        firecrawl_lay.setSpacing(4)
+        firecrawl_lay.addWidget(firecrawl_line)
+        firecrawl_lay.addWidget(self.firecrawl_status)
+
         self.groq_edit = QLineEdit()
         self.groq_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         self.groq_edit.setPlaceholderText("gsk_...")
@@ -368,6 +423,14 @@ class SettingsPage(QWidget):
         self.key_storage_note.setWordWrap(True)
 
         return [
+            (
+                "Firecrawl API key",
+                firecrawl_row,
+                (
+                    "1st priority for Discovery web search and page scraping. "
+                    "When empty or exhausted, Discovery falls back to Gemini and Groq."
+                ),
+            ),
             (
                 "Groq API key",
                 groq_row,
@@ -594,10 +657,13 @@ class SettingsPage(QWidget):
             self.settings.value(SHOW_BROWSER_KEY, "true") != "false"
         )
 
+        self.firecrawl_status.setText("")
+        self.firecrawl_status.setVisible(False)
         self.groq_status.setText("")
         self.groq_status.setVisible(False)
         self.gemini_status.setText("")
         self.gemini_status.setVisible(False)
+        self.firecrawl_edit.setText(settings_store.get_setting(FIRECRAWL_KEY) or "")
         self.groq_edit.setText(settings_store.get_setting(GROQ_KEY) or "")
         self.gemini_edit.setText(settings_store.get_setting(GEMINI_KEY) or "")
         self.youtube_key_edit.setText(settings_store.get_setting(YOUTUBE_KEY) or "")
@@ -607,6 +673,7 @@ class SettingsPage(QWidget):
         unreadable = [
             name
             for key, name in (
+                (FIRECRAWL_KEY, "Firecrawl API key"),
                 (GROQ_KEY, "Groq API key"),
                 (GEMINI_KEY, "Gemini API key"),
                 (YOUTUBE_KEY, "YouTube API key"),
@@ -674,6 +741,7 @@ class SettingsPage(QWidget):
         if not getattr(self, "settings_page_loaded", False):
             return
         for key, edit in (
+            (FIRECRAWL_KEY, self.firecrawl_edit),
             (GROQ_KEY, self.groq_edit),
             (GEMINI_KEY, self.gemini_edit),
             (YOUTUBE_KEY, self.youtube_key_edit),
@@ -789,8 +857,58 @@ class SettingsPage(QWidget):
         self.gemini_status.setStyleSheet(f"color: {color};")
         self.gemini_status.setVisible(True)
 
+    # ------------------------------------------------------------------ #
+    # The Firecrawl key test
+    # ------------------------------------------------------------------ #
+    def _test_firecrawl_key(self) -> None:
+        if self._firecrawl_worker is not None and self._firecrawl_worker.isRunning():
+            return
+        key = self.firecrawl_edit.text().strip()
+        if not key:
+            self._show_firecrawl_status("Enter a Firecrawl API key first.", C["faint"])
+            return
+
+        self.btn_test_firecrawl.setEnabled(False)
+        self.btn_test_firecrawl.setText("Testing ...")
+        self._show_firecrawl_status("Checking Firecrawl key ...", C["waiting"])
+
+        worker = FirecrawlKeyTestWorker(key, parent=self)
+        worker.ok.connect(self._on_firecrawl_test_ok)
+        worker.failed.connect(self._on_firecrawl_test_failed)
+        worker.finished.connect(self._on_firecrawl_test_finished)
+        worker.finished.connect(worker.deleteLater)
+        self._firecrawl_worker = worker
+        self._firecrawl_tested_key = key
+        worker.start()
+
+    def _on_firecrawl_key_edited(self) -> None:
+        if not self.firecrawl_status.isHidden():
+            self._show_firecrawl_status("Key changed — test it again.", C["muted"])
+
+    def _on_firecrawl_test_ok(self, summary: str) -> None:
+        if self.firecrawl_edit.text().strip() != self._firecrawl_tested_key:
+            self._show_firecrawl_status("Key changed — test it again.", C["muted"])
+            return
+        self._show_firecrawl_status(f"Firecrawl key works · {summary}", C["done"])
+
+    def _on_firecrawl_test_failed(self, message: str) -> None:
+        if self.firecrawl_edit.text().strip() != self._firecrawl_tested_key:
+            self._show_firecrawl_status("Key changed — test it again.", C["muted"])
+            return
+        self._show_firecrawl_status(f"Firecrawl key test failed: {message}", C["failed"])
+
+    def _on_firecrawl_test_finished(self) -> None:
+        self.btn_test_firecrawl.setEnabled(True)
+        self.btn_test_firecrawl.setText("Test")
+        self._firecrawl_worker = None
+
+    def _show_firecrawl_status(self, text: str, color: str) -> None:
+        self.firecrawl_status.setText(text)
+        self.firecrawl_status.setStyleSheet(f"color: {color};")
+        self.firecrawl_status.setVisible(True)
+
     def key_test_running(self) -> bool:
-        workers = (self._groq_worker, self._gemini_worker)
+        workers = (self._firecrawl_worker, self._groq_worker, self._gemini_worker)
         return any(worker is not None and worker.isRunning() for worker in workers)
 
     def _refresh_identity(self) -> None:

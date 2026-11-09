@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from urllib.parse import parse_qs, unquote, urlparse
 
 from s_q_ali_media_downloader.agent.tools.browser import Page, PageUnavailable
+from s_q_ali_media_downloader.agent.tools.link_parser import LinkParserTool
 from s_q_ali_media_downloader.agent.tools.youtube_existence import name_similarity
 from s_q_ali_media_downloader.core.youtube_client import (
     fetch_channel,
@@ -221,7 +222,7 @@ def _channel_url(text: str) -> str | None:
 
 
 def _best_match(query: str):
-    """The channel whose name is closest to the query, not the most viewed."""
+    """The channel whose name matches the query, breaking ties by subscriber count."""
     try:
         matches = search_channels(query, max_results=5)
     except Exception as exc:
@@ -229,7 +230,28 @@ def _best_match(query: str):
     matches = [match for match in matches if match.channel_id]
     if not matches:
         return None
-    return max(matches, key=lambda match: name_similarity(query, match.title))
+
+    def _rank(match) -> tuple[int, int, float]:
+        sim = name_similarity(query, match.title)
+        subs = int(getattr(match, "subscriber_count", 0) or 0)
+        return (1 if sim >= 0.75 else 0, subs if sim >= 0.75 else 0, sim)
+
+    return max(matches, key=_rank)
+
+
+def fetch_video_description(video_id: str) -> str:
+    """Fetch a single video's description via yt-dlp to read the creator's links."""
+    vid = (video_id or "").strip()
+    if not vid:
+        return ""
+    url = vid if vid.startswith("http") else f"https://www.youtube.com/watch?v={vid}"
+    try:
+        from s_q_ali_media_downloader.core.youtube_client import _base_opts, _extract
+
+        info = _extract(url, _base_opts(extra={"extract_flat": False}), attempts=1)
+        return str(info.get("description") or "")
+    except Exception:
+        return ""
 
 
 def resolve_channel(text: str, session=None) -> ResolvedChannel:
@@ -278,21 +300,47 @@ def resolve_channel(text: str, session=None) -> ResolvedChannel:
         ),
     )
 
-    if session is None:
-        return record
+    desc_links = [
+        link
+        for link in LinkParserTool.extract_social_links(record.description)
+        if link
+    ]
+    record.bio_links = social_link_candidates(desc_links)
 
-    try:
-        page = session.open(f"{url}/about" if not url.endswith("/about") else url)
-    except PageUnavailable as exc:
-        raise ChannelUnresolved(f"Could not read the channel page: {exc}") from exc
+    if session is not None:
+        try:
+            page = session.open(f"{url}/about" if not url.endswith("/about") else url)
+        except PageUnavailable as exc:
+            raise ChannelUnresolved(f"Could not read the channel page: {exc}") from exc
 
-    name, handle = parse_channel_page(page)
-    if name:
-        record.title = name
-    if handle:
-        record.handle = handle
-    if record.subscribers == 0:
-        record.subscribers = _parse_subscribers(page.text)
+        name, handle = parse_channel_page(page)
+        if name:
+            record.title = name
+        if handle:
+            record.handle = handle
+        if record.subscribers == 0:
+            record.subscribers = _parse_subscribers(page.text)
 
-    record.bio_links = social_link_candidates(page.links)
+        page_text_links = [
+            link
+            for link in LinkParserTool.extract_social_links(
+                page.text, creator_text=False
+            )
+            if link
+        ]
+        record.bio_links = social_link_candidates(
+            (page.links or []) + page_text_links + desc_links
+        )
+
+    if len(record.platform_candidates()) < 3 and getattr(channel, "uploads", None):
+        first = channel.uploads[0] if channel.uploads else None
+        vid = (first.get("video_id") or "") if isinstance(first, dict) else ""
+        if vid:
+            vdesc = fetch_video_description(vid)
+            if vdesc:
+                vlinks = [
+                    link for link in LinkParserTool.extract_social_links(vdesc) if link
+                ]
+                record.bio_links = social_link_candidates(record.bio_links + vlinks)
+
     return record

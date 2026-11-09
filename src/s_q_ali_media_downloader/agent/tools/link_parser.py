@@ -2,6 +2,7 @@
 
 import re
 from typing import ClassVar
+from urllib.parse import unquote
 
 
 class LinkParserTool:
@@ -9,7 +10,7 @@ class LinkParserTool:
 
     # FB Regex patterns
     FB_URL_PATTERN = re.compile(
-        r"https?://(?:[\w\-]+\.)*(?:facebook\.com|fb\.com|fb\.watch)/(?:pages/[^/\s\"']+/(\d+)|groups/[^/\s\"']+|people/[^/\s\"']+/\d+|profile\.php\?id=\d+|[A-Za-z0-9\._\-]+)/?",
+        r"(?:https?://)?(?:[\w\-]+\.)*(?:facebook\.com|fb\.com|fb\.watch)/(?:pages/[^/\s\"']+/(\d+)|groups/[^/\s\"']+|people/[^/\s\"']+/\d+|profile\.php\?id=\d+|[A-Za-z0-9\._\-]+)/?",
         re.IGNORECASE,
     )
     FB_PROFILE_ID_PATTERN = re.compile(
@@ -19,7 +20,7 @@ class LinkParserTool:
 
     # IG Regex patterns
     IG_URL_PATTERN = re.compile(
-        r"https?://(?:www\.)?(?:instagram\.com|instagr\.am)/([A-Za-z0-9\._\-]+)/?",
+        r"(?:https?://)?(?:www\.)?(?:instagram\.com|instagr\.am)/([A-Za-z0-9\._\-]+)/?",
         re.IGNORECASE,
     )
     # Word-boundary anchored so "config: myname" / "navigation:" cannot match,
@@ -27,18 +28,18 @@ class LinkParserTool:
     # not read as a handle: "When Will Instagram Pay their Creators?" is a
     # video title, not an account.
     IG_TEXT_HANDLE_PATTERN = re.compile(
-        r"\b(?:ig|instagram|insta)\b\s*[:@]\s*@?([A-Za-z0-9][A-Za-z0-9\._]{2,29})",
+        r"\b(?:ig|instagram|insta)\b\s*[:@\-–—]\s*@?([A-Za-z0-9][A-Za-z0-9\._]{2,29})",
         re.IGNORECASE,
     )
 
     # TikTok pattern (profiles only: tiktok.com/@handle)
     TIKTOK_URL_PATTERN = re.compile(
-        r"https?://(?:www\.|m\.)?tiktok\.com/@([A-Za-z0-9\._]{2,30})/?",
+        r"(?:https?://)?(?:www\.|m\.)?tiktok\.com/@([A-Za-z0-9\._]{2,30})/?",
         re.IGNORECASE,
     )
     # Same marker rule as Instagram: "TikTok Pay" is not a handle.
     TIKTOK_TEXT_HANDLE_PATTERN = re.compile(
-        r"\btiktok\b\s*[:@]\s*@?([A-Za-z0-9\._]{2,30})",
+        r"\btiktok\b\s*[:@\-–—]\s*@?([A-Za-z0-9\._]{2,30})",
         re.IGNORECASE,
     )
 
@@ -99,7 +100,8 @@ class LinkParserTool:
         ig_url = None
         tiktok_url = None
 
-        all_input = text + " " + " ".join(links or [])
+        raw_combined = (text or "") + " " + " ".join(links or [])
+        all_input = unquote(raw_combined.replace(r"\/", "/"))
 
         # ---- TikTok (profile URLs only, @handle form) ----
         for handle in r.TIKTOK_URL_PATTERN.findall(all_input):
@@ -175,6 +177,8 @@ class LinkParserTool:
     def _clean_url(r, url: str) -> str:
         """Strips tracking params but preserves profile.php?id= payloads."""
         url = url.strip().rstrip("/")
+        if not url.lower().startswith(("http://", "https://")):
+            url = "https://www." + url.lstrip("/")
         if "profile.php?id=" in url.lower():
             match = r.FB_PROFILE_ID_PATTERN.search(url)
             if match:

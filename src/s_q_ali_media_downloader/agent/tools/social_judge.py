@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 import httpx
 
 from s_q_ali_media_downloader.agent.opslog import Ops
+from s_q_ali_media_downloader.agent.tools import firecrawl_client
+from s_q_ali_media_downloader.agent.tools.link_parser import LinkParserTool
 from s_q_ali_media_downloader.core import settings_store
 
 logger = logging.getLogger(__name__)
@@ -310,8 +312,8 @@ def gemini_key() -> str | None:
 
 
 def any_key() -> bool:
-    """True when at least one AI provider has a key."""
-    return bool(groq_key() or gemini_key())
+    """True when at least one AI or Firecrawl provider has a key."""
+    return bool(firecrawl_client.firecrawl_key() or groq_key() or gemini_key())
 
 
 def _error_detail(text: str) -> str:
@@ -891,8 +893,38 @@ def _answer_from_json(data: dict, platform: str) -> PlatformAnswer:
 _AI_VERDICTS = frozenset({AI_YES, AI_NO, AI_UNKNOWN})
 
 
+_YT_SOURCE_URL_RE = re.compile(
+    r"https?://(?:www\.|m\.)?youtube\.com/(?:@[A-Za-z0-9._\-]{2,60}|(?:c|user|channel)/[A-Za-z0-9._\-]{2,60})/?",
+    re.IGNORECASE,
+)
+
+
+def _source_url_for_platform(platform: str, sources: list[str] | None) -> str:
+    """Extract the first matching profile URL for ``platform`` from cited sources."""
+    if not sources:
+        return ""
+    fb_url, ig_url, tt_url = LinkParserTool.extract_social_links(
+        "", list(sources), creator_text=False
+    )
+    if platform == "facebook":
+        return fb_url or ""
+    if platform == "instagram":
+        return ig_url or ""
+    if platform == "tiktok":
+        return tt_url or ""
+    if platform == "youtube":
+        for src in sources:
+            match = _YT_SOURCE_URL_RE.search(src or "")
+            if match:
+                return match.group(0).rstrip("/")
+    return ""
+
+
 def parse_search_answer(
-    text: str, platforms: tuple[str, ...] = PLATFORMS
+    text: str,
+    platforms: tuple[str, ...] = PLATFORMS,
+    *,
+    sources: list[str] | None = None,
 ) -> dict[str, PlatformAnswer]:
     """The per-platform answers in the model's text.
 
@@ -906,6 +938,12 @@ def parse_search_answer(
             if data
             else _parse_platform(text, platform)
         )
+        if (not answer.url or answer.url.lower() == "none") and sources:
+            fallback_url = _source_url_for_platform(platform, sources)
+            if fallback_url:
+                answer.url = fallback_url
+                if answer.exists == AI_UNKNOWN:
+                    answer.exists = AI_YES
         if answer.exists != AI_UNKNOWN or answer.url:
             answers[platform] = answer
     return answers
@@ -1058,6 +1096,68 @@ def propose_youtube_searched(
     )
 
 
+def _extract_creator_query(prompt: str, platforms: tuple[str, ...]) -> str:
+    """Build a concise web search query from the prompt's <creator_details> block."""
+    title_match = re.search(
+        r"(?:Channel title|TikTok nickname):\s*(.+)", prompt, re.IGNORECASE
+    )
+    handle_match = re.search(
+        r"(?:Channel handle|TikTok handle):\s*(.+)", prompt, re.IGNORECASE
+    )
+    title = (title_match.group(1).strip() if title_match else "").strip()
+    handle = (handle_match.group(1).strip().lstrip("@") if handle_match else "").strip()
+    terms = [t for t in (f'"{title}"' if title else "", handle) if t]
+    sites = " OR ".join(f"site:{p}.com" for p in platforms)
+    base = " ".join(terms) or "creator"
+    return f"{base} ({sites})" if sites else base
+
+
+def _ask_firecrawl_search(
+    prompt: str, platforms: tuple[str, ...], key: str
+) -> AiAnswer:
+    """Search Firecrawl /v1/search (1st priority) for the creator's official accounts."""
+    query = _extract_creator_query(prompt, platforms)
+    try:
+        hits = firecrawl_client.search(query, limit=8, api_key=key)
+    except firecrawl_client.FirecrawlUnavailable as exc:
+        raise JudgeUnavailable(str(exc)) from exc
+
+    sources = [hit.url for hit in hits if hit.url]
+    blob = "\n".join(
+        f"{hit.url} {hit.title} {hit.description} {hit.markdown}" for hit in hits
+    )
+    answers: dict[str, PlatformAnswer] = {}
+    for platform in platforms:
+        url = _source_url_for_platform(platform, sources) or _source_url_for_platform(
+            platform, [blob]
+        )
+        if not url:
+            continue
+        quote = next(
+            (
+                f"{hit.title} — {hit.description}".strip(" —")
+                for hit in hits
+                if platform in (hit.url or "").lower()
+            ),
+            "",
+        )
+        answers[platform] = PlatformAnswer(
+            platform=platform,
+            exists=AI_YES,
+            url=url,
+            quote=quote[:240],
+        )
+
+    if not answers:
+        raise JudgeUnavailable("Firecrawl search returned no matching platform URLs.")
+    return AiAnswer(
+        answers=answers,
+        provider="firecrawl",
+        model="firecrawl-search",
+        sources=sources,
+    )
+
+
 def _ask_searched(
     prompt: str,
     platforms: tuple[str, ...],
@@ -1067,16 +1167,38 @@ def _ask_searched(
     gemini_model: str = GEMINI_MODEL,
     ops: Ops | None = None,
 ) -> AiAnswer:
-    """Ask the providers, Gemini first, until one answers."""
+    """Ask the providers — Firecrawl 1st, Gemini 2nd, Groq 3rd — until one answers."""
+    firecrawl = (firecrawl_client.firecrawl_key() or "").strip()
     gemini = (gemini_key() or "").strip()
     groq = (api_key or groq_key() or "").strip()
-    if not gemini and not groq:
+    if not firecrawl and not gemini and not groq:
         raise JudgeUnavailable(
-            "No AI key configured. Add a Groq or Gemini API key in "
+            "No AI or Firecrawl key configured. Add a Firecrawl, Gemini, or Groq API key in "
             "Settings > AI Keys."
         )
 
     errors: list[str] = []
+
+    if firecrawl:
+        if ops is not None:
+            ops.start(
+                "ai.search", "ai", "firecrawl", detail="firecrawl searching the web"
+            )
+        try:
+            answer = _ask_firecrawl_search(prompt, platforms, firecrawl)
+        except JudgeUnavailable as exc:
+            errors.append(f"firecrawl: {exc}")
+            if ops is not None:
+                ops.fail("ai.search", "ai", "firecrawl", str(exc))
+        else:
+            if ops is not None:
+                ops.ok(
+                    "ai.search",
+                    "ai",
+                    "firecrawl",
+                    detail=f"firecrawl -> {_answer_summary(answer)}",
+                )
+            return answer
 
     if gemini:
         for name in gemini_models(gemini_model):
@@ -1084,7 +1206,7 @@ def _ask_searched(
                 ops.start("ai.search", "ai", "gemini", detail=f"{name} searching the web")
             try:
                 text, sources = _ask_gemini_search(prompt, gemini, name)
-                answers = parse_search_answer(text, platforms)
+                answers = parse_search_answer(text, platforms, sources=sources)
                 if not answers:
                     raise JudgeUnavailable("Gemini's answer had no platform answers.")
             except JudgeUnavailable as exc:
@@ -1112,7 +1234,7 @@ def _ask_searched(
             ops.start("ai.search", "ai", "groq", detail=f"{model} searching the web")
         try:
             text, sources = _ask_groq_search(prompt, groq, model)
-            answers = parse_search_answer(text, platforms)
+            answers = parse_search_answer(text, platforms, sources=sources)
             if not answers:
                 raise JudgeUnavailable("Groq's answer had no platform answers.")
         except JudgeUnavailable as exc:

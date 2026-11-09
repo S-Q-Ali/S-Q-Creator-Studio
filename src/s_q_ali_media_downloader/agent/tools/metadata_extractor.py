@@ -11,6 +11,7 @@ except ImportError:
 
 from s_q_ali_media_downloader.agent.schema import ChannelMetadata
 from s_q_ali_media_downloader.agent.tools.link_parser import LinkParserTool
+from s_q_ali_media_downloader.agent.tools.social_resolve import fetch_video_description
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,15 @@ class MetadataExtractorTool:
             fb_url = fb_url or extra_fb
             ig_url = ig_url or extra_ig
             tiktok_url = tiktok_url or extra_tiktok
+
+        # 2b. If any social link is still missing, inspect the latest video description
+        if (not fb_url or not ig_url or not tiktok_url) and channel.latest_video_url:
+            vdesc = fetch_video_description(channel.latest_video_url)
+            if vdesc:
+                v_fb, v_ig, v_tt = LinkParserTool.extract_social_links(vdesc)
+                fb_url = fb_url or v_fb
+                ig_url = ig_url or v_ig
+                tiktok_url = tiktok_url or v_tt
 
         # 3. Store extracted candidate URLs in channel metadata (source = bio_link)
         if fb_url:

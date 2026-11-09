@@ -915,6 +915,18 @@ def verify_candidates(
                 on_check()
             result = verify_candidate(session, url, platform, creator, ops=ops)
             is_bio = url in bio_urls
+            if result.verdict is Verdict.UNKNOWN:
+                from s_q_ali_media_downloader.agent.tools import firecrawl_client
+
+                fc_key = firecrawl_client.firecrawl_key()
+                if fc_key:
+                    try:
+                        fc_page = firecrawl_client.scrape_page(url, api_key=fc_key)
+                        fc_result = verify_page(fc_page, platform, creator)
+                        if fc_result.verdict is not Verdict.UNKNOWN:
+                            result = fc_result
+                    except Exception as exc:
+                        logger.debug("Firecrawl scrape fallback failed for %s: %s", url, exc)
             if (
                 result.verdict is Verdict.UNKNOWN
                 and agent_checker is not None

@@ -98,10 +98,63 @@ class TikTokSearchTool:
         if handles:
             self.discovered_by = "listing"
         else:
-            self.search_note = self._build_no_results_note(tags)
-            logger.warning(self.search_note)
+            handles, self.discovered_by = self._discover_via_web(keywords or " ".join(tags) or query, max_profiles)
+            self.search_note = None if handles else self._build_no_results_note(tags)
+            if self.search_note:
+                logger.warning(self.search_note)
 
         return self._finalize_profiles(handles, max_profiles)
+
+    def _discover_via_web(
+        self, query: str, max_profiles: int
+    ) -> tuple[list[str], str]:
+        """Web-search fallback (Firecrawl 1st -> Gemini/Groq 2nd) when TikTok blocks listing."""
+        from s_q_ali_media_downloader.agent.tools import firecrawl_client
+        from s_q_ali_media_downloader.agent.tools import social_judge as judge
+
+        fc_key = firecrawl_client.firecrawl_key()
+        if fc_key:
+            try:
+                hits = firecrawl_client.search(
+                    f"site:tiktok.com/@ {query}",
+                    limit=min(10, max(5, max_profiles)),
+                    api_key=fc_key,
+                )
+                blob = "\n".join(
+                    f"{h.url} {h.title} {h.description} {h.markdown}" for h in hits
+                )
+                found = self._parse_seed_handles(blob)
+                if found:
+                    return found[:max_profiles], "firecrawl"
+            except Exception as exc:
+                logger.info("Firecrawl TikTok search fallback failed: %s", exc)
+
+        gemini = judge.gemini_key()
+        groq = judge.groq_key()
+        prompt = (
+            f"Search the web for TikTok creators posting about: {query}.\n"
+            "List their https://www.tiktok.com/@handle profile URLs, one per line."
+        )
+        if gemini:
+            for model in judge.gemini_models(judge.GEMINI_MODEL):
+                try:
+                    text, sources = judge._ask_gemini_search(prompt, gemini, model)
+                    found = self._parse_seed_handles(text + "\n" + "\n".join(sources))
+                    if found:
+                        return found[:max_profiles], "gemini"
+                except Exception as exc:
+                    logger.info("Gemini TikTok search fallback (%s) failed: %s", model, exc)
+        if groq:
+            try:
+                text, sources = judge._ask_groq_search(
+                    prompt, groq, judge.GROQ_SEARCH_MODEL
+                )
+                found = self._parse_seed_handles(text + "\n" + "\n".join(sources))
+                if found:
+                    return found[:max_profiles], "groq"
+            except Exception as exc:
+                logger.info("Groq TikTok search fallback failed: %s", exc)
+        return [], ""
 
     # ------------------------------------------------------------------
     # Tier 1: yt-dlp

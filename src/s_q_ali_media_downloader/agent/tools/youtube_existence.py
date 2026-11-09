@@ -15,6 +15,7 @@ import time
 from collections.abc import Callable
 from difflib import SequenceMatcher
 from typing import ClassVar
+from urllib.parse import unquote
 
 import httpx
 
@@ -31,6 +32,12 @@ logger = logging.getLogger(__name__)
 
 YOUTUBE_URL_PATTERN = re.compile(
     r"(?:https?://)?(?:www\.|m\.)?(?:youtube\.com/(?:@|c/|user/|channel/)[A-Za-z0-9\._\-]{2,60}|youtu\.be/[A-Za-z0-9\._\-]{2,60})/?",
+    re.IGNORECASE,
+)
+
+
+YOUTUBE_TEXT_HANDLE_PATTERN = re.compile(
+    r"\b(?:yt|youtube)\b\s*[:@]\s*@?([A-Za-z0-9][A-Za-z0-9\._\-]{2,39})",
     re.IGNORECASE,
 )
 
@@ -103,6 +110,10 @@ class YouTubeExistenceTool:
         # ---- 1. Bio link scan (strongest signal) ----
         bio = profile.bio or ""
         yt_matches = YOUTUBE_URL_PATTERN.findall(bio)
+        if not yt_matches:
+            txt_match = YOUTUBE_TEXT_HANDLE_PATTERN.search(bio)
+            if txt_match:
+                yt_matches = [f"https://www.youtube.com/@{txt_match.group(1).strip('.')}"]
         if yt_matches:
             url = yt_matches[0].rstrip("/")
             presence.verified_url = url if url.startswith("http") else f"https://{url}"
@@ -186,7 +197,11 @@ class YouTubeExistenceTool:
                 name_similarity(profile.nickname, channel.title),
                 name_similarity(profile.handle, channel.handle or ""),
             )
-            if score > best_score:
+            if (1 if score >= 0.75 else 0, getattr(channel, "subscribers", 0) if score >= 0.75 else 0, score) > (
+                1 if best_score >= 0.75 else 0,
+                getattr(best, "subscribers", 0) if best is not None and best_score >= 0.75 else 0,
+                best_score,
+            ):
                 best, best_score = channel, score
 
         if best is None or best_score < 0.6:
@@ -249,7 +264,7 @@ class YouTubeExistenceTool:
                 resp = client.get(channel_url.rstrip("/") + "/about")
                 if resp.status_code != 200:
                     return False
-                html = resp.text.lower()
+                html = unquote(resp.text).lower()
                 return f"tiktok.com/@{tiktok_handle.lower()}" in html
         except Exception as e:
             logger.debug(f"Backlink check failed for {channel_url}: {e}")

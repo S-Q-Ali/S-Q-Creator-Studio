@@ -145,7 +145,27 @@ def discover(
     # Ask the agent once per channel. The bio may list one platform and the
     # model can propose the rest; a missing key only matters when it is the
     # only source of candidates.
-    if api_key or judge.any_key() or not candidates:
+    found_bio_platforms = {p for p in PLATFORMS if candidates.get(p)}
+    if found_bio_platforms >= set(PLATFORMS):
+        say("All 3 platforms (Facebook, Instagram, TikTok) resolved from creator bio. Skipping AI & browser probes.")
+        for platform in PLATFORMS:
+            url = (candidates.get(platform) or [""])[0]
+            result.platforms.append(
+                PlatformOutcome(
+                    platform=platform,
+                    verdict=Verdict.FOUND.value,
+                    url=url,
+                    display_name=record.title,
+                    evidence=["bio_link", "creator_declared"],
+                    detail="verified directly from creator bio",
+                    source=SOURCE_BIO,
+                    tier="confirmed",
+                )
+            )
+        return result
+
+    missing_platforms = [p for p in PLATFORMS if not candidates.get(p)]
+    if (api_key or judge.any_key() or not candidates) and missing_platforms:
         say("Asking the AI agent (Gemini first, Groq fallback) ...")
         logger.info(
             "AI hand-off for %s: Gemini first, Groq fallback",
@@ -188,10 +208,29 @@ def discover(
                 record.handle or record.title,
             )
             for platform, urls in proposed.items():
+                if platform in found_bio_platforms:
+                    continue
                 existing = candidates.setdefault(platform, [])
                 for url in urls:
                     if url not in existing:
                         existing.append(url)
+
+    for platform in PLATFORMS:
+        if platform in found_bio_platforms:
+            url = (candidates.get(platform) or [""])[0]
+            say(f"{platform}: confirmed (creator bio) — {url}")
+            result.platforms.append(
+                PlatformOutcome(
+                    platform=platform,
+                    verdict=Verdict.FOUND.value,
+                    url=url,
+                    display_name=record.title,
+                    evidence=["bio_link", "creator_declared"],
+                    detail="verified directly from creator bio",
+                    source=SOURCE_BIO,
+                    tier="confirmed",
+                )
+            )
 
     result.browser_checks = 0
     if agent_checker is not None and getattr(agent_checker, "configured", False):
@@ -211,6 +250,8 @@ def discover(
 
     checks: dict[str, list[CheckResult]] = {}
     for platform in PLATFORMS:
+        if platform in found_bio_platforms:
+            continue
         urls = candidates.get(platform) or []
         if not urls:
             continue
@@ -231,20 +272,26 @@ def discover(
             )
 
     # The second check: the web is asked about the platforms the browser
-    # could not confirm.
+    # could not confirm. Platforms already found in the creator's bio are excluded.
+    missing_for_second_check = {
+        p: c for p, c in checks.items() if p not in found_bio_platforms
+    }
     reconciled = _second_check(
         session,
         creator,
         record,
-        checks,
+        missing_for_second_check,
         candidates=candidates,
         bio_urls=bio_urls,
         budget=budget if budget is not None else SearchBudget(),
         ops=ops,
         say=say,
+        excluded_platforms=found_bio_platforms,
     )
 
     for platform in PLATFORMS:
+        if platform in found_bio_platforms:
+            continue
         if platform in reconciled:
             result.platforms.append(reconciled[platform])
             continue
@@ -278,6 +325,7 @@ def _second_check(
     budget: SearchBudget,
     ops: Ops | None,
     say,
+    excluded_platforms: set[str] | None = None,
 ) -> dict[str, PlatformOutcome]:
     """Ask the web about the platforms the browser could not confirm.
 
@@ -287,8 +335,11 @@ def _second_check(
     The URL the web names is opened in the browser too, and the two
     answers are reconciled into one verdict.
     """
+    excluded = excluded_platforms or set()
     wanted = []
     for platform in PLATFORMS:
+        if platform in excluded:
+            continue
         results = checks.get(platform) or []
         if needs_the_second_check(
             confirmed=any(r.verdict is Verdict.FOUND for r in results),

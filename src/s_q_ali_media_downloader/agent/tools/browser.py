@@ -61,6 +61,28 @@ CONSENT_SELECTORS = (
 #: the videos it lists, and those belong to other creators.
 _LINK_JS = "els => els.map(e => e.href)"
 
+#: Extracts external links stored inside YouTube's ytInitialData object even
+#: when the channel header hides them behind the '...more links' modal button.
+_YT_INITIAL_LINKS_JS = """() => {
+  try {
+    const raw = JSON.stringify(window.ytInitialData || {});
+    const out = [];
+    const redirectRe = /https?:\\\\?\\/\\\\?\\/(?:www\\.)?youtube\\.com\\\\?\\/redirect\\?[^"'\\s<>]+/gi;
+    for (const m of raw.matchAll(redirectRe)) {
+      out.push(m[0].replace(/\\\\\\//g, '/').replace(/\\\\u0026/g, '&'));
+    }
+    const bareRe = /(?:https?:\\\\?\\/\\\\?\\/)?(?:www\\.)?(?:instagram\\.com|facebook\\.com|fb\\.com|tiktok\\.com)\\/[A-Za-z0-9_.@\\/-]{2,80}/gi;
+    for (const m of raw.matchAll(bareRe)) {
+      let u = m[0].replace(/\\\\\\//g, '/');
+      if (!u.startsWith('http')) u = 'https://' + u;
+      out.push(u);
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}"""
+
 #: The page's own description of itself. A rendered profile page carries the
 #: account's name, its handle and its follower count here, which is far more
 #: reliable than scraping the text.
@@ -418,6 +440,7 @@ class BrowserSession:
 
             page.wait_for_timeout(self.settle_ms if wait_ms is None else wait_ms)
             self._pass_consent_wall(page, url)
+            self._expand_youtube_about(page, url)
             return self._read(page, url)
         finally:
             try:
@@ -450,6 +473,22 @@ class BrowserSession:
                 raise PageUnavailable(f"Could not re-read {url}: {exc}") from exc
             return
 
+    def _expand_youtube_about(self, page, url: str) -> None:
+        """Open YouTube's channel About modal when visiting a channel /about URL."""
+        if "youtube.com/" not in (url or "").lower():
+            return
+        for selector in (
+            "yt-description-preview-view-model",
+            "#page-header button[aria-label*='more']",
+            "tp-yt-paper-button#more",
+        ):
+            try:
+                page.click(selector, timeout=1500)
+                page.wait_for_timeout(800)
+                break
+            except Exception:
+                logger.debug("youtube about modal click skipped: %s", selector)
+
     def _read(self, page, url: str) -> Page:
         try:
             title = page.title()
@@ -464,6 +503,10 @@ class BrowserSession:
             hrefs = page.eval_on_selector_all("a[href]", _LINK_JS)
             for href in hrefs or []:
                 links.append(str(href))
+            if "youtube.com/" in (url or "").lower():
+                for extra in page.evaluate(_YT_INITIAL_LINKS_JS) or []:
+                    if extra and str(extra) not in links:
+                        links.append(str(extra))
         except Exception:
             links = []
         meta: dict[str, str] = {}
