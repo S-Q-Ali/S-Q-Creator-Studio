@@ -1,7 +1,7 @@
 # Graph Report - S Q Ali Media Downloader  (2026-11-10)
 
 ## Corpus Check
-- 364 files · ~568,595 words
+- 364 files · ~568,636 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 63 file(s) not represented in the graph (top: .ttf 54, (none) 2, .onnx 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `09c52476`
+- Built from commit: `2c170754`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
