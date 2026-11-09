@@ -317,21 +317,24 @@ class MainWindow(QMainWindow):
             "Playlists, channels and profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
-        row_shorts = QHBoxLayout()
-        row_shorts.setSpacing(10)
         self.chk_shorts = QCheckBox("Also fetch Shorts")
         self.chk_shorts.setChecked(True)
         self.chk_shorts.setToolTip(
             "A YouTube channel's Shorts live in their own tab. Turn this off to "
             "fetch only the long videos."
         )
-        row_shorts.addWidget(self.chk_shorts)
+        pl.addWidget(self.chk_shorts)
+
+        row_shorts = QHBoxLayout()
+        row_shorts.setSpacing(8)
+        lbl_sort = QLabel("Shorts Sort:")
+        lbl_sort.setProperty("role", "hint")
+        row_shorts.addWidget(lbl_sort)
         self.combo_shorts_sort = QComboBox()
-        self.combo_shorts_sort.addItems(["Latest (Default)", "Popular", "Oldest"])
+        self.combo_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
         self.combo_shorts_sort.setToolTip("Sorting order for YouTube Shorts tab.")
         self.chk_shorts.toggled.connect(self.combo_shorts_sort.setEnabled)
-        row_shorts.addWidget(self.combo_shorts_sort)
-        row_shorts.addStretch(1)
+        row_shorts.addWidget(self.combo_shorts_sort, 1)
         pl.addLayout(row_shorts)
         self.source_stack.addWidget(page_links)
 
@@ -368,21 +371,18 @@ class MainWindow(QMainWindow):
         lbl_shorts_sort = self._section("SHORTS SORT")
         col.addWidget(lbl_shorts_sort)
         self.combo_account_shorts_sort = QComboBox()
-        self.combo_account_shorts_sort.addItems(["Latest (Default)", "Popular", "Oldest"])
+        self.combo_account_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
         self.combo_account_shorts_sort.setToolTip("Target sorting for YouTube channel Shorts tab.")
         col.addWidget(self.combo_account_shorts_sort)
         pair.addLayout(col, 1)
 
-        col = QVBoxLayout()
-        col.setSpacing(6)
-        col.addWidget(QLabel(" "))
+        pa.addLayout(pair)
+        pa.addSpacing(8)
+
         self.btn_fetch = QPushButton("Get URLs")
         self.btn_fetch.setProperty("kind", "primary")
         self.btn_fetch.clicked.connect(self.fetch_account)
-        col.addWidget(self.btn_fetch)
-        pair.addLayout(col, 1)
-
-        pa.addLayout(pair)
+        pa.addWidget(self.btn_fetch)
         pa.addSpacing(10)
 
         note = QLabel(
