@@ -317,13 +317,19 @@ class MainWindow(QMainWindow):
             "Playlists, channels and profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
-        self.chk_shorts = QCheckBox("Also fetch Shorts")
-        self.chk_shorts.setChecked(True)
-        self.chk_shorts.setToolTip(
-            "A YouTube channel's Shorts live in their own tab. Turn this off to "
-            "fetch only the long videos."
+
+        row_filter = QHBoxLayout()
+        row_filter.setSpacing(8)
+        lbl_vtype = QLabel("Video Type:")
+        lbl_vtype.setProperty("role", "hint")
+        row_filter.addWidget(lbl_vtype)
+        self.combo_video_type = QComboBox()
+        self.combo_video_type.addItems(["All Videos", "Shorts only", "Long-form only"])
+        self.combo_video_type.setToolTip(
+            "Filter channel videos: All Videos (both), Shorts only, or Long-form only."
         )
-        pl.addWidget(self.chk_shorts)
+        row_filter.addWidget(self.combo_video_type, 1)
+        pl.addLayout(row_filter)
 
         row_shorts = QHBoxLayout()
         row_shorts.setSpacing(8)
@@ -333,9 +339,14 @@ class MainWindow(QMainWindow):
         self.combo_shorts_sort = QComboBox()
         self.combo_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
         self.combo_shorts_sort.setToolTip("Sorting order for YouTube Shorts tab.")
-        self.chk_shorts.toggled.connect(self.combo_shorts_sort.setEnabled)
         row_shorts.addWidget(self.combo_shorts_sort, 1)
         pl.addLayout(row_shorts)
+
+        def _on_links_vtype_changed():
+            is_long = self.combo_video_type.currentText() == "Long-form only"
+            self.combo_shorts_sort.setEnabled(not is_long)
+
+        self.combo_video_type.currentIndexChanged.connect(lambda _: _on_links_vtype_changed())
         self.source_stack.addWidget(page_links)
 
         page_account = QWidget()
@@ -368,15 +379,36 @@ class MainWindow(QMainWindow):
 
         col = QVBoxLayout()
         col.setSpacing(6)
-        lbl_shorts_sort = self._section("SHORTS SORT")
-        col.addWidget(lbl_shorts_sort)
-        self.combo_account_shorts_sort = QComboBox()
-        self.combo_account_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
-        self.combo_account_shorts_sort.setToolTip("Target sorting for YouTube channel Shorts tab.")
-        col.addWidget(self.combo_account_shorts_sort)
+        lbl_vtype_acct = self._section("VIDEO TYPE")
+        col.addWidget(lbl_vtype_acct)
+        self.combo_account_video_type = QComboBox()
+        self.combo_account_video_type.addItems(["All Videos", "Shorts only", "Long-form only"])
+        self.combo_account_video_type.setToolTip(
+            "Filter channel videos: All Videos (both), Shorts only, or Long-form only."
+        )
+        lbl_vtype_acct.setBuddy(self.combo_account_video_type)
+        col.addWidget(self.combo_account_video_type)
         pair.addLayout(col, 1)
 
         pa.addLayout(pair)
+        pa.addSpacing(8)
+
+        row_acct_sort = QHBoxLayout()
+        row_acct_sort.setSpacing(8)
+        lbl_sort_acct = QLabel("Shorts Sort:")
+        lbl_sort_acct.setProperty("role", "hint")
+        row_acct_sort.addWidget(lbl_sort_acct)
+        self.combo_account_shorts_sort = QComboBox()
+        self.combo_account_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
+        self.combo_account_shorts_sort.setToolTip("Target sorting for YouTube channel Shorts tab.")
+        row_acct_sort.addWidget(self.combo_account_shorts_sort, 1)
+        pa.addLayout(row_acct_sort)
+
+        def _on_acct_vtype_changed():
+            is_long = self.combo_account_video_type.currentText() == "Long-form only"
+            self.combo_account_shorts_sort.setEnabled(not is_long)
+
+        self.combo_account_video_type.currentIndexChanged.connect(lambda _: _on_acct_vtype_changed())
         pa.addSpacing(8)
 
         self.btn_fetch = QPushButton("Get URLs")
@@ -511,6 +543,7 @@ class MainWindow(QMainWindow):
         chips.addStretch(1)
 
         self.select_all = QCheckBox("Select all")
+        self.chk_shorts = self.select_all
         self.select_all.stateChanged.connect(self.toggle_select_all)
         chips.addWidget(self.select_all, 0, Qt.AlignVCenter)
         hl.addLayout(chips)
@@ -866,12 +899,15 @@ class MainWindow(QMainWindow):
         if is_youtube_channel_url(text) or is_youtube_playlist_url(text):
             normalized = normalize_youtube_channel_url(text)
             sort_mode = self.combo_account_shorts_sort.currentText().split()[0].lower()
+            raw_vtype = self.combo_account_video_type.currentText().lower()
+            vtype = "shorts" if "short" in raw_vtype else ("long" if "long" in raw_vtype else "all")
             self.fetcher = YouTubeFetchThread(
                 normalized,
                 limit,
                 self,
-                include_shorts=True,
+                include_shorts=(vtype != "long"),
                 shorts_sort=sort_mode,
+                video_type=vtype,
             )
             self._start_fetcher(
                 self.fetcher,
@@ -1025,12 +1061,15 @@ class MainWindow(QMainWindow):
         if is_facebook_page_url(url):
             return FacebookFetchThread(url, limit, self)
         sort_mode = self.combo_shorts_sort.currentText().split()[0].lower()
+        raw_vtype = self.combo_video_type.currentText().lower()
+        vtype = "shorts" if "short" in raw_vtype else ("long" if "long" in raw_vtype else "all")
         return YouTubeFetchThread(
             url,
             limit,
             self,
-            include_shorts=self.chk_shorts.isChecked(),
+            include_shorts=(vtype != "long"),
             shorts_sort=sort_mode,
+            video_type=vtype,
         )
 
     def on_youtube_found(self, urls, label):

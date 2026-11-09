@@ -461,6 +461,17 @@ def normalize_youtube_channel_url(url):
     return url
 
 
+def clean_youtube_channel_base(url: str) -> str:
+    """Strips subpaths like /shorts, /videos, /featured, /streams from a channel URL."""
+    url = normalize_youtube_channel_url(url.strip())
+    return re.sub(
+        r"/(shorts|videos|featured|streams|community|podcasts)/?$",
+        "",
+        url.rstrip("/"),
+        flags=re.IGNORECASE,
+    )
+
+
 def platform_of(url):
     low = url.strip().lower()
     if re.search(r"(^|[./])tiktok\.com", low):
@@ -564,14 +575,16 @@ class YouTubeFetchThread(QThread):
         url,
         limit=MAX_ACCOUNT_VIDEOS,
         parent=None,
-        include_shorts=False,
+        include_shorts=True,
         shorts_sort="latest",
+        video_type="all",
     ):
         super().__init__(parent)
         self.url = url
         self.limit = max(1, min(int(limit), 500))
         self.include_shorts = include_shorts
         self.shorts_sort = (shorts_sort or "latest").strip().lower()
+        self.video_type = (video_type or "all").strip().lower()
 
     def _fetch_sorted_shorts(self, base_url: str, sort_mode: str, limit: int) -> list[str]:
         """Fetch popular or oldest Shorts directly via YouTube InnerTube continuation chips."""
@@ -588,7 +601,8 @@ class YouTubeFetchThread(QThread):
             ),
             "Accept-Language": "en-US,en;q=0.9",
         }
-        shorts_url = f"{base_url.rstrip('/')}/shorts"
+        clean_base = clean_youtube_channel_base(base_url)
+        shorts_url = f"{clean_base}/shorts"
         try:
             resp = httpx.get(shorts_url, headers=headers, timeout=12.0, follow_redirects=True)
             if resp.status_code != 200:
@@ -682,7 +696,18 @@ class YouTubeFetchThread(QThread):
         """
         if not is_youtube_channel_url(self.url):
             return [self.url]
-        base = self.url.rstrip("/")
+        clean_url = self.url.rstrip("/")
+        explicit_shorts = clean_url.lower().endswith("/shorts")
+        explicit_videos = clean_url.lower().endswith("/videos")
+        base = clean_youtube_channel_base(self.url)
+
+        # Explicit sub-tab in URL overrides generic "all"
+        if explicit_shorts or self.video_type == "shorts":
+            return [f"{base}/shorts"]
+        if explicit_videos or self.video_type in ("videos", "long", "long-form"):
+            return [f"{base}/videos"]
+
+        # Default "all": Videos first, then Shorts if include_shorts is True
         targets = [f"{base}/videos"]
         if self.include_shorts:
             targets.append(f"{base}/shorts")
@@ -702,9 +727,10 @@ class YouTubeFetchThread(QThread):
         }
         urls: list[str] = []
         label = ""
+        base_channel = clean_youtube_channel_base(self.url)
         for target_idx, target in enumerate(self._targets()):
             if target.endswith("/shorts") and self.shorts_sort in ("popular", "oldest"):
-                sorted_shorts = self._fetch_sorted_shorts(self.url, self.shorts_sort, self.limit)
+                sorted_shorts = self._fetch_sorted_shorts(base_channel, self.shorts_sort, self.limit)
                 if sorted_shorts:
                     for s_url in sorted_shorts:
                         if s_url not in urls:

@@ -2,7 +2,43 @@
 
 import pytest
 
-from s_q_ali_media_downloader.engine import YouTubeFetchThread
+from s_q_ali_media_downloader.engine import (
+    YouTubeFetchThread,
+    clean_youtube_channel_base,
+)
+
+
+def test_clean_youtube_channel_base():
+    assert clean_youtube_channel_base("https://www.youtube.com/@realadamrose/shorts") == "https://www.youtube.com/@realadamrose"
+    assert clean_youtube_channel_base("https://www.youtube.com/@realadamrose/videos/") == "https://www.youtube.com/@realadamrose"
+    assert clean_youtube_channel_base("https://www.youtube.com/@realadamrose/featured") == "https://www.youtube.com/@realadamrose"
+    assert clean_youtube_channel_base("https://www.youtube.com/@realadamrose") == "https://www.youtube.com/@realadamrose"
+    assert clean_youtube_channel_base("https://www.youtube.com/channel/UC1234567890123456789012/shorts") == "https://www.youtube.com/channel/UC1234567890123456789012"
+
+
+def test_youtube_fetch_thread_video_type_targets():
+    # video_type="shorts" targets ONLY /shorts
+    t_shorts = YouTubeFetchThread("https://www.youtube.com/@realadamrose", limit=10, video_type="shorts")
+    assert t_shorts._targets() == ["https://www.youtube.com/@realadamrose/shorts"]
+
+    # video_type="long" targets ONLY /videos
+    t_long = YouTubeFetchThread("https://www.youtube.com/@realadamrose", limit=10, video_type="long")
+    assert t_long._targets() == ["https://www.youtube.com/@realadamrose/videos"]
+
+    # video_type="all" targets both /videos and /shorts
+    t_all = YouTubeFetchThread("https://www.youtube.com/@realadamrose", limit=10, video_type="all")
+    assert t_all._targets() == [
+        "https://www.youtube.com/@realadamrose/videos",
+        "https://www.youtube.com/@realadamrose/shorts",
+    ]
+
+    # Explicit /shorts URL in url automatically targets /shorts
+    t_explicit_shorts = YouTubeFetchThread("https://www.youtube.com/@realadamrose/shorts", limit=10, video_type="all")
+    assert t_explicit_shorts._targets() == ["https://www.youtube.com/@realadamrose/shorts"]
+
+    # Explicit /videos URL in url automatically targets /videos
+    t_explicit_videos = YouTubeFetchThread("https://www.youtube.com/@realadamrose/videos", limit=10, video_type="all")
+    assert t_explicit_videos._targets() == ["https://www.youtube.com/@realadamrose/videos"]
 
 
 def test_youtube_fetch_thread_stores_shorts_sort():
