@@ -578,6 +578,7 @@ class YouTubeFetchThread(QThread):
         import json
         import re
         import urllib.parse
+
         import httpx
 
         headers = {
