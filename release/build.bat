@@ -13,7 +13,8 @@ rem  project's virtualenv when there is one, the Python on the PATH
 rem  otherwise, because a build machine (CI) has no source\venv.
 rem ============================================================
 
-set "PYTHON_EXE=%~dp0..\source\venv\Scripts\python.exe"
+set "PYTHON_EXE=%~dp0..\.venv\Scripts\python.exe"
+if not exist "%PYTHON_EXE%" set "PYTHON_EXE=%~dp0..\source\venv\Scripts\python.exe"
 if not exist "%PYTHON_EXE%" set "PYTHON_EXE=python"
 
 "%PYTHON_EXE%" "%~dp0build.py" %*
