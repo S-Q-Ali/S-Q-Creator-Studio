@@ -201,6 +201,15 @@ def _spotify_client():
         return _SPOTIFY
 
     try:
+        # spotapi 1.2.8 unconditionally imports unused persistence backends
+        # (redis, pymongo) in spotapi.utils.saver at import time without
+        # declaring them as dependencies. Provide empty module stubs so
+        # anonymous read-only Spotify resolution does not fail with ModuleNotFoundError.
+        import sys
+        import types
+
+        sys.modules.setdefault("redis", types.ModuleType("redis"))
+        sys.modules.setdefault("pymongo", types.ModuleType("pymongo"))
         from SpotipyFree import Spotify
     except ImportError as exc:
         raise MusicSourceError(
