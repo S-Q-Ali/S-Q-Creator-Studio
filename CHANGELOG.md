@@ -3,6 +3,31 @@
 All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.20.0] — 2026-11-10
+
+### Added
+
+- **Multi-aspect ratio reframing in Vertical Studio (`9:16`, `1:1`, `4:5`).**
+  - Added aspect ratio selector dropdown (`9:16 (Vertical)`, `1:1 (Square)`, `4:5 (Portrait)`) beside the reframe checkbox in Vertical Studio.
+  - Crop window and output dimensions scale smoothly to target ratios with exact macroblock alignment (zero distortion).
+  - AI subject tracking (YuNet + NanoDet) smoothly frames the subject across all three aspect ratios.
+- **YouTube Shorts sorting & Video Type filtering for channel scraping.**
+  - Added `Video Type` filter: `All Videos` (both), `Shorts only` (`/@handle/shorts`), and `Long-form only` (`/@handle/videos`).
+  - Added `Shorts Sort` control: `Latest (Default)`, `Popular` (view count first), and `Oldest` using InnerTube continuation tokens without API keys.
+  - Automatic URL sanitization: pasting `/@handle/shorts` or `/@handle/videos` cleanly targets the requested feed.
+
+### Changed
+
+- **Cleaned up Paste links tab interface.**
+  - Removed redundant channel filtering dropdowns from `Paste links` tab; scraping controls are now cleanly centralized in `Account based` tab.
+- **Regenerated all repository proof screenshots.**
+  - Added `studio.png` to automated tracking and updated all screenshots in `screenshots/` with the latest dark glass interface.
+
+### Fixed
+
+- **Release build wrapper virtualenv detection.**
+  - Updated `release/build.bat` to detect and run `.venv\Scripts\python.exe` before falling back to `source\venv` or system `python`.
+
 ## [2.19.0] — 2026-11-08
 
 ### Changed

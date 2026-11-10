@@ -55,6 +55,7 @@ PAGES = {
 TRACKED = {
     "interface.png": ("download", (1440, 900), "comfortable"),
     "music.png": ("music", (1440, 900), "comfortable"),
+    "studio.png": ("studio", (1440, 900), "comfortable"),
     "agent.png": ("agent", (1440, 900), "comfortable"),
     "social-discovery.png": ("social", (1440, 900), "comfortable"),
     "settings.png": ("settings", (1440, 900), "comfortable"),
