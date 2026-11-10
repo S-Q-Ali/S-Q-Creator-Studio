@@ -317,36 +317,6 @@ class MainWindow(QMainWindow):
             "Playlists, channels and profiles expand into videos automatically."
         )
         pl.addWidget(self.links)
-
-        row_filter = QHBoxLayout()
-        row_filter.setSpacing(8)
-        lbl_vtype = QLabel("Video Type:")
-        lbl_vtype.setProperty("role", "hint")
-        row_filter.addWidget(lbl_vtype)
-        self.combo_video_type = QComboBox()
-        self.combo_video_type.addItems(["All Videos", "Shorts only", "Long-form only"])
-        self.combo_video_type.setToolTip(
-            "Filter channel videos: All Videos (both), Shorts only, or Long-form only."
-        )
-        row_filter.addWidget(self.combo_video_type, 1)
-        pl.addLayout(row_filter)
-
-        row_shorts = QHBoxLayout()
-        row_shorts.setSpacing(8)
-        lbl_sort = QLabel("Shorts Sort:")
-        lbl_sort.setProperty("role", "hint")
-        row_shorts.addWidget(lbl_sort)
-        self.combo_shorts_sort = QComboBox()
-        self.combo_shorts_sort.addItems(["Latest", "Popular", "Oldest"])
-        self.combo_shorts_sort.setToolTip("Sorting order for YouTube Shorts tab.")
-        row_shorts.addWidget(self.combo_shorts_sort, 1)
-        pl.addLayout(row_shorts)
-
-        def _on_links_vtype_changed():
-            is_long = self.combo_video_type.currentText() == "Long-form only"
-            self.combo_shorts_sort.setEnabled(not is_long)
-
-        self.combo_video_type.currentIndexChanged.connect(lambda _: _on_links_vtype_changed())
         self.source_stack.addWidget(page_links)
 
         page_account = QWidget()
@@ -1060,8 +1030,16 @@ class MainWindow(QMainWindow):
             return InstagramFetchThread(url, limit, self)
         if is_facebook_page_url(url):
             return FacebookFetchThread(url, limit, self)
-        sort_mode = self.combo_shorts_sort.currentText().split()[0].lower()
-        raw_vtype = self.combo_video_type.currentText().lower()
+        sort_mode = (
+            self.combo_account_shorts_sort.currentText().split()[0].lower()
+            if hasattr(self, "combo_account_shorts_sort")
+            else "latest"
+        )
+        raw_vtype = (
+            self.combo_account_video_type.currentText().lower()
+            if hasattr(self, "combo_account_video_type")
+            else "all"
+        )
         vtype = "shorts" if "short" in raw_vtype else ("long" if "long" in raw_vtype else "all")
         return YouTubeFetchThread(
             url,
