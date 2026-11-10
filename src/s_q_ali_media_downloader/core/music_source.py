@@ -19,6 +19,10 @@ SPOTIFY_URL_RE = re.compile(
     r"(?P<kind>track|album|playlist|artist)/(?P<id>[A-Za-z0-9]+)",
     re.IGNORECASE,
 )
+SPOTIFY_URI_RE = re.compile(
+    r"^spotify:(?P<kind>track|album|playlist|artist):(?P<id>[A-Za-z0-9]+)",
+    re.IGNORECASE,
+)
 YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
 YOUTUBE_CHANNEL_PATHS = ("/@", "/channel/", "/c/", "/user/", "/feed/", "/hashtag/")
 
@@ -56,8 +60,9 @@ def _clean(url: str) -> str:
 
 
 def spotify_kind(url: str) -> str | None:
-    """Return ``track``/``album``/``playlist``/``artist`` for a Spotify URL."""
-    match = SPOTIFY_URL_RE.match(_clean(url))
+    """Return ``track``/``album``/``playlist``/``artist`` for a Spotify URL or URI."""
+    cleaned = _clean(url)
+    match = SPOTIFY_URL_RE.match(cleaned) or SPOTIFY_URI_RE.match(cleaned)
     return match.group("kind").lower() if match else None
 
 
@@ -70,6 +75,8 @@ def classify_url(url: str) -> str | None:
         return "spotify"
 
     host = _host(cleaned)
+    if host == "spotify.link" or host.endswith(".spotify.link"):
+        return "spotify"
     if host == "music.youtube.com":
         return "ytmusic"
     if host.endswith(("youtube.com", "youtube-nocookie.com")) or host == "youtu.be":
@@ -207,11 +214,32 @@ def _spotify_client():
 
 
 def _spotify_ref(url: str) -> tuple[str, str]:
-    """The ``(kind, id)`` pair a Spotify URL points at."""
-    match = SPOTIFY_URL_RE.match(_clean(url))
+    """The ``(kind, id)`` pair a Spotify URL or URI points at."""
+    cleaned = _clean(url)
+    match = SPOTIFY_URL_RE.match(cleaned) or SPOTIFY_URI_RE.match(cleaned)
     if not match:
         raise MusicSourceError("That is not a Spotify track, album or playlist link.")
     return match.group("kind").lower(), match.group("id")
+
+
+def _resolve_spotify_link(url: str) -> str:
+    """Follow a spotify.link redirect to the canonical open.spotify.com URL."""
+    cleaned = _clean(url)
+    if "spotify.link" not in cleaned:
+        return cleaned
+    try:
+        import httpx
+
+        with httpx.Client(follow_redirects=True, timeout=5.0) as client:
+            resp = client.head(cleaned)
+            target = str(resp.url)
+            if "spotify.link" not in target:
+                return target
+            resp = client.get(cleaned)
+            return str(resp.url)
+    except Exception as exc:
+        logger.debug("Failed to resolve spotify.link redirect for %s: %s", cleaned, exc)
+    return cleaned
 
 
 def _as_int(value, default: int = 0) -> int:
@@ -283,17 +311,26 @@ def _readable_rows(items) -> list[dict]:
     return [item for item in (items or []) if isinstance(item, dict)]
 
 
-def _playlist_title(client, ref: str) -> str:
-    """A playlist's name, or an empty string when it cannot be read.
+def _playlist_meta(client, ref: str) -> tuple[str, str]:
+    """A playlist's (name, cover_url), or empty strings when it cannot be read.
 
-    The rows are already in hand; failing to label the folder is not a reason
-    to throw away the playlist.
+    The rows are already in hand; failing to label the folder or read the cover
+    is not a reason to throw away the playlist.
     """
     try:
         meta = client.playlist(ref)
     except Exception:
-        return ""
-    return str(meta.get("name") or "") if isinstance(meta, dict) else ""
+        return "", ""
+    if not isinstance(meta, dict):
+        return "", ""
+    name = str(meta.get("name") or "")
+    cover = _album_cover(meta)
+    return name, cover
+
+
+def _playlist_title(client, ref: str) -> str:
+    """A playlist's name, or an empty string when it cannot be read."""
+    return _playlist_meta(client, ref)[0]
 
 
 def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
@@ -315,9 +352,21 @@ def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
         # The library pages a playlist itself, so one call holds every row.
         page = client.playlist_items(ref, limit=-1, offset=0) or {}
         rows = _readable_rows(page.get("items"))
-        collection = _playlist_title(client, ref)
+        total = _as_int(page.get("total"))
+        if total > 0 and len(rows) < total:
+            logger.warning(
+                "Spotify playlist %s reported %d total tracks, but returned %d rows.",
+                ref,
+                total,
+                len(rows),
+            )
+            if not rows:
+                raise MusicSourceError(
+                    f"Spotify playlist reported {total} tracks, but none could be read."
+                )
+        collection, cover = _playlist_meta(client, ref)
         return [
-            _spotify_track(row["track"], collection=collection)
+            _spotify_track(row["track"], cover=cover, collection=collection)
             for row in rows
             if isinstance(row.get("track"), dict)
         ]
@@ -327,8 +376,9 @@ def _spotify_tracks(client, kind: str, ref: str) -> list[MusicTrack]:
 
 
 def resolve_spotify(url: str) -> list[MusicTrack]:
-    """Resolve a Spotify link into tracks that carry YouTube search URLs."""
-    kind, ref = _spotify_ref(url)
+    """Resolve a Spotify link or URI into tracks that carry YouTube search URLs."""
+    resolved_url = _resolve_spotify_link(url)
+    kind, ref = _spotify_ref(resolved_url)
     client = _spotify_client()
     try:
         tracks = _spotify_tracks(client, kind, ref)

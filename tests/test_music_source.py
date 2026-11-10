@@ -1,5 +1,7 @@
 """Music URL classification — pure helpers, no network."""
 
+import pytest
+
 from s_q_ali_media_downloader.core.music_source import (
     MusicTrack,
     build_yt_search,
@@ -355,4 +357,94 @@ def test_resolve_spotify_reports_a_failed_lookup(monkeypatch):
         # on its own: say which link failed and what they can do.
         assert "Spotify" in str(exc)
         assert "track" in str(exc).lower()
+
+
+def test_spotify_uri_classification_and_resolution(monkeypatch):
+    from s_q_ali_media_downloader.core import music_source
+
+    assert music_source.spotify_kind("spotify:track:0VjIjW4GlUZAMYd2vXMi3b") == "track"
+    assert music_source.spotify_kind("spotify:album:abc") == "album"
+    assert music_source.spotify_kind("spotify:playlist:abc") == "playlist"
+    assert music_source.classify_url("spotify:track:0VjIjW4GlUZAMYd2vXMi3b") == "spotify"
+    assert music_source.classify_url("https://spotify.link/AbCdEf") == "spotify"
+
+    client = _FakeSpotify()
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("spotify:track:0VjIjW4GlUZAMYd2vXMi3b")
+    assert [t.title for t in tracks] == ["Blinding Lights"]
+
+
+def test_spotify_short_link_redirect(monkeypatch):
+    from s_q_ali_media_downloader.core import music_source
+
+    # Mock redirect from spotify.link to open.spotify.com
+    monkeypatch.setattr(
+        music_source,
+        "_resolve_spotify_link",
+        lambda url: "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b"
+        if "spotify.link" in url
+        else url,
+    )
+    client = _FakeSpotify()
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://spotify.link/AbCdEf")
+    assert [t.title for t in tracks] == ["Blinding Lights"]
+
+
+def test_spotify_playlist_gives_tracks_playlist_artwork(monkeypatch):
+    """Issue #12: Playlist tracks fall back to the playlist's artwork, but not album tag."""
+    from s_q_ali_media_downloader.core import music_source
+
+    playlist_cover = "https://i.scdn.co/image/playlist_cover_123"
+    client = _FakeSpotify(
+        playlist={"name": "Pop Hits", "images": [{"url": playlist_cover}]},
+        playlist_rows=[
+            {
+                "id": "trk1",
+                "name": "Hit Song",
+                "artists": [{"name": "Artist A"}],
+                "album": {"name": "", "images": []},  # No album image on track payload
+            }
+        ],
+    )
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: client)
+    tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/p123")
+    assert len(tracks) == 1
+    track = tracks[0]
+    assert track.title == "Hit Song"
+    assert track.cover_url == playlist_cover
+    assert track.collection == "Pop Hits"
+    assert track.album == ""  # Never put playlist name in ALBUM tag
+
+
+def test_spotify_playlist_truncation_warning_and_empty_check(monkeypatch, caplog):
+    """Issue #10: Warning logged when total > len(rows), raises when 0 rows despite total > 0."""
+    import logging
+
+    from s_q_ali_media_downloader.core import music_source
+
+    # 1. Total > rows, but has some rows -> logs warning
+    class PagingClient(_FakeSpotify):
+        def playlist_items(self, playlist_id, limit=-1, offset=0):
+            return {
+                "items": [{"track": _track_payload(name="OnlyOne")}],
+                "total": 100,
+                "next": False,
+            }
+
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: PagingClient())
+    with caplog.at_level(logging.WARNING):
+        tracks = music_source.resolve_spotify("https://open.spotify.com/playlist/p123")
+    assert len(tracks) == 1
+    assert any("reported 100 total tracks, but returned 1 rows" in msg for msg in caplog.messages)
+
+    # 2. Total > 0 but 0 rows returned -> raises MusicSourceError
+    class EmptyClient(_FakeSpotify):
+        def playlist_items(self, playlist_id, limit=-1, offset=0):
+            return {"items": [], "total": 50, "next": False}
+
+    monkeypatch.setattr(music_source, "_spotify_client", lambda: EmptyClient())
+    with pytest.raises(music_source.MusicSourceError, match="none could be read"):
+        music_source.resolve_spotify("https://open.spotify.com/playlist/p123")
+
 

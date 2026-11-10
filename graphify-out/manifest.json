@@ -2106,9 +2106,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/music_source.py": {
-    "mtime": 1794154042.141493,
-    "seen": 1794155523.372791,
-    "ast_hash": "aa4d3a7d3fe25541f7663b2b0ae1be9c",
+    "mtime": 1794343364.4798436,
+    "seen": 1794343593.003505,
+    "ast_hash": "4e5f3451f6b1b141e4a0efee8cce9629",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/music_tagging.py": {
@@ -2136,9 +2136,9 @@
     "semantic_hash": ""
   },
   "tests/test_music_source.py": {
-    "mtime": 1793634106.5767777,
-    "seen": 1793634911.9440901,
-    "ast_hash": "55554972643a5d9e89f45fcd1865a7e8",
+    "mtime": 1794343448.2374468,
+    "seen": 1794343593.0036178,
+    "ast_hash": "872cc94be02a57e9972da31d8c0ca641",
     "semantic_hash": ""
   },
   "tests/test_music_tagging.py": {
