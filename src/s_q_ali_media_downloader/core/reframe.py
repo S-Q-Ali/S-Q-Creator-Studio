@@ -42,6 +42,13 @@ BODY_NMS = 0.6
 #: the scale to the output size does not stretch the picture.
 CROP_HEIGHT_STEP = 32
 
+#: Supported aspect ratios and their dimensions / suffixes.
+ASPECT_RATIOS = {
+    "9:16": {"num": 9, "den": 16, "step": 32, "suffix": "_9x16", "max_w": 1080, "max_h": 1920},
+    "1:1": {"num": 1, "den": 1, "step": 32, "suffix": "_1x1", "max_w": 1080, "max_h": 1080},
+    "4:5": {"num": 4, "den": 5, "step": 80, "suffix": "_4x5", "max_w": 1080, "max_h": 1350},
+}
+
 #: The vertical file stops at full HD - 60 of those bands, 1080x1920. The
 #: window cut from a 4K film is about a thousand pixels wide, so a taller
 #: output is the same picture in more bytes and more encode time than a
@@ -106,13 +113,18 @@ class RenderResult:
     note: str = ""
 
 
-def crop_window(source_width: int, source_height: int) -> tuple[int, int]:
-    """The largest exact 9:16 window that fits in the frame."""
-    height = (source_height // CROP_HEIGHT_STEP) * CROP_HEIGHT_STEP
-    width = height * 9 // 16
-    if height < CROP_HEIGHT_STEP or width > source_width:
+def crop_window(
+    source_width: int, source_height: int, aspect_ratio: str = "9:16"
+) -> tuple[int, int]:
+    """The largest exact window of target aspect ratio that fits in the frame."""
+    config = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["9:16"])
+    num, den = config["num"], config["den"]
+    step = config["step"]
+    height = (source_height // step) * step
+    width = height * num // den
+    if height < step or width > source_width or width <= 0:
         raise ValueError(
-            f"a {source_width}x{source_height} frame has no 9:16 window in it"
+            f"a {source_width}x{source_height} frame has no {aspect_ratio} window in it"
         )
     return width, height
 
@@ -207,25 +219,26 @@ def write_command_file(path: Path | str, samples: Iterable[Sample]) -> None:
     )
 
 
-def output_size(source_height: int) -> tuple[int, int]:
-    """The vertical size: the source height, never more than full HD.
-
-    The size is cut from the same 18x32 grid as the crop window, so the
-    scale from the window to the output is the same in both directions and
-    the picture is not stretched.
-    """
+def output_size(
+    source_height: int, aspect_ratio: str = "9:16"
+) -> tuple[int, int]:
+    """The output size: bounded by target aspect ratio full HD limits."""
+    if aspect_ratio == "1:1":
+        units = max(1, min(60, round(source_height / 18)))
+        return 18 * units, 18 * units
+    if aspect_ratio == "4:5":
+        units = max(1, min(30, round(source_height / 36)))
+        return 36 * units, 45 * units
     units = max(1, min(MAX_OUTPUT_UNITS, round(source_height / 18)))
     return 18 * units, 32 * units
 
 
-def vertical_output_path(source: str) -> str:
-    """Where the vertical version of a download goes.
-
-    A name the folder already holds - from an earlier run or a file the user
-    put there - is not asked for twice; the next part of it is.
-    """
+def vertical_output_path(source: str, aspect_ratio: str = "9:16") -> str:
+    """Where the reframed version of a download goes."""
     folder, name = os.path.split(source)
-    return output_names.next_part_path(folder, os.path.splitext(name)[0] + "_9x16")
+    config = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["9:16"])
+    suffix = config["suffix"]
+    return output_names.next_part_path(folder, os.path.splitext(name)[0] + suffix)
 
 
 def filter_chain(
@@ -233,6 +246,7 @@ def filter_chain(
     source_width: int,
     source_height: int,
     box: tuple[int, int] | None = None,
+    aspect_ratio: str = "9:16",
 ) -> str:
     """The filter chain: read the path, cut the window out, make it vertical.
 
@@ -240,9 +254,9 @@ def filter_chain(
     bands above and below has to be cut from the picture, or the bands travel
     into the vertical file and the frame is not filled.
     """
-    top, height = _picture_rows(source_width, source_height, box)
-    crop_width, crop_height = crop_window(source_width, height)
-    out_width, out_height = output_size(height)
+    top, height = _picture_rows(source_width, source_height, box, aspect_ratio=aspect_ratio)
+    crop_width, crop_height = crop_window(source_width, height, aspect_ratio=aspect_ratio)
+    out_width, out_height = output_size(height, aspect_ratio=aspect_ratio)
     x = _even((source_width - crop_width) // 2)
     y = _even(top + (height - crop_height) // 2)
     return (
@@ -253,7 +267,10 @@ def filter_chain(
 
 
 def _picture_rows(
-    source_width: int, source_height: int, box: tuple[int, int] | None
+    source_width: int,
+    source_height: int,
+    box: tuple[int, int] | None,
+    aspect_ratio: str = "9:16",
 ) -> tuple[int, int]:
     """The rows the window is cut from, and where they start.
 
@@ -266,7 +283,7 @@ def _picture_rows(
         height = bottom - top + 1
         if height * 2 >= source_height:
             try:
-                crop_window(source_width, height)
+                crop_window(source_width, height, aspect_ratio=aspect_ratio)
             except ValueError:
                 pass
             else:
@@ -369,20 +386,22 @@ def render_vertical(
     box: tuple[int, int] | None = None,
     duration: float = 0.0,
     progress: Callable[[float], None] | None = None,
+    aspect_ratio: str = "9:16",
 ) -> RenderResult:
-    """Render the vertical version of a video beside it.
+    """Render the vertical/reframed version of a video beside it.
 
-    A file that is already vertical, or that has no video at all, is left
+    A file that is already vertical/narrower, or that has no video at all, is left
     alone and says why. So is ``output`` if something is standing at it: this
     writes a new file or nothing.
     """
     if not source_width or not source_height:
         return RenderResult(None, "The video has no picture, only audio.")
-    if not is_landscape(source_width, source_height):
-        return RenderResult(None, "The video is already vertical.")
+    if not is_landscape(source_width, source_height, aspect_ratio=aspect_ratio):
+        msg = "The video is already vertical." if aspect_ratio == "9:16" else f"The video is already {aspect_ratio} or narrower."
+        return RenderResult(None, msg)
 
     try:
-        chain = filter_chain("crop.cmd", source_width, source_height, box)
+        chain = filter_chain("crop.cmd", source_width, source_height, box, aspect_ratio=aspect_ratio)
     except ValueError as exc:
         return RenderResult(None, str(exc))
 
@@ -536,9 +555,13 @@ def duration_seconds(video: str) -> float:
     return count / fps if fps else 0.0
 
 
-def is_landscape(source_width: int, source_height: int) -> bool:
-    """Whether the frame is wide enough that a 9:16 crop adds something."""
-    return source_width * 16 > source_height * 9
+def is_landscape(
+    source_width: int, source_height: int, aspect_ratio: str = "9:16"
+) -> bool:
+    """Whether the frame is wide enough that a crop adds something."""
+    config = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS["9:16"])
+    num, den = config["num"], config["den"]
+    return source_width * den > source_height * num
 
 
 def proxy_command(
@@ -632,6 +655,7 @@ def analyse(
     detector: SubjectDetector | None = None,
     duration: float = 0.0,
     progress: Callable[[float], None] | None = None,
+    aspect_ratio: str = "9:16",
 ) -> tuple[tuple[int, int] | None, list[Sample]]:
     """The picture inside the frame, and the crop path for the window.
 
@@ -652,8 +676,8 @@ def analyse(
         duration=length,
         progress=_share(progress, 0, ANALYSIS_PASSES),
     )
-    _top, picture_height = _picture_rows(width, height, box)
-    crop_width, _height = crop_window(width, picture_height)
+    _top, picture_height = _picture_rows(width, height, box, aspect_ratio=aspect_ratio)
+    crop_width, _height = crop_window(width, picture_height, aspect_ratio=aspect_ratio)
 
     run = runner or _ffmpeg_runner(length, _share(progress, 1, ANALYSIS_PASSES))
     proxy_width = 0

@@ -1232,7 +1232,18 @@ def stage_for_folder(path, folder, report, stopped=None):
 
 
 def run_post_leg(
-    path, *, vertical, split, clips, ffmpeg, duration, report, stage=None, hold=None, progress=None
+    path,
+    *,
+    vertical,
+    split,
+    clips,
+    ffmpeg,
+    duration,
+    report,
+    stage=None,
+    hold=None,
+    progress=None,
+    aspect_ratio="9:16",
 ):
     """The shorts and the vertical versions of one file that is on disk.
 
@@ -1280,6 +1291,7 @@ def run_post_leg(
                     hold=hold_,
                     meter=meter,
                     share=share,
+                    aspect_ratio=aspect_ratio,
                 )
             except Exception as exc:
                 logger.warning("The vertical version failed for %s", piece, exc_info=True)
@@ -1321,8 +1333,8 @@ def split_pieces(path, *, split, clips, ffmpeg, duration, report, stage, hold, m
     return result.outputs or [path]
 
 
-def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0):
-    """The 9:16 version of one file, beside it, with the subject tracked.
+def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0, aspect_ratio="9:16"):
+    """The 9:16 or reframed version of one file, beside it, with the subject tracked.
 
     ``share`` is how much of the parent film's length this file is, so the two
     passes here - three reads of it to find the subject, one to write the
@@ -1334,8 +1346,9 @@ def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0):
     if not width or not height:
         report("This file has no picture to reframe.")
         return
-    if not reframe.is_landscape(width, height):
-        report("This video is already vertical.")
+    if not reframe.is_landscape(width, height, aspect_ratio=aspect_ratio):
+        msg = "This video is already vertical." if aspect_ratio == "9:16" else f"This video is already {aspect_ratio} or narrower."
+        report(msg)
         return
 
     read = meter.price(reframe.ANALYSIS_PASSES * share)
@@ -1343,18 +1356,20 @@ def make_vertical(path, *, ffmpeg, report, stage, hold, meter=None, share=0.0):
 
     hold()
     stage("finding the subject")
-    box, samples = reframe.analyse(path, ffmpeg=ffmpeg, progress=read)
+    box, samples = reframe.analyse(path, ffmpeg=ffmpeg, progress=read, aspect_ratio=aspect_ratio)
     hold()
-    stage("writing the vertical")
+    stage_name = "writing the vertical" if aspect_ratio == "9:16" else f"writing the {aspect_ratio} reframe"
+    stage(stage_name)
     result = reframe.render_vertical(
         path,
-        reframe.vertical_output_path(path),
+        reframe.vertical_output_path(path, aspect_ratio=aspect_ratio),
         width,
         height,
         samples,
         ffmpeg=ffmpeg,
         box=box,
         progress=write,
+        aspect_ratio=aspect_ratio,
     )
     report(result.note)
 
@@ -1773,6 +1788,7 @@ class LocalVideoThread(QThread):
         split=DEFAULT_SPLIT,
         clips=DEFAULT_CLIPS,
         out_dir=None,
+        aspect_ratio="9:16",
         parent=None,
     ):
         super().__init__(parent)
@@ -1781,6 +1797,7 @@ class LocalVideoThread(QThread):
         self.split = split if split in SPLIT_OPTIONS else DEFAULT_SPLIT
         self.clips = max(1, int(clips))
         self.out_dir = (out_dir or "").strip() or None
+        self.aspect_ratio = aspect_ratio
         self._stop = False
         self._percent = 0.0
         self._stage = ""
@@ -1821,6 +1838,7 @@ class LocalVideoThread(QThread):
                         report=self.log.emit,
                         stage=self._named,
                         progress=self._count,
+                        aspect_ratio=self.aspect_ratio,
                     )
                 except Exception as exc:
                     logger.warning("Nothing could be read from %s", path, exc_info=True)

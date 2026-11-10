@@ -176,11 +176,18 @@ class VerticalStudioPage(QWidget):
 
         options = QHBoxLayout()
         options.setSpacing(8)
-        self.vertical = QCheckBox("Make a vertical 9:16 version")
+        self.vertical = QCheckBox("Reframe to")
         self.vertical.setToolTip(
-            "The 9:16 camera follows the subject and cuts the tall frame out of the picture."
+            "The camera follows the subject and cuts the selected frame out of the picture."
         )
         options.addWidget(self.vertical)
+        self.combo_ratio = QComboBox()
+        self.combo_ratio.addItems(["9:16 (Vertical)", "1:1 (Square)", "4:5 (Portrait)"])
+        self.combo_ratio.setMaximumWidth(150)
+        self.combo_ratio.setToolTip("Target aspect ratio for the reframe pass.")
+        self.combo_ratio.setEnabled(self.vertical.isChecked())
+        self.vertical.toggled.connect(self.combo_ratio.setEnabled)
+        options.addWidget(self.combo_ratio)
         options.addSpacing(8)
         lbl_shorts = QLabel("Shorts")
         options.addWidget(lbl_shorts)
@@ -285,6 +292,12 @@ class VerticalStudioPage(QWidget):
         """
         stored = make_settings()
         self.vertical.setChecked(_is_true(stored.value("vertical")))
+        ratio = str(stored.value("aspect_ratio", "") or "").strip()
+        if ratio and hasattr(self, "combo_ratio"):
+            for idx in range(self.combo_ratio.count()):
+                if self.combo_ratio.itemText(idx).startswith(ratio):
+                    self.combo_ratio.setCurrentIndex(idx)
+                    break
         split = stored.value("split")
         self.split.setCurrentText(split if split in SPLIT_OPTIONS else DEFAULT_SPLIT)
         self.clips.setValue(_clip_count(stored.value("clips")))
@@ -445,18 +458,28 @@ class VerticalStudioPage(QWidget):
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self._set_running(True)
+        ratio_choice = self.combo_ratio.currentText().split()[0] if hasattr(self, "combo_ratio") else "9:16"
+        log_vertical = (
+            "vertical 9:16"
+            if self.vertical.isChecked() and ratio_choice == "9:16"
+            else (f"reframe {ratio_choice}" if self.vertical.isChecked() else "no vertical")
+        )
         self._log(
             f"Running {len(self.paths)} file{'s' if len(self.paths) != 1 else ''}: "
-            f"{'vertical 9:16' if self.vertical.isChecked() else 'no vertical'}"
+            f"{log_vertical}"
             f" · shorts {self.split.currentText()}"
             + (f" · into {folder}" if folder else "")
         )
+        thread_kwargs = {}
+        if ratio_choice != "9:16":
+            thread_kwargs["aspect_ratio"] = ratio_choice
         self._thread = LocalVideoThread(
             list(self.paths),
             vertical=self.vertical.isChecked(),
             split=self.split.currentText(),
             clips=self.clips.value(),
             out_dir=folder,
+            **thread_kwargs,
         )
         self._thread.file_started.connect(self._on_file_started)
         self._thread.progress.connect(self._on_progress)

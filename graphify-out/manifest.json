@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1794160686.47278,
-    "seen": 1794162515.1995518,
-    "ast_hash": "bdad77178b742537828e401d4a679032",
+    "mtime": 1794273756.5343792,
+    "seen": 1794274098.0891197,
+    "ast_hash": "2e57d76e167739fa3ba083bbc7e1319e",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/__init__.py": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/engine.py": {
-    "mtime": 1794264380.1746948,
-    "seen": 1794264443.4038725,
-    "ast_hash": "602bc22da713e9430877a1de1489ce11",
+    "mtime": 1794273443.897675,
+    "seen": 1794274098.089195,
+    "ast_hash": "832d4a786898992d2ecdcf85212f34e6",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/theme.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/main_window.py": {
-    "mtime": 1794263869.9570506,
-    "seen": 1794264057.155336,
-    "ast_hash": "cd70717e96af7a6c3eb4b4d849e79cd6",
+    "mtime": 1794272792.7441761,
+    "seen": 1794274098.089205,
+    "ast_hash": "7251bd2e459f62a279ed1651e0254d93",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/widgets.py": {
@@ -2334,9 +2334,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/reframe.py": {
-    "mtime": 1794155511.0792537,
-    "seen": 1794155523.3728018,
-    "ast_hash": "db4ac742772db981ea3838649673c27f",
+    "mtime": 1794273361.7600758,
+    "seen": 1794274098.089188,
+    "ast_hash": "d780025fbf48d9ac64151a260df9eea2",
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/core/shorts.py": {
@@ -2418,9 +2418,9 @@
     "semantic_hash": ""
   },
   "src/s_q_ali_media_downloader/ui/vertical_studio_page.py": {
-    "mtime": 1794155058.7975438,
-    "seen": 1794155523.3728516,
-    "ast_hash": "ec067c2a4233f9b1bf52550ee5f67d58",
+    "mtime": 1794273572.889473,
+    "seen": 1794274098.0892122,
+    "ast_hash": "0adeced3b61cffebc2d162a0cee050b2",
     "semantic_hash": ""
   },
   "tests/test_engine_local_video.py": {
@@ -2577,6 +2577,12 @@
     "mtime": 1794165804.6566722,
     "seen": 1794260902.6575675,
     "ast_hash": "efe68a3f00e2ce75f4b4ad04a84c9e75",
+    "semantic_hash": ""
+  },
+  "tests/test_reframe_aspect_ratios.py": {
+    "mtime": 1794273691.3812068,
+    "seen": 1794274098.0892959,
+    "ast_hash": "6e0d2194b7e1f43e1047f82b9dd7cf34",
     "semantic_hash": ""
   }
 }
