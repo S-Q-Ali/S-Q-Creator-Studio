@@ -12,4 +12,4 @@ pip-audit>=2.10.1
 # fallback works out of the box; the app still runs without it.
 # It exact-pins its whole dependency set (including anyio, mcp, pillow and
 # pypdf), so CI audits requirements.txt instead of the full environment.
-browser-use==0.13.14
+browser-use==1.0.4
