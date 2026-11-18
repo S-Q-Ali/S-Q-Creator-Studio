@@ -52,7 +52,7 @@ dependencies = [
     # the detector models rely on, so the line is pinned to the verified
     # release; the headless wheel carries no GUI libraries, because the app's
     # own GUI is Qt's.
-    "opencv-python-headless==4.14.0.94",
+    "opencv-python-headless==5.0.0.93",
 ]
 
 [project.optional-dependencies]
@@ -69,7 +69,7 @@ dev = [
 # its own dependency set, so it is pinned here at the version the app was built
 # and tested against; the runtime requirements do not carry it.
 agent = [
-    "browser-use==0.13.14",
+    "browser-use==1.0.4",
 ]
 
 [project.urls]
